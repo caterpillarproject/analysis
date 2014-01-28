@@ -13,6 +13,9 @@ import readsnapshots.readsnapHDF5 as rhdf5
 #IMPORT PERSONAL LIBRARIS
 from brendanlib.grifflib import *
 
+# PLEASE SPECIFY
+#halolist = ["H268422"] #LEAVE EMPTY IF YOU WANT ALL HALOS
+halolist = []
 #IMPORTANT STUFF
 hubble = 0.6711
 snapnum = 255
@@ -32,11 +35,12 @@ nvlist = ["NV3"]
 halotypelist = ["BB"]
 levelmaxlist = ["LX11","LX12","LX13","LX14"]
 
-halolist = ["H121869","H140666","H147781","H173411","H1930","H21047",
-"H233776","H241932","H242183","H260266","H268422","H69786","H96624"]
+if len(halolist) == 0:
+    for item in listdir:
+        halolist.append(item.replace(basepath + "caterpillar/halos/","")[:-1])
 
-halolist = ["H268422"]
-
+#sys.exit()
+mask = [False]
 for halo in listdir:
     masslist = []
     vmaxlist = []
@@ -45,12 +49,12 @@ for halo in listdir:
     npfoflist = []
     npsublist = []
 
-
     haloname = halo.split("/")[6]
-    print "----------------------------------------------"
+
+    if len(masslist)>0:
+        print "----------------------------------------------"
+
     for haloin in glob.glob(halo+"/H*_BB_*"):
-   # for haloin in 
-        
         haloparts = haloin.split("/")[7].split("_")
         levelmax = haloparts[5]
         halotype = haloparts[1]
@@ -104,7 +108,6 @@ for halo in listdir:
                     #print ""
                     print "++",haloin.replace("/bigbang/data/AnnaGroup/caterpillar/halos/","")
                     print "+",levelmax,nv
-                    #haloin.replace(basepath+"caterpillar/halos/","")
                     print "MASS: %3.2e" % (submass[mask])
                     print "VMAX: %3.2f" % (s.sub_vmax[mask])
                     print "SUB-NPART: %i6" % (s.sub_len[mask])
