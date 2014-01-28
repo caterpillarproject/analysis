@@ -39,7 +39,6 @@ if len(halolist) == 0:
     for item in listdir:
         halolist.append(item.replace(basepath + "caterpillar/halos/","")[:-1])
 
-#sys.exit()
 mask = [False]
 for halo in listdir:
     masslist = []
@@ -48,20 +47,15 @@ for halo in listdir:
     posylist = []
     npfoflist = []
     npsublist = []
-
+    print "======================================================="
     haloname = halo.split("/")[6]
-
-    if len(masslist)>0:
-        print "----------------------------------------------"
-
     for haloin in glob.glob(halo+"/H*_BB_*"):
         haloparts = haloin.split("/")[7].split("_")
         levelmax = haloparts[5]
         halotype = haloparts[1]
         nv = haloparts[7]
+        outputsdir = haloin+"/outputs"
         if nv in nvlist and halotype in halotypelist and levelmax in levelmaxlist and haloname in halolist:
-            outputsdir = haloin+"/outputs"
-
             if os.path.isdir(outputsdir+"/groups_255/"):
 #               header = rs.snapshot_header(outputsdir+"/snapdir_255/snap_255.0")
                 s = readsubf.subfind_catalog(outputsdir, snapnum)
