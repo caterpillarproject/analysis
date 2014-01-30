@@ -1,5 +1,5 @@
 import numpy as np
-from haloutils import get_numsnaps,get_foldername,find_halo_paths
+from findhalos.haloutils import get_numsnaps,get_foldername,find_halo_paths
 import mergertrees.MTCatalogue as MTC
 import os
 
