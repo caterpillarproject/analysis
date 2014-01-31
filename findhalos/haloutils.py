@@ -10,6 +10,20 @@ def get_numsnaps(outpath):
 def get_foldername(outpath):
     return os.path.basename(os.path.normpath(outpath))
 
+def check_last_subfind_exists(outpath):
+    numsnaps = get_numsnaps(outpath)
+    lastsnap = numsnaps - 1; snapstr = str(lastsnap).zfill(3)
+    group_tab = os.path.exists(outpath+'/outputs/groups_'+snapstr+'/group_tab_'+snapstr+'.0')
+    subhalo_tab = os.path.exists(outpath+'/outputs/groups_'+snapstr+'/subhalo_tab_'+snapstr+'.0')
+    return group_tab and subhalo_tab
+
+def check_last_rockstar_exists(outpath):
+    numsnaps = get_numsnaps(outpath)
+    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+    halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.bin')
+    part_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.particles')
+    return halo_exists and part_exists
+
 def find_halo_paths(basepath="/bigbang/data/AnnaGroup/caterpillar/halos",
                     nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictype="BB",
                     onlychecklastsnap=False,verbose=False):
