@@ -1,1 +1,1 @@
-__all__ = ["profiles","massfn","powerspectrum","findhalos"]
+__all__ = ["profiles","findhalos"]
