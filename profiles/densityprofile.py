@@ -1,7 +1,6 @@
 import numpy as np
 import readsnapshots.readsnap as rs
 from scipy import interpolate
-import methods
 
 def densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,verbose=False,power03=False):
     """
@@ -23,7 +22,7 @@ def densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,verbose=False
         marr = np.zeros(len(rarr))
 
     parttype = 1
-    dr = np.sort(methods.distance(snapPOS[argsorted[haloparts]], halopos))
+    dr = np.sort(np.sqrt(np.sum((snapPOS[argsorted[haloparts]]- halopos)**2,1)))
     
     if verbose:
         print "  Particle type",parttype
