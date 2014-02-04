@@ -30,9 +30,9 @@ for halo in halolist:
             groupmass = s.group_mass[minindex]*10**10/hubble
             groupos = s.group_pos[minindex]
             print haloi.replace(basepath,"")
-            print "Group Position:",groupos
-            print "Candidate FOF Mass: %0.2e" % (groupmass)
-            print "Maximum Subhalo Mass %0.2e" % (max(s.sub_mass*10**10/hubble))
-            print "Contatmination Num.:",contamNR[minindex]
-            print "Contatmination Mass: %0.2e" % (contamMR[minindex]/0.6711)
+            print "FOF With Smallest Contam. Position:",groupos
+            print "FOF With Smallest Contam. Mass: %0.2e" % (groupmass)
+            print "Maximum Subhalo Mass: %0.2e" % (max(s.sub_mass*10**10/hubble))
+            print "Contamination Num.:",contamNR[minindex]
+            print "Contamination Mass: %0.2e" % (contamMR[minindex]/0.6711)
 
