@@ -76,7 +76,7 @@ def create_summary_table(filename,
             rscat = rdr.RSDataReader(outpath+'/halos',lastsnap)
             rsids = np.array(rscat['id'])
             rspos = np.array(rscat[['posX','posY','posZ']])
-            rsmass= np.array(rscat['mvir'])
+            rsmass= np.array(rscat['mvir'])/rscat.h0
             rsvmax= np.array(rscat['vmax'])
             rsnpart=np.array(rscat['npart'])
 
