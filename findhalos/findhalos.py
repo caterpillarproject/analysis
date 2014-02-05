@@ -95,10 +95,12 @@ def create_summary_table(filename,
                 rsselect = np.where( (dist < 0.01) & (massratio < .5))[0]
                 if len(rsselect) == 1:
                     rsselect = rsselect[0]
-                    rsstr = " ".join([str(rsids[rsselect]),str(round(rspos[rsselect][0],3)),
-                                      str(round(rspos[rsselect][1],3)),str(round(rspos[rsselect][2],3)),
-                                      str(rsmass[rsselect]),str(round(rsvmax[rsselect],3)),
-                                      str(rsnpart[rsselect])])
+                    #rsstr = " ".join([str(rsids[rsselect]),str(round(rspos[rsselect][0],3)),
+                    #                  str(round(rspos[rsselect][1],3)),str(round(rspos[rsselect][2],3)),
+                    #                  str(rsmass[rsselect]),str(round(rsvmax[rsselect],3)),
+                    #                  str(rsnpart[rsselect])])
+                    rsstr = "%i %4.2f %4.2f %4.2f %4.3e %f %i" % (rsids[rsselect],rspos[rsselect][0],rspos[rsselect][1],rspos[rsselect][2],
+                                                                  rsmass[rsselect],rsvmax[rsselect],rsnpart[rsselect])
                 elif len(rsselect) ==0:
                     rsstr = "-999 "*7
                 else:

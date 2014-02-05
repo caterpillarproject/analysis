@@ -17,15 +17,27 @@ def get_best_halo_id(outpath,cat):
     nv = int(fileparts[7][2])
 
     if hid==241932:
-        if lx == 11:
+        if lx == 11 and nv == 3:
             return 5563
-        if lx == 12:
+        if lx == 12 and nv == 3:
             return 36854
     if hid==121869:
-        if lx == 11:
+        if lx == 11 and nv == 3:
             return 1221
-        if lx == 12:
+        if lx == 12 and nv == 3:
             return 12232
+    if hid==268422:
+        if lx == 11 and nv == 3:
+            return 1911
+        if lx == 12 and nv == 3:
+            return 24939
+    if hid==21047:
+        if lx == 11 and nv == 3:
+            return 2338
+        if lx == 12 and nv == 3:
+            return 17844
+    #default heuristic:
+    print "  get_best_halo_id: guessing based on cat['npart']"
     return int(cat[cat['npart']==np.max(cat['npart'])]['id'])
 
 def auto_rarr(rvir,dr=1):
@@ -59,7 +71,7 @@ def compute_all_profiles(rarr=-1,ictype="BB",levellist=[11,12,13,14],nrvirlist=[
         haloid = get_best_halo_id(outpath,cat)
 
         print "rsid %i mvir %3.2e" % (haloid,cat.ix[haloid]['mvir']/cat.h0)
-        haloparts = cat.get_particles_from_halo(haloid)
+        haloparts = cat.get_all_particles_from_halo(haloid)
         halopos = np.array(cat.ix[haloid][['posX','posY','posZ']])
         halorvir = float(cat.ix[haloid]['rvir']) #h^-1 kpc
         if autorflag:
