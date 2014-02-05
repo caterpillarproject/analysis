@@ -9,6 +9,7 @@ import readhalos.readgroup as rg
 import readhalos.RSDataReader as rdr
 import asciitable
 from optparse import OptionParser
+from operator import itemgetter
 
 def create_summary_table(filename,
                          nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictype="BB",
@@ -45,19 +46,22 @@ def create_summary_table(filename,
 '.0')
         hubble = header.hubble
         mhires = header.massarr[1] * 10.**10/hubble
-        groupcat = rg.group_tab(outpath+'/outputs',lastsnap)
+        #groupcat = rg.group_tab(outpath+'/outputs',lastsnap)
         subcat = rsf.subfind_catalog(outpath+'/outputs',lastsnap)
 
         ## Pick best group by the one with the most hi-res particles
-        bestgroup = np.where(groupcat.GroupMassType[:,1] == np.max(groupcat.GroupMassType[:,1]))[0]
-        if len(bestgroup) != 1:
-            raise RuntimeError("wrong number of groups (should be 1): "+strlen(bestgroup))
-        bestgroup = bestgroup[0]
-        groupcm = groupcat.GroupCM[bestgroup,:]
-        groupnpart = str(subcat.group_len[bestgroup])
+        #bestgroup = np.where(groupcat.GroupMassType[:,1] == np.max(groupcat.GroupMassType[:,1]))[0]
+        bestgroup = min(enumerate(subcat.group_contamination_count[0:3]),key=itemgetter(1))[0]
+        #if len(bestgroup) != 1:
+        #    raise RuntimeError("wrong number of groups (should be 1): "+strlen(bestgroup))
+        #bestgroup = bestgroup[0]
+        #groupcm = groupcat.GroupCM[bestgroup,:]
+        groupcm = subcat.group_pos[bestgroup,:]
+        groupnpart = subcat.group_len[bestgroup]
 
         #hid ictype lx nvir lastsnap mhires groupx groupy groupz fofnpart
-        groupstr = " ".join([folderparts[0],folderparts[1],folderparts[5][2:4],folderparts[7][2],str(lastsnap),str(mhires),str(groupcm[0]),str(groupcm[1]),str(groupcm[2]),groupnpart])
+        groupstr = " ".join([folderparts[0],folderparts[1],folderparts[5][2:4],folderparts[7][2],str(lastsnap)])
+        groupstr += " %3.2e %4.2f %4.2f %4.2f %i" % (mhires,groupcm[0],groupcm[1],groupcm[2],groupnpart)
         substart = subcat.group_firstsub[bestgroup]
         subnum = subcat.group_nsubs[bestgroup]
         
@@ -81,9 +85,10 @@ def create_summary_table(filename,
             rsnpart=np.array(rscat['npart'])
 
         for subid in sub_id_list:
-            substr = " ".join([str(subid),str(subpos[subid,0]),
-                               str(subpos[subid,1]),str(subpos[subid,2]),
-                               str(submass[subid]),str(subvmax[subid]),str(subnpart[subid])])
+            substr = "%i %4.2f %4.2f %4.2f %4.3e %f %i" % (subid,subpos[subid,0],subpos[subid,1],subpos[subid,2],submass[subid],subvmax[subid],subnpart[subid])
+            #substr = " ".join([str(subid),str(subpos[subid,0]),
+            #                   str(subpos[subid,1]),str(subpos[subid,2]),
+            #                   str(submass[subid]),str(subvmax[subid]),str(subnpart[subid])])
             if outpath in rspathlist:
                 dist = np.sqrt(np.sum((rspos - subpos[subid,:])**2,1))
                 massratio = np.abs(rsmass/submass[subid]-1)
