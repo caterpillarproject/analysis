@@ -12,6 +12,7 @@ import os
 hubble = 0.6711
 WANTHEATMAP =  False
 WANTRADIAL = False
+FULLSTDOUT = True
 fofrcut = 100.5 # Mpc/h
 
 basepath = "/bigbang/data/AnnaGroup/caterpillar/halos/"
@@ -31,9 +32,9 @@ for halo in halolist:
     for haloi in halos:
         numblocks = []
         path = haloi + "/outputs/"
-        if os.path.isdir(path+'groups_255'):
+        if os.path.isdir(path+'groups_255') and  "H241932" in haloi and "NV3" in haloi and "BB" in haloi:
              #and "LX14" in haloi
-            print "--------------------------------------------------------"
+            
             s = readsubf.subfind_catalog(path, 255)
             contamNR = s.group_contamination_count
             contamMR = s.group_contamination_mass*10**10/hubble
@@ -49,13 +50,23 @@ for halo in halolist:
             submass = s.sub_mass[maxsubindex][-1]*10**10/hubble
             subpos = s.sub_pos[maxsubindex][-1]
 
-            print haloi.replace(basepath,"")
-            print "FOF With Smallest Contam. Position:",candgrouppos
-            print "FOF With Smallest Contam. Mass: %0.2e" % (candgroupmass)
-            print "Subhalo Mass With Most Particles: %0.2e" % (submass)
-            print "Subhalo Position With Most Particles:",subpos
-            print "Contamination Num.:",contamNR[minindex]
-            print "Contamination Mass: %0.2e [%3.3f pc]" % (contamMR[minindex]/0.6711,(contamMR[minindex]/candgroupmass)*100)
+            
+            if FULLSTDOUT:
+                print "--------------------------------------------------------"
+                print haloi.replace(basepath,"")
+                print "FOF With Smallest Contam. Position:",candgrouppos
+                print "FOF With Smallest Contam. Mass: %0.2e" % (candgroupmass)
+                print "Subhalo Mass With Most Particles: %0.2e" % (submass)
+                print "Subhalo Position With Most Particles:",subpos
+                print "Contamination Num.:",contamNR[minindex]
+                print "Contamination Mass: %0.2e [%3.3f pc]" % (contamMR[minindex]/0.6711,(contamMR[minindex]/candgroupmass)*100)
+            
+            if contamMR[minindex]/0.6711 > 0:
+                print "--------------------------------------------------------"
+                print haloi.replace(basepath,"")
+                print "FOF With Smallest Contam. Mass: %0.2e" % (candgroupmass)
+                print "Contamination Mass: %0.2e [%3.3f pc]" % (contamMR[minindex]/0.6711,(contamMR[minindex]/candgroupmass)*100)
+            
             rfof = np.sqrt((candgrouppos[0]-s.group_pos[:,0])**2 + (candgrouppos[1]-s.group_pos[:,1])**2 + (candgrouppos[2]-s.group_pos[:,2])**2)
                 
             if WANTRADIAL:
@@ -118,6 +129,7 @@ for halo in halolist:
                 for parttype in xrange(2,6):
                         x,y,z = readblock(path+'snapdir_255/snap_255',parttype=parttype)
                         dr = np.sqrt((subpos[0]-x)**2 + (subpos[1]-y)**2 + (subpos[2]-z)**2)
-                        print "-- Particle Type %i is %3.1f kpc away from subhalo" % (parttype,min(dr)*1000.)
+                        #if FULLSTDOUT:
+                        #    print "-- Particle Type %i is %3.1f kpc away from subhalo" % (parttype,min(dr)*1000.)
 
 plt.show()
