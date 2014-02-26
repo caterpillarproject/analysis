@@ -4,6 +4,11 @@ import methods
 import readhalos.RSDataReaderv2 as rsr2
 import AnalyticMF as MF
 from fitting import *
+import BestMethods
+import readsnap as rs
+import readsubf
+
+font_size = 20
 
 def MassFunc_dNdM_Volume(masses, numbins, boxsize):
     """
@@ -120,7 +125,7 @@ def PlotMassFunc_SHMF(cat, haloID):
     """
     Given RSHalo Catalogue and halo ID, plot its SHMF
     """
-    numbins = 12#18
+    numbins = 18#18
     histrange = np.arange(7.0,10.6,3.6/numbins)
 
     subs = cat.get_subhalos_from_halo(haloID)
@@ -135,15 +140,57 @@ def PlotMassFunc_SHMF(cat, haloID):
     plt.legend()
     plt.savefig('SHMF_%s' %(haloID))
     plt.show()
+
+
+['CP H268422', 'CP H121869', 'CP H233776']
+def plotSHMF_SF(catCP,catAQ, labelCP = ['Cat-1', 'Cat-2', 'Cat-3'], h=0.6711, hAQ=0.73,targetCP=[0,0,1], targetAQ=0):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)    
+    numbins = 17
+    histrange = np.arange(6.0,10.6,4.6/numbins)
+    target_mass = 10**12.
+    # CP halos
+    color_list = ['red','green','blue']
+    for cat, label,target, color in zip(catCP, labelCP,targetCP,color_list):
+        masses_sub = cat.sub_mass[ cat.group_firstsub[target] : cat.group_firstsub[target]+cat.group_nsubs[target] ]*10**10/h
+        x_axis, y_axis =  MassFunc_dNdM(masses_sub, histrange)
+        y_axis = y_axis*target_mass/(cat.group_mass[target]*10**10/h)
+        ax.plot(x_axis, y_axis, label=label,linewidth=2.0,color=color)
+
+    masses_subAQ = catAQ.sub_mass[ catAQ.group_firstsub[targetAQ] : catAQ.group_firstsub[targetAQ]+catAQ.group_nsubs[targetAQ] ]*10**10/hAQ
+    x_axisAQ, y_axisAQ =  MassFunc_dNdM(masses_subAQ, histrange)
+    y_axisAQ = y_axisAQ*target_mass/(catAQ.group_mass[targetAQ]*10**10/hAQ)
+
+    print y_axisAQ/y_axis
+
+    ax.plot(x_axisAQ, y_axisAQ, label='Aquarius (AqA2)',linewidth=2.0,color='black')
     
+    #yfit = Fit(x_axis,y_axis,np.zeros(len(x_axis)))
+    #yfitAQ = Fit(x_axisAQ,y_axisAQ,np.zeros(len(x_axisAQ)))
+    #ax.plot(x_axis, yfit, label='CP Best Fit')
+    
+    ax.set_xlabel('$\mathrm{M_{sub}} \ [\mathrm{M_\odot}]$',fontsize = font_size)
+    ax.set_ylabel('$\mathrm{dn/dM_{sub}} \ [\mathrm{M_\odot^{-1}}]$',fontsize = font_size)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.tick_params(axis='both',labelsize=font_size)
+    plt.legend()
+    plt.savefig('SHMF_Compare.pdf',bbox_inches='tight')
+    plt.show()
 
 # parent simulation catalogue
 #cat = rsr2.RSDataReader("/bigbang/data/AnnaGroup/caterpillar/parent/RockstarData/", 63, digits=2, AllParticles = False) 
 #id = 103791
 
+# H268422 halo
+cat = readsubf.subfind_catalog("/bigbang/data/AnnaGroup/caterpillar/halos/H268422/H268422_BB_Z127_P7_LN7_LX14_O4_NV3/outputs/",255)
 
+# CP halos
+#catCP = BestMethods.getCP_catlist()
 
-
+# Aquarius subhalos
+#catlist = BestMethods.getAQcatalogs()
+#catAQ = catlist[0]
 
 def vmaxfunction3(vmax,histrange):
     """
