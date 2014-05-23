@@ -2,9 +2,15 @@ import numpy as np
 import os
 import sys
 import subprocess
-from optparse import OptionParser
+import asciitable
 
 import mergertrees.MTCatalogue as MTC
+
+def get_parent_zoom_index(filename="/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt",
+                          lx=None,nv=None,parenthid=None):
+    htable = asciitable.read(filename, Reader=asciitable.FixedWidth)
+    hindex = dict(zip(htable['parentid'], htable['zoomid']))
+    return hindex
 
 def get_numsnaps(outpath):
     return sum(1 for line in open(outpath+'/ExpansionList'))
