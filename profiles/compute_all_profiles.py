@@ -7,7 +7,9 @@ from findhalos.haloutils import check_last_rockstar_exists,check_last_subfind_ex
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as readsubf
 import readsnapshots.readids as readids
-import readsnapshots.readsnap as rs
+#import readsnapshots.readsnap as rs
+#import readsnapshots.readidsHDF5 as readids
+import readsnapshots.readsnapHDF5 as rs
 
 from sets import Set
 from operator import itemgetter
@@ -18,26 +20,26 @@ def get_best_halo_id(outpath,cat):
     lx = int(fileparts[5][2:4])
     nv = int(fileparts[7][2])
     
-    if hid==241932:
-        if lx == 11 and nv == 3:
-            return 5563
-        if lx == 12 and nv == 3:
-            return 36854
-    if hid==121869:
-        if lx == 11 and nv == 3:
-            return 1221
-        if lx == 12 and nv == 3:
-            return 12232
-    if hid==268422:
-        if lx == 11 and nv == 3:
-            return 1911
-        if lx == 12 and nv == 3:
-            return 24939
-    if hid==21047:
-        if lx == 11 and nv == 3:
-            return 2338
-        if lx == 12 and nv == 3:
-            return 17844
+    #if hid==241932:
+    #    if lx == 11 and nv == 3:
+    #        return 5563
+    #    if lx == 12 and nv == 3:
+    #        return 36854
+    #if hid==121869:
+    #    if lx == 11 and nv == 3:
+    #        return 1221
+    #    if lx == 12 and nv == 3:
+    #        return 12232
+    #if hid==268422:
+    #    if lx == 11 and nv == 3:
+    #        return 1911
+    #    if lx == 12 and nv == 3:
+    #        return 24939
+    #if hid==21047:
+    #    if lx == 11 and nv == 3:
+    #        return 2338
+    #    if lx == 12 and nv == 3:
+    #        return 17844
     #default heuristic:
     print "  get_best_halo_id: guessing based on cat['npart']"
     return int(cat[cat['npart']==np.max(cat['npart'])]['id'])
@@ -50,7 +52,11 @@ def compute_all_profiles(subfind=False,subfindradius=False,rockstar_get_all=Fals
     if sum([subfind,subfindradius,rockstar_get_all]) > 1:
         print "ERROR: more than one thing is true"
         return
-    haloidlist = [268422]#, 21047, 241932, 121869]
+    #haloidlist = [268422]#, 21047, 241932, 121869]
+    #haloidlist = [1194083,1292049,1476079,230667]
+    #haloidlist = [4847,649524,1327707]
+    haloidlist = [1194083,1232333,1292049,1725139,230667,4847,649524,706754,1327707,1476079]
+    
     haloidlist = ['H'+str(hid) for hid in haloidlist]
     if rarr == -1:
         autorflag = True
@@ -77,31 +83,44 @@ def compute_all_profiles(subfind=False,subfindradius=False,rockstar_get_all=Fals
         header = rs.snapshot_header(snapfile+'.0')
         if subfindradius:
             snapIDs = rs.read_block(snapfile,"ID  ",parttype=-1)
-            snapPOS = rs.read_block(snapfile,"POS ",parttype=-1,doubleprec=False)
+            snapPOS = rs.read_block(snapfile,"POS ",parttype=-1)#,doubleprec=False)
         else:
             snapIDs = rs.read_block(snapfile,"ID  ",parttype=1)
-            snapPOS = rs.read_block(snapfile,"POS ",parttype=1,doubleprec=False)
+            snapPOS = rs.read_block(snapfile,"POS ",parttype=1)#,doubleprec=False)
         argsorted = np.argsort(snapIDs)
         if subfind or subfindradius:
             cat = readsubf.subfind_catalog(outpath+'/outputs',lastsnap)
-            bestgroup = min(enumerate(cat.group_contamination_count[0:3]),key=itemgetter(1))[0]
+            bestgroup = min(enumerate(cat.group_contamination_count[0:5]),key=itemgetter(1))[0]
+            if bestgroup != 0: 
+                print "WARNING: bestgroup != 0 (may have inefficient computation)"
+                print "group masses:",cat.group_mass[0:(bestgroup+1)]*10**10/header.hubble
+                print "group npart:",cat.group_len[0:(bestgroup+1)]
+                print "group contamination:",cat.group_contamination_count[0:(bestgroup+1)]
             substart = cat.group_firstsub[bestgroup]
             subnum = cat.group_nsubs[bestgroup]
+            print "R200c mass of bestgroup %i: %3.2e" % (bestgroup, cat.group_m_crit200[bestgroup] * 10**10/header.hubble)
 
             if subfind:
+                halopos = cat.group_pos[bestgroup]
+                halorvir= cat.group_r_crit200[bestgroup]
                 subii = np.arange(substart,substart+subnum)
                 submass = cat.sub_mass[subii]*10**10/header.hubble
-                subpos = cat.sub_pos[subii]
+                subpos = cat.sub_pos[subii]; subdist = np.sum((subpos-halopos)**2,axis=1)
                 subvmax = cat.sub_vmax[subii]
                 subnpart= cat.sub_len[subii]
-                sub_id_list = np.where((submass <= 1e13) & (submass >= 5e11))[0]
+                #print submass; print subdist; print subdist < halorvir**2
+                sub_id_list = np.where((submass <= 1e13) & (submass >= 5e11) & (subdist < halorvir**2))[0]
                 if len(sub_id_list) == 1:
                     subid = sub_id_list[0]+substart
                 else:
                     print "%i candidates in relevant mass range, skipping..." % (len(sub_id_list))
+                    print submass; print subdist
                     print submass[sub_id_list]
+                    print "Closest subhalo: ",np.min(np.sqrt(subdist))
+                    #print subnpart[sub_id_list]
                     continue
                 haloparts = readids.subid_file(outpath+'/outputs',lastsnap,cat.group_offset[bestgroup],cat.sub_len[cat.group_firstsub[bestgroup]])
+                #haloparts = readids.subid_file(outpath+'/outputs',lastsnap)
                 haloparts = haloparts.SubIDs
                 halopos = cat.sub_pos[subid,:]
                 halorvir = cat.group_r_crit200[bestgroup]*1000.
@@ -117,7 +136,7 @@ def compute_all_profiles(subfind=False,subfindradius=False,rockstar_get_all=Fals
                 #groupstart = cat.group_offset[bestgroup]; groupend = groupstart+cat.group_len[bestgroup]
                 #haloparts = snapIDs[groupstart:groupend]
         else:
-            cat = RDR.RSDataReader(outpath+'/halos',lastsnap,AllParticles=True)
+            cat = RDR.RSDataReader(outpath+'/halos',lastsnap,AllParticles=True,version=6)
             haloid = get_best_halo_id(outpath,cat)
             print "rsid %i mvir %3.2e" % (haloid,cat.ix[haloid]['mvir']/cat.h0)
             if rockstar_get_all:
@@ -177,8 +196,8 @@ def remove_contaminated_particles(snapfile,haloparts, snapIDs,count_all = False)
         return nbad,np.array(goodparts)
 
 if __name__=="__main__":
-    levellist = [11,12,13,14]; nrvirlist = [3]
+    levellist = [11,12]; nrvirlist = [4]
     #compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist)
     #compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist,rockstar_get_all=True)
     compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist,subfind=True)
-    compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist,subfindradius=True)
+    #compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist,subfindradius=True)
