@@ -1,7 +1,36 @@
 import numpy as np
 import readsnapshots.readsnap as rs
 from scipy import interpolate
-import methods
+from scipy.optimize import fsolve
+
+def getr200(haloparts,snapPOS,argsorted,header,halopos,verbose=False):
+    """
+    @param haloparts: halo particle IDs
+    @param snapPOS: position list from gadget file
+    @param argsorted: numpy argsorted array of snapIDs
+    @param header: header for gadget file
+    @param halopos: halo position in Mpc
+    @param verbose: if True, prints things out
+    
+    @return: R200 in kpc/h (or -1 if it fails somehow)
+    """
+    rho_c = 1.01*1.35972365653e11/(header.hubble)**2 # Msun / Mpc^3 o h's at all.
+    dr = np.sort(np.sqrt(np.sum((snapPOS[argsorted[haloparts]]- halopos)**2,1)))
+    if verbose:
+        print max(dr)*1000, 'distance to furthest in Kpc'
+    rarr = 10**np.linspace(-1.5,0,60)*max(dr)*2.0 # in Mpc/h    
+    parttype = 1
+    if len(dr) != 0:
+        h_r, x_r = np.histogram(dr, bins=np.concatenate(([0],rarr)))
+        #Use Phillip's method of splining the cumulative array and taking the derivative
+        m_lt_r = np.cumsum(h_r)*header.massarr[parttype]*10**10
+        dens = m_lt_r/(4./3.*np.pi*rarr**3) # in Msun/h /
+        tck = interpolate.splrep(rarr,dens)
+        def func(r):
+            return interpolate.splev(r,tck) - 200*rho_c
+        return fsolve(func,.02)[0]*1000 # in kpc/h
+    else:
+        return -1
 
 def densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,verbose=False,power03=False):
     """
@@ -23,7 +52,7 @@ def densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,verbose=False
         marr = np.zeros(len(rarr))
 
     parttype = 1
-    dr = np.sort(methods.distance(snapPOS[argsorted[haloparts]], halopos))
+    dr = np.sort(np.sqrt(np.sum((snapPOS[argsorted[haloparts]]- halopos)**2,1)))
     
     if verbose:
         print "  Particle type",parttype
