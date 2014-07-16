@@ -4,6 +4,7 @@ import sys
 import subprocess
 import asciitable
 
+import readhalos.RSDataReader as RDR
 import mergertrees.MTCatalogue as MTC
 
 def get_parent_zoom_index(filename="/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt",
@@ -123,3 +124,30 @@ def find_halo_paths(basepath="/bigbang/data/AnnaGroup/caterpillar/halos",
                 newhalopathlist.append(outpath) 
         halopathlist = newhalopathlist
     return halopathlist
+
+def load_pcatz0(old=False):
+    if old:
+        return RDR.RSDataReader("/bigbang/data/AnnaGroup/caterpillar/parent/RockstarData",63,version=2)
+    else:
+        return RDR.RSDataReader("/bigbang/data/AnnaGroup/caterpillar/parent/gL100X10/rockstar",127,version=6)
+
+def load_rscat(hpath,snap,verbose=True):
+    try:
+        hcat = RDR.RSDataReader(hpath+'/halos',snap,version=6)
+    except:
+        versionlist = [2,3,4,5]
+        testlist = []
+        for version in versionlist:
+            try:
+                hcat = RDR.RSDataReader(hpath+'/halos',snap,version=version)
+                testlist.append(True)
+            except KeyError:
+                testlist.append(False)
+        if sum(testlist) != 1:
+            raise RuntimeError("Can't determine what version to use")
+        else:
+            version = np.array(versionlist)[np.array(testlist)][0]
+            if verbose:
+                print "Using version "+str(version)+" for "+get_foldername(hpath)
+            hcat = RDR.RSDataReader(hpath+'/halos',snap,version=version)
+    return hcat
