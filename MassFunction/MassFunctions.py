@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import methods
+import CatMethods
 import readhalos.RSDataReaderv2 as rsr2
 import AnalyticMF as MF
 from fitting import *
-import BestMethods
 import readsnap as rs
 import readsubf
 
@@ -70,7 +69,7 @@ def MassFunc_dNdM(masses, histrange):
     """
     numbins = len(histrange) - 1
     hist, r_array = np.histogram(np.log10(masses), bins=histrange)
-    x_array = methods.getMidpoints(r_array)
+    x_array = CatMethods.getMidpoints(r_array)
     dM = 10.**r_array[1:]-10.**r_array[0:numbins] #Mass size of bins in non-log space
     print hist, 'num subs per interval'
     dNdM = hist/dM
@@ -186,10 +185,10 @@ def plotSHMF_SF(catCP,catAQ, labelCP = ['Cat-1', 'Cat-2', 'Cat-3'], h=0.6711, hA
 cat = readsubf.subfind_catalog("/bigbang/data/AnnaGroup/caterpillar/halos/H268422/H268422_BB_Z127_P7_LN7_LX14_O4_NV3/outputs/",255)
 
 # CP halos
-#catCP = BestMethods.getCP_catlist()
+#catCP = CatMethods.getCP_catlist()
 
 # Aquarius subhalos
-#catlist = BestMethods.getAQcatalogs()
+#catlist = CatMethods.getAQcatalogs()
 #catAQ = catlist[0]
 
 def vmaxfunction3(vmax,histrange):
@@ -202,12 +201,12 @@ def vmaxfunction3(vmax,histrange):
     @return: [x-axis in log10(vmax), y-axis in dN/dVmax] 
     """
     hist, r_array = np.histogram(np.log10(vmax), bins=histrange)
-    x_array = methods.getMidpoints(r_array)
+    x_array = CatMethods.getMidpoints(r_array)
     dV = 10.**r_array[1:]-10.**r_array[0:len(histrange)-1] #Mass size of bins in non-log space.
     dNdV = hist/dV
     return [x_array, dNdV]
 
 def vmaxfunction3(nu,histrange):
     hist, r_array = np.histogram(np.log10(nu), bins=histrange)
-    x_array = methods.getMidpoints(r_array)
+    x_array = CatMethods.getMidpoints(r_array)
     return [x_array, np.cumsum(hist[::-1])[::-1]]
