@@ -4,7 +4,7 @@ import asciitable
 import os
 
 from profilefit import NFWprofile,fitNFW
-from findhalos.haloutils import get_foldername
+from haloutils import get_foldername
 
 from optparse import OptionParser
 

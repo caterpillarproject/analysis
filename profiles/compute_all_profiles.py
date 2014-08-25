@@ -2,8 +2,8 @@ import numpy as np
 from optparse import OptionParser
 import profilefit
 from densityprofile import densityprofile,getr200
-from findhalos.haloutils import get_numsnaps,get_foldername,find_halo_paths
-from findhalos.haloutils import check_last_rockstar_exists,check_last_subfind_exists
+from haloutils import get_numsnaps,get_foldername,find_halo_paths
+from haloutils import check_last_rockstar_exists,check_last_subfind_exists
 
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as readsubf
