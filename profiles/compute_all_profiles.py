@@ -63,7 +63,7 @@ def auto_rarr(rvir,dr=1):
 
 def compute_one_profile(outpath,rarr=-1,
                         subfind=False,subfindradius=False,rockstar_get_all=False):
-    print "----------------------------------"
+    #print "----------------------------------"
     print "computing profile for "+get_foldername(outpath)
     lastsnap = get_numsnaps(outpath)-1
     snapstr = str(lastsnap).zfill(3)
