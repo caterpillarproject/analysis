@@ -13,12 +13,27 @@ global_basepath = determinebasepath(platform.node())
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
+def hidint(hid):
+    """ converts halo ID to int """
+    if type(hid)==int: return hid
+    if type(hid)==str:
+        if hid[0]=='H': return int(hid[1:])
+        return int(hid)
+    raise ValueError("hid must be int or str, is "+str(type(hid)))
+def hidstr(hid):
+    """ converts halo ID to str Hxxxxxx """
+    if type(hid)==int: return 'H'+str(hid)
+    if type(hid)==str:
+        if hid[0]=='H': return hid
+        return 'H'+hid
+    raise ValueError("hid must be int or str, is "+str(type(hid)))
+
 def get_parent_zoom_index(filename=global_halobase+"/parent_zoom_index.txt",
                           lx=None,nv=None,parenthid=None):
+    # TODO
     htable = asciitable.read(filename, Reader=asciitable.FixedWidth)
     #hindex = dict(zip(htable['parentid'], htable['zoomid']))
     return htable
-
 def get_numsnaps(outpath):
     return sum(1 for line in open(outpath+'/ExpansionList'))
 def get_foldername(outpath):
@@ -31,7 +46,10 @@ def get_zoom_params(outpath):
     split = get_foldername(outpath).split('_')
     return split[1],int(split[5][2:]),int(split[7][2:])
 def get_outpath(haloid,ictype,lx,nv,halobase=global_halobase):
+    haloid = hidstr(haloid)
     return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
+def get_hpath(haloid,ictype,lx,nv,halobase=global_halobase):
+    return get_outpath(haloid,ictype,lx,nv,halobase=global_halobase)
 
 def check_last_subfind_exists(outpath):
     numsnaps = get_numsnaps(outpath)
@@ -174,8 +192,8 @@ def load_scat(hpath):
 
 def load_rscat(hpath,snap,verbose=True):
     try:
-        rcat = RDR.RSDataReader(hpath+'/halos',snap,version=7)
-    except:
+        rcat = RDR.RSDataReader(hpath+'/halos',snap,version=7,digits=1)
+    except IOError:
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
@@ -192,3 +210,13 @@ def load_rscat(hpath,snap,verbose=True):
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
             rcat = RDR.RSDataReader(hpath+'/halos',snap,version=version)
     return rcat
+
+def load_mtc(hpath,verbose=True,**kwargs):
+    return MTC.MTCatalogue(hpath+'/halos/trees',version=4,**kwargs)
+
+def load_aqcat(whichAq,snap):
+    assert whichAq in ['A','B','C','D','E','F']
+    if snap > 127: 
+        raise ValueError("Aquarius is snaps 0-127")
+    rspath = global_basepath+'/aquarius/Aq-'+whichAq+'/2/halos'
+    return RDR.RSDataReader(rspath,snap,version=7)
