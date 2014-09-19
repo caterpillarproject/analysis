@@ -1,9 +1,10 @@
 import numpy as np
 from optparse import OptionParser
 import profilefit
-from densityprofile import densityprofile,getr200
+from densityprofile import densityprofile,densityprofilesorted,getr200,getr200sorted
 from haloutils import get_numsnaps,get_foldername,find_halo_paths
-from haloutils import check_last_rockstar_exists,check_last_subfind_exists
+from haloutils import check_last_rockstar_exists,check_last_subfind_exists,check_is_sorted
+import haloutils
 
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as readsubf
@@ -11,6 +12,7 @@ import readsnapshots.readids as readids
 #import readsnapshots.readsnap as rs
 #import readsnapshots.readidsHDF5 as readids
 import readsnapshots.readsnapHDF5 as rs
+import readsnapshots.readsnapHDF5_greg as rsg
 
 from sets import Set
 from operator import itemgetter
@@ -26,56 +28,29 @@ def get_best_halo_id(outpath,cat):
 
 def auto_rarr(rvir,dr=1):
     #return np.arange(0,(1.5*rvir)+dr,dr)/1000. #kpc to Mpc
-    return np.logspace(-5,0,100)
-
-#def compute_all_profiles(subfind=False,subfindradius=False,rockstar_get_all=False,
-#                         rarr=-1,ictype="BB",
-#                         levellist=[11,12,13,14],nrvirlist=[3]):
-#    if sum([subfind,subfindradius,rockstar_get_all]) > 1:
-#        print "ERROR: more than one thing is true"
-#        return
-#    #haloidlist = [268422]#, 21047, 241932, 121869]
-#    #haloidlist = [1194083,1292049,1476079,230667]
-#    #haloidlist = [4847,649524,1327707]
-#
-#    ## Sheet 1
-#    haloidlist = [1194083,1232333,1292049,1725139,230667,4847,649524,706754,1327707,1476079]
-#    
-#    haloidlist = ['H'+str(hid) for hid in haloidlist]
-#    if rarr == -1:
-#        autorflag = True
-#    else:
-#        autorflag = False
-#    halopathlist = find_halo_paths(ictype=ictype,levellist=levellist,nrvirlist=nrvirlist,onlychecklastsnap=True,verbose=False)
-#    availablepathlist = []
-#    if subfind or subfindradius:
-#        checkfn = check_last_subfind_exists
-#    else:
-#        checkfn = check_last_rockstar_exists
-#    for outpath in halopathlist:
-#        if checkfn(outpath):
-#            hname = (get_foldername(outpath).split('_'))[0]
-#            if hname in haloidlist:
-#                print get_foldername(outpath)
-#                availablepathlist.append(outpath)
-#    for outpath in availablepathlist:
-#        compute_one_profile(outpath,rarr,subfind=subfind,subfindradius=subfindradius,rockstar_get_all=rockstar_get_all)
+    return np.logspace(-5,0,50)
 
 def compute_one_profile(outpath,rarr=-1,
+                        usesorted=True,hdf5=True,
                         subfind=False,subfindradius=False,rockstar_get_all=False):
-    #print "----------------------------------"
     print "computing profile for "+get_foldername(outpath)
     lastsnap = get_numsnaps(outpath)-1
     snapstr = str(lastsnap).zfill(3)
     snapfile = outpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
     header = rs.snapshot_header(snapfile+'.0')
-    if subfindradius:
-        snapIDs = rs.read_block(snapfile,"ID  ",parttype=-1)
-        snapPOS = rs.read_block(snapfile,"POS ",parttype=-1)#,doubleprec=False)
+
+    if usesorted: 
+        assert check_is_sorted(outpath,lastsnap)
+        assert not subfindradius and not subfind, "subfind and subfindradius require original slow method because needs all particles"
     else:
-        snapIDs = rs.read_block(snapfile,"ID  ",parttype=1)
-        snapPOS = rs.read_block(snapfile,"POS ",parttype=1)#,doubleprec=False)
-    argsorted = np.argsort(snapIDs)
+        if subfindradius:
+            snapIDs = rs.read_block(snapfile,"ID  ",parttype=-1)
+            snapPOS = rs.read_block(snapfile,"POS ",parttype=-1)#,doubleprec=False)
+        else:
+            snapIDs = rs.read_block(snapfile,"ID  ",parttype=1)
+            snapPOS = rs.read_block(snapfile,"POS ",parttype=1)#,doubleprec=False)
+        argsorted = np.argsort(snapIDs)
+
     if subfind or subfindradius:
         cat = readsubf.subfind_catalog(outpath+'/outputs',lastsnap)
         bestgroup = min(enumerate(cat.group_contamination_count[0:5]),key=itemgetter(1))[0]
@@ -124,8 +99,10 @@ def compute_one_profile(outpath,rarr=-1,
             #groupstart = cat.group_offset[bestgroup]; groupend = groupstart+cat.group_len[bestgroup]
             #haloparts = snapIDs[groupstart:groupend]
     else:
-        cat = RDR.RSDataReader(outpath+'/halos',lastsnap,AllParticles=True,version=6)
-        haloid = get_best_halo_id(outpath,cat)
+        cat = haloutils.load_rscat(outpath,lastsnap)
+        haloid = haloutils.get_parent_hid(outpath)
+        ictype,lx,nv = haloutils.get_zoom_params(outpath)
+        haloid = haloutils.load_zoomid(outpath) #get_best_halo_id(outpath,cat)
         print "rsid %i mvir %3.2e" % (haloid,cat.ix[haloid]['mvir']/cat.h0)
         if rockstar_get_all:
             haloparts = cat.get_all_particles_from_halo(haloid)
@@ -138,19 +115,28 @@ def compute_one_profile(outpath,rarr=-1,
     if rarr==-1:
         rarr = auto_rarr(halorvir)
     try:
-        rhoarr,p03rmin = densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,power03=True)
-        r200c = getr200(haloparts,snapPOS,argsorted,header,halopos)
+        if usesorted:
+            haloparts = np.sort(haloparts)
+            partpos = haloutils.load_partblock(outpath,lastsnap,"POS ",parttype=1,ids=haloparts)
+            rhoarr,p03rmin = densityprofilesorted(rarr,partpos,header,haloparts,halopos,power03=True)
+            r200c = getr200sorted(haloparts,partpos,header,halopos)
+        else:
+            rhoarr,p03rmin = densityprofile(rarr,snapPOS,argsorted,header,haloparts,halopos,power03=True)
+            r200c = getr200(haloparts,snapPOS,argsorted,header,halopos)
     except IndexError as e:
-        print "  ",e
-        print "  ---contamination in "+get_foldername(outpath)
-        print "  removing those particles to compute density profile..."
-        nall = len(haloparts)
-        nbad,goodparts = remove_contaminated_particles(snapfile,haloparts, snapIDs,count_all=True)
-        print "  "+str(nbad)+" contamination particles out of "+str(nall)
-        partmasstab = rs.snapshot_header(snapfile+'.0').massarr
-        print "  "+str((np.sum(nbad[2:] * partmasstab[2:]))/(np.sum(nbad * partmasstab)))
-        rhoarr,p03rmin = densityprofile(rarr,snapPOS,argsorted,header,goodparts,halopos,power03=True)
-        r200c = getr200(goodparts,snapPOS,argsorted,header,halopos)
+        if usesorted:
+            print "ERROR: contamination likely exists, can't fix yet with usesorted"
+        else:
+            print "  ",e
+            print "  ---contamination in "+get_foldername(outpath)
+            print "  removing those particles to compute density profile..."
+            nall = len(haloparts)
+            nbad,goodparts = remove_contaminated_particles(snapfile,haloparts, snapIDs,count_all=True)
+            print "  "+str(nbad)+" contamination particles out of "+str(nall)
+            partmasstab = rs.snapshot_header(snapfile+'.0').massarr
+            print "  "+str((np.sum(nbad[2:] * partmasstab[2:]))/(np.sum(nbad * partmasstab)))
+            rhoarr,p03rmin = densityprofile(rarr,snapPOS,argsorted,header,goodparts,halopos,power03=True)
+            r200c = getr200(goodparts,snapPOS,argsorted,header,halopos)
     if subfind:
         f = open(outpath+'/subf-halo-profile.dat','w')
     elif subfindradius:
@@ -201,10 +187,10 @@ if __name__=="__main__":
             compute_one_profile(outpath,rockstar_get_all=True)
         elif whichtype=='2': #subfind particles
             print "---Subfind---"
-            compute_one_profile(outpath,subfind=True)
+            compute_one_profile(outpath,subfind=True,usesorted=False)
         elif whichtype=='3': #subfind all particles within R200
             print "---Subfind R200---"
-            compute_one_profile(outpath,subfindradius=True)
+            compute_one_profile(outpath,subfindradius=True,usesorted=False)
         else:
             print "ERROR: invalid profile type:",whichtype
     #compute_all_profiles(levellist=levellist,nrvirlist=nrvirlist)

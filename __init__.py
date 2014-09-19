@@ -1,1 +1,1 @@
-__all__ = ["profiles","findhalos"]
+__all__ = ["profiles","findhalos","MassFunctions"]

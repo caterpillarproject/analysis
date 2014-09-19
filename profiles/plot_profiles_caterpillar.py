@@ -101,26 +101,26 @@ if __name__=="__main__":
     plt.subplots_adjust(wspace=0,hspace=0)
 
     if sheet==1:
-        haloidlist = [1194083,1292049,1327707,
-                      1232333,1725139,230667,
-                      4847,   649524, 706754]
+        haloidlist = [1194083, 1292049, 1327707,
+                      231858,  1725139, 230667,
+                      1269360, 649524, 706754]
     elif sheet==2:
-        haloidlist = [1269360, 134911, 1506656,
-                      1665066, 889027, 263605, 
-                      1079498, 1326950, 1542569]
+        haloidlist = [299792, 1232333, 1476079,
+                      1233057, 1327707, 1327707,
+                      1327707, 1327707, 1327707]
     elif sheet==3:
-        haloidlist = [1129405, 917969, 299792,
-                      299792, 299792, 299792,
-                      299792, 299792, 299792]
+        haloidlist = [1327707, 1327707, 1327707,
+                      1327707, 1327707, 1327707,
+                      1327707, 1327707, 1327707]
     elif sheet==10:
-        haloidlist = [1764135, 1353966, 889079,
-                      795050,  794721, 327580,
-                      1476079,135990,795187]
+        haloidlist = [1327707, 1327707, 1327707,
+                      1327707, 1327707, 1327707,
+                      1327707, 1327707, 1327707]
     else:
         exit("Invalid sheet number")
     assert len(haloidlist) == 9
     
-    colordict = {11:'blue',12:'red',13:'green',14:'cyan'}
+    colordict = {11:'blue',12:'red',13:'green',14:'purple'}
     for i,haloid in enumerate(haloidlist):
         filelist = find_profilefiles(haloid,subfind,subfindradius,rockstar_get_all)
         if len(filelist)==0: 

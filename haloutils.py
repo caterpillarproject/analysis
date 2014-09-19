@@ -28,12 +28,8 @@ def hidstr(hid):
         return 'H'+hid
     raise ValueError("hid must be int or str, is "+str(type(hid)))
 
-def get_parent_zoom_index(filename=global_halobase+"/parent_zoom_index.txt",
-                          lx=None,nv=None,parenthid=None):
-    # TODO
-    htable = asciitable.read(filename, Reader=asciitable.FixedWidth)
-    #hindex = dict(zip(htable['parentid'], htable['zoomid']))
-    return htable
+def get_parent_zoom_index(filename=global_halobase+"/parent_zoom_index.txt"):
+    return asciitable.read(filename, Reader=asciitable.FixedWidth)
 def get_numsnaps(outpath):
     return sum(1 for line in open(outpath+'/ExpansionList'))
 def get_foldername(outpath):
@@ -46,7 +42,7 @@ def get_zoom_params(outpath):
     split = get_foldername(outpath).split('_')
     return split[1],int(split[5][2:]),int(split[7][2:])
 def get_outpath(haloid,ictype,lx,nv,halobase=global_halobase):
-    haloid = hidstr(haloid)
+    haloid = hidstr(haloid); ictype = ictype.upper()
     return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
 def get_hpath(haloid,ictype,lx,nv,halobase=global_halobase):
     return get_outpath(haloid,ictype,lx,nv,halobase=global_halobase)
@@ -181,6 +177,31 @@ def find_halo_paths(basepath=global_halobase,
         halopathlist = newhalopathlist
     return halopathlist
 
+def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
+    haloid = get_parent_hid(hpath)
+    ictype,lx,nv = get_zoom_params(hpath)
+    htable = get_parent_zoom_index()
+    haloid = hidint(haloid); lx = int(lx); nv = int(nv)
+    if lx==14 and haloid==1327707: return 188661
+    if lx==14 and haloid==706754: return 269650
+    if lx==14 and haloid==649524: return 481480
+    if lx==14 and haloid==1725139: return 135325
+
+    idmask = htable['parentid']==haloid
+    icmask = htable['ictype']==ictype.upper()
+    lxmask = htable['LX']==lx
+    nvmask = htable['NV']==nv
+    maskall = idmask & icmask & lxmask & nvmask
+    if np.sum(maskall) == 0:
+        raise ValueError("no such halo in index")
+    if np.sum(maskall) > 1:
+        print "FATAL ERROR: duplicate row in index"
+        exit()
+    row = htable[maskall]
+    if row['badflag']+row['badsubf'] > 0:
+        print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
+    return row['zoomid'][0]
+
 def load_pcatz0(old=False):
     if old:
         return RDR.RSDataReader(global_basepath+"/caterpillar/parent/RockstarData",63,version=2)
@@ -213,6 +234,31 @@ def load_rscat(hpath,snap,verbose=True):
 
 def load_mtc(hpath,verbose=True,**kwargs):
     return MTC.MTCatalogue(hpath+'/halos/trees',version=4,**kwargs)
+
+def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
+    assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
+    snapstr = str(snap).zfill(3)
+    snappath = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
+    return rsg.read_block(snappath,block,parttype=parttype,ids=ids)
+
+def load_soft(hpath):
+    try:
+        fname = hpath+'/param.txt-usedvalues'
+        if not os.path.exists(fname): raise IOError("Could not find file "+fname)
+        forceres=-1
+        f = open(fname,'r')
+        for line in f:
+            s = line.split()
+            if s[0]=="SofteningHaloMaxPhys":
+                forceres = float(s[1])
+                break
+        f.close()
+        if forceres==-1: raise IOError("Could not find force resolution")
+    except IOError as e:
+        print "WARNING:",e
+        ictype,lx,nv = haloutils.get_zoom_params(hpath)
+        forceres = 100./2.^lx/40.
+    return forceres
 
 def load_aqcat(whichAq,snap):
     assert whichAq in ['A','B','C','D','E','F']

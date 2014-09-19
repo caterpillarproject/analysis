@@ -78,11 +78,11 @@ if __name__=="__main__":
 
     print "Reading parent..."
     pcat = haloutils.load_pcatz0()
-    pcatold = haloutils.load_pcatz0(old=True)
     hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
                                       require_sorted=True,
                                       nrvirlist=nrvirlist,levellist=levellist)
     if options.includeold:
+        pcatold = haloutils.load_pcatz0(old=True)
         hlist = hlist+haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
                                                 nrvirlist=nrvirlist,levellist=levellist,
                                                 basepath="/bigbang/data/AnnaGroup/caterpillar/halos/oldhalos",hdf5=False)
