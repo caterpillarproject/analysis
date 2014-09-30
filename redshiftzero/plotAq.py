@@ -3,7 +3,7 @@ import readhalos.readsubf as rsf
 import pylab as plt
 import numpy as np
 
-if __name__=="__main__":
+def plot_AqA():
     vmaxbins = np.logspace(-1,3,101)
     varr = vmaxbins[1:]
     levellist = [2,3,4,5]
@@ -71,9 +71,80 @@ if __name__=="__main__":
         ax1.plot(varr[ii],sNvmax[ii],color=col)
         ax1.set_xlabel('subf vmax'); ax1.set_ylabel('N(>vmax)')
         ax2.plot(varr[ii],sNvmaxp[ii],color=col)
-        ax2.set_xlabel('subf vmax (corr)'); ax1.set_ylabel('N(>vmax)')
+        ax2.set_xlabel('subf vmax (corr)'); ax2.set_ylabel('N(>vmax)')
         #print 'level',level,'mass',cat.ix[zoomid]['mvir'],'totnp',cat.ix[zoomid]['total_npart'],'minvmax',np.min(svmax)
     for ax in [axarr[0,0],axarr[0,1],axarr[0,2],axarr[1,0],axarr[1,1],axarr[1,2]]:
         ax.set_xscale('log'); ax.set_yscale('log')
         ax.set_xlim((.1,100)); ax.set_ylim((1,10**5))
+    plt.show()
+
+
+if __name__=="__main__":
+    #plotAqA()
+
+    vmaxbins = np.logspace(-1,3,101)
+    varr = vmaxbins[1:]
+    namelist = ['A','B','C','D','E','F']
+    allreslist = [[2,3,4,5],
+                  [2,4,5],
+                  [2,4],
+                  [2,4,5],
+                  [2,4],
+                  [2,3]]
+    allsnaplist = [[1023,511,1023,127],
+                   [127,127,200],
+                   [127,127],
+                   [127,127,200],
+                   [127,127],
+                   [111,110]]
+
+    colordict = {2:'m',3:'g',4:'r',5:'b'}
+    epsdict = {2:0.0658,3:0.1205,4:0.3425,5:0.6849}
+
+    fig1,axarr1 = plt.subplots(3,2,figsize=(8,12),sharex=True,sharey=True)
+    fig2,axarr2 = plt.subplots(3,2,figsize=(8,12),sharex=True,sharey=True)
+    for i in range(6):
+        name = namelist[i]
+        irow,icol = divmod(i,2)
+        ax1 = axarr1[irow,icol]
+        ax2 = axarr2[irow,icol]
+        reslist = allreslist[i]
+        snaplist= allsnaplist[i]
+        for level,snap in zip(reslist,snaplist):
+            print name,level,snap
+            col = colordict[level]
+            eps = epsdict[level]
+
+            hpath = "/bigbang/data/AnnaGroup/aquarius/Aq-"+name+"/"+str(level)
+            try:
+                scat = rsf.subfind_catalog(hpath,snap)
+            except:
+                print "ERROR"
+                continue
+
+            svmax = scat.sub_vmax[0:scat.group_nsubs[0]]
+            srmax = scat.sub_vmaxrad[0:scat.group_nsubs[0]]
+            svmaxp= svmax * np.sqrt(1+(eps/1000./srmax)**2)
+            h,x = np.histogram(svmax,bins=vmaxbins)
+            sNvmax = np.cumsum(h[::-1])[::-1]
+            h,x = np.histogram(svmaxp,bins=vmaxbins)
+            sNvmaxp = np.cumsum(h[::-1])[::-1]
+
+            ii = varr >= np.min(svmax)
+            ax1.plot(varr[ii],sNvmax[ii],color=col)
+            ax2.plot(varr[ii],sNvmaxp[ii],color=col)
+            
+            if irow==2:
+                ax1.set_xlabel('subf vmax'); ax2.set_xlabel('subf vmax (corr)')
+            if icol==0:
+                ax1.set_ylabel('N(>vmax)'); ax2.set_ylabel('N(>vmax)')
+        ax1.text(40,10**4,'Aq'+name,fontsize=14)
+        ax2.text(40,10**4,'Aq'+name,fontsize=14)
+
+        for ax in [ax1,ax2]:
+            ax.set_xscale('log'); ax.set_yscale('log')
+            ax.set_xlim((.3,100)); ax.set_ylim((1,10**5))
+
+    fig1.savefig("Aq-all_Nvmax.png",bbox_inches='tight')
+    fig2.savefig("Aq-all_Nvmaxp.png",bbox_inches='tight')
     plt.show()

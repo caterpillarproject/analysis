@@ -14,8 +14,8 @@ if __name__=="__main__":
     SHMFP = SHMFPlotter()
     sSHMFP = sSHMFPlotter()
     for sheet in [1]:
-        #sheetplot(sheet,SHMFR,SHMFP)
-        #sheetplot(sheet,SHMFR,sSHMFP)
+        sheetplot(sheet,SHMFR,SHMFP)
+        sheetplot(sheet,SHMFR,sSHMFP)
         sheetplot(sheet,Reader,Plotter)
         sheetplot(sheet,Reader,Plotterp)
         sheetplot(sheet,Reader,sPlotter)

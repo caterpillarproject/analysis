@@ -182,7 +182,7 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     ictype,lx,nv = get_zoom_params(hpath)
     htable = get_parent_zoom_index()
     haloid = hidint(haloid); lx = int(lx); nv = int(nv)
-    if lx==14 and haloid==1327707: return 188661
+    #if lx==14 and haloid==1327707: return 188661
     if lx==14 and haloid==706754: return 269650
     if lx==14 and haloid==649524: return 481480
     if lx==14 and haloid==1725139: return 135325
