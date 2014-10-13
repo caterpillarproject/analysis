@@ -15,14 +15,14 @@ global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
 def hidint(hid):
     """ converts halo ID to int """
-    if type(hid)==int: return hid
+    if type(hid)==int or type(hid)==np.int64: return hid
     if type(hid)==str:
         if hid[0]=='H': return int(hid[1:])
         return int(hid)
     raise ValueError("hid must be int or str, is "+str(type(hid)))
 def hidstr(hid):
     """ converts halo ID to str Hxxxxxx """
-    if type(hid)==int: return 'H'+str(hid)
+    if type(hid)==int or type(hid)==np.int64: return 'H'+str(hid)
     if type(hid)==str:
         if hid[0]=='H': return hid
         return 'H'+hid
@@ -88,6 +88,7 @@ def check_is_sorted(outpath,snap=0,hdf5=True):
 
 def find_halo_paths(basepath=global_halobase,
                     nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictype="BB",
+                    contamsuite=False,
                     require_rockstar=False,require_subfind=False,
                     require_mergertree=False,autoconvert_mergertree=False,
                     require_sorted=False,
@@ -135,20 +136,29 @@ def find_halo_paths(basepath=global_halobase,
         if filename[0] == "H":
             haloidlist.append(filename)
     for haloid in haloidlist:
-        subdirnames = basepath + "/" + haloid
+        if contamsuite:
+            subdirnames = basepath + "/" + haloid + '/contamination_suite'
+        else:
+            subdirnames = basepath + "/" + haloid
         halosubdirlist = []
         try:
             for filename in os.listdir(subdirnames):
+                if filename=='contamination_suite': continue
                 halosubdirlist.append(filename)
-                fileparts =  filename.split("_")
-                levelmax = float(fileparts[5][2:4])
-                nrvir = fileparts[7][-1]
-                haloid = fileparts[0]
-                if (int(levelmax) in levellist and int(nrvir) in nrvirlist and fileparts[1]==ictype):
-                    outpath = basepath+"/"+haloid+"/"+filename
-                    if gadget_finished(outpath):
-                        halopathlist.append(outpath)
-        except:
+                thisictype,levelmax,nrvir = get_zoom_params(filename)
+                haloid = hidstr(get_parent_hid(filename))
+                if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype==thisictype):
+                    if contamsuite:
+                        outpath = basepath+"/"+haloid+"/contamination_suite/"+filename
+                    else:
+                        outpath = basepath+"/"+haloid+"/"+filename
+                    try:
+                        if gadget_finished(outpath): halopathlist.append(outpath)
+                    except IOError as e:
+                        print "ERROR: skipping",outpath
+                        continue
+        except IOError as e:
+            print "ERROR: skipping",subdirnames
             continue
 
     if require_rockstar:
@@ -236,7 +246,7 @@ def load_mtc(hpath,verbose=True,**kwargs):
     return MTC.MTCatalogue(hpath+'/halos/trees',version=4,**kwargs)
 
 def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
-    assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
+    #assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
     snapstr = str(snap).zfill(3)
     snappath = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
     return rsg.read_block(snappath,block,parttype=parttype,ids=ids)

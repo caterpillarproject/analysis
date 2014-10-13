@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import asciitable
-import glob
+import glob,os
 from optparse import OptionParser
 from operator import itemgetter
 
@@ -35,7 +35,7 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
 
     parentmass = pcat.ix[parenthid]['mvir']
     zoommass = hosts.ix[mostpartid]['mvir']
-    if (np.abs(zoommass/parentmass - 1) <= cutoffratio) or options.nofix:
+    if (np.abs(zoommass/parentmass - 1) <= cutoffratio) or nofix:
         if retflag: return mostpartid,False,badsubfflag
         return mostpartid #this one is probably the right one
     #otherwise, check the top several and use the subhalo particles too
@@ -68,24 +68,33 @@ if __name__=="__main__":
     parser.add_option("-n","--no-fix",dest="nofix",
                       action="store_true",default=False,
                       help="flag to use simple zoomid (summary file in /bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index_nofix.txt)")
+    parser.add_option("-c","--contam",dest="contam",
+                      action="store_true",default=False,
+                      help="flag to run index on contamination suite")
     parser.add_option("-o","--include-old",dest="includeold",
                       action="store_true",default=False,
                       help="flag to include oldhalos")
     (options, args) = parser.parse_args()
 
     levellist = [11,12,13,14]
-    nrvirlist = [3,4]
+    nrvirlist = [3,4,5,6,7]
 
     print "Reading parent..."
     pcat = haloutils.load_pcatz0()
-    hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
-                                      require_sorted=True,
-                                      nrvirlist=nrvirlist,levellist=levellist)
-    if options.includeold:
+    if options.contam:
+        hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
+                                          contamsuite=True,onlychecklastsnap=True,
+                                          nrvirlist=nrvirlist,levellist=levellist)
+    elif options.includeold:
         pcatold = haloutils.load_pcatz0(old=True)
         hlist = hlist+haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
                                                 nrvirlist=nrvirlist,levellist=levellist,
                                                 basepath="/bigbang/data/AnnaGroup/caterpillar/halos/oldhalos",hdf5=False)
+    else:
+        hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
+                                          require_sorted=True,
+                                          nrvirlist=nrvirlist,levellist=levellist)
+
     print "Number of halos with rockstar and subfind:",len(hlist)
 
     hindex = []
@@ -106,17 +115,40 @@ if __name__=="__main__":
         zoomrvir = hcat.ix[zoomid]['rvir']/hcat.h0
         zoomx,zoomy,zoomz = hcat.ix[zoomid][['posX','posY','posZ']]
         print "Halo %7i LX %2i has ID %6i: M = %3.2e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
-        hindex.append([parenthid,ictype,lx,nv,zoomid,
-                       zoomx,zoomy,zoomz,zoommass,zoomrvir,int(badhaloflag),int(oldflag),int(badsubfflag)])
+        if options.contam:
+            contamtype = haloutils.get_foldername(hpath).split('_')[-1]
+            icsize = np.sum([os.path.getsize(icfile) for icfile in glob.glob(hpath+'/ics.*')])/10.**6 #MB
+            hpos = np.array(hcat.ix[zoomid][['posX','posY','posZ']])
+            drarr = []
+            for parttype in [2,3,4,5]:
+                ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=parttype)
+                drarr.append(np.min(np.sqrt(np.sum((ppos-hpos)**2,1))))
+            hindex.append([parenthid,ictype,lx,nv,contamtype,zoomid,
+                           icsize,drarr[0],drarr[1],drarr[2],drarr[3],
+                           zoomx,zoomy,zoomz,zoommass,zoomrvir,int(badhaloflag),int(badsubfflag)])
+        else:
+            hindex.append([parenthid,ictype,lx,nv,zoomid,
+                           zoomx,zoomy,zoomz,zoommass,zoomrvir,int(badhaloflag),int(oldflag),int(badsubfflag)])
         sys.stdout.flush()
         
     if options.write_summary:
-        if options.nofix:
-            outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index_nofix.txt"
+        if options.contam:
+            outname = "/bigbang/data/AnnaGroup/caterpillar/halos/contam_zoom_index.txt"
+            asciitable.write(hindex,outname,
+                             Writer=asciitable.FixedWidth,
+                             names=['parentid','ictype','LX','NV','contamtype','zoomid',
+                                    'icsize','min2','min3','min4','min5',
+                                    'x','y','z','mvir','rvir','badflag','badsubf'],
+                             formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
+                                      'mvir':'%3.2e','rvir': '%0.1f',
+                                      'min2':'%0.6f','min3':'%0.6f','min4':'%0.6f','min5':'%0.6f',})
         else:
-            outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt"
-        asciitable.write(hindex,outname,
-                         Writer=asciitable.FixedWidth,
-                         names=['parentid','ictype','LX','NV','zoomid','x','y','z','mvir','rvir','badflag','oldflag','badsubf'],
-                         formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                  'mvir':'%3.2e','rvir': '%0.1f'})
+            if options.nofix:
+                outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index_nofix.txt"
+            else:
+                outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt"
+            asciitable.write(hindex,outname,
+                             Writer=asciitable.FixedWidth,
+                             names=['parentid','ictype','LX','NV','zoomid','x','y','z','mvir','rvir','badflag','oldflag','badsubf'],
+                             formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
+                                      'mvir':'%3.2e','rvir': '%0.1f'})
