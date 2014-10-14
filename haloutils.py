@@ -37,15 +37,21 @@ def get_foldername(outpath):
 def get_parent_hid(outpath):
     hidstr = get_foldername(outpath).split('_')[0]
     return int(hidstr[1:])
+def get_contamtype(outpath):
+    contamtype = get_foldername(outpath).split('_')[-1]
+    if 'NV' in contamtype: raise ValueError("outpath has no contamtype")
+    return contamtype
 def get_zoom_params(outpath):
     """ return ictype, LX, NV """
     split = get_foldername(outpath).split('_')
     return split[1],int(split[5][2:]),int(split[7][2:])
-def get_outpath(haloid,ictype,lx,nv,halobase=global_halobase):
+def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase):
     haloid = hidstr(haloid); ictype = ictype.upper()
-    return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
-def get_hpath(haloid,ictype,lx,nv,halobase=global_halobase):
-    return get_outpath(haloid,ictype,lx,nv,halobase=global_halobase)
+    if contamtype==None:
+        return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
+    return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)+'_'+str(contamtype)
+def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase):
+    return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase)
 
 def check_last_subfind_exists(outpath):
     numsnaps = get_numsnaps(outpath)
@@ -158,7 +164,10 @@ def find_halo_paths(basepath=global_halobase,
                         print "ERROR: skipping",outpath
                         continue
         except IOError as e:
-            print "ERROR: skipping",subdirnames
+            print "IOError: skipping",subdirnames
+            continue
+        except OSError as e:
+            print "OSError: skipping",subdirnames
             continue
 
     if require_rockstar:
