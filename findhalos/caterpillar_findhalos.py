@@ -69,11 +69,8 @@ if __name__=="__main__":
                       action="store_true",default=False,
                       help="flag to use simple zoomid (summary file in /bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index_nofix.txt)")
     parser.add_option("-c","--contam",dest="contam",
-                      action="store_true",default=False,
-                      help="flag to run index on contamination suite")
-    parser.add_option("-o","--include-old",dest="includeold",
-                      action="store_true",default=False,
-                      help="flag to include oldhalos")
+                      action="store",type="int",default=0,
+                      help="flag to run index on contamination suite: 0 (default) for normal, 1 for low mass, 2 for med mass, 3 for high mass")
     (options, args) = parser.parse_args()
 
     levellist = [11,12,13,14]
@@ -81,18 +78,18 @@ if __name__=="__main__":
 
     print "Reading parent..."
     pcat = haloutils.load_pcatz0()
-    if options.contam:
-        hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
+    if options.contam != 0:
+        if options.contam==1: contampath=haloutils.global_halobase+'/low_mass_halos'
+        elif options.contam==2: contampath=haloutils.global_halobase+'/middle_mass_halos'
+        elif options.contam==3: contampath=haloutils.global_halobase+'/high_mass_halos'
+        else: raise ValueError("contam argument must be 0, 1, 2, or 3")
+        hlist = haloutils.find_halo_paths(basepath=contampath,
+                                          require_rockstar=True,require_subfind=True,
                                           contamsuite=True,onlychecklastsnap=True,
                                           nrvirlist=nrvirlist,levellist=levellist)
-    elif options.includeold:
-        pcatold = haloutils.load_pcatz0(old=True)
-        hlist = hlist+haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
-                                                nrvirlist=nrvirlist,levellist=levellist,
-                                                basepath="/bigbang/data/AnnaGroup/caterpillar/halos/oldhalos",hdf5=False)
     else:
         hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
-                                          require_sorted=True,
+                                          onlychecklastsnap=True,
                                           nrvirlist=nrvirlist,levellist=levellist)
 
     print "Number of halos with rockstar and subfind:",len(hlist)
@@ -100,40 +97,47 @@ if __name__=="__main__":
     hindex = []
     
     for hpath in hlist:
-        oldflag = 'oldhalos' in hpath
         parenthid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
         lastsnap = haloutils.get_numsnaps(hpath) - 1
         hcat = haloutils.load_rscat(hpath,lastsnap)
         scat = haloutils.load_scat(hpath)
-        if oldflag:
-            print "--old halo"
-            zoomid,badhaloflag,badsubfflag = get_zoom_id(parenthid,hcat,scat,pcatold,verbose=True,retflag=True,nofix=options.nofix)
-        else:
-            zoomid,badhaloflag,badsubfflag = get_zoom_id(parenthid,hcat,scat,pcat,verbose=True,retflag=True,nofix=options.nofix)
+        zoomid,badhaloflag,badsubfflag = get_zoom_id(parenthid,hcat,scat,pcat,verbose=True,retflag=True,nofix=options.nofix)
         zoommass = hcat.ix[zoomid]['mvir']/hcat.h0
         zoomrvir = hcat.ix[zoomid]['rvir']/hcat.h0
         zoomx,zoomy,zoomz = hcat.ix[zoomid][['posX','posY','posZ']]
+        hpos = np.array([zoomx,zoomy,zoomz])
         print "Halo %7i LX %2i has ID %6i: M = %3.2e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
-        if options.contam:
-            contamtype = haloutils.get_foldername(hpath).split('_')[-1]
+        contamtype = haloutils.get_contamtype(hpath)
+        if options.contam != 0:
             icsize = np.sum([os.path.getsize(icfile) for icfile in glob.glob(hpath+'/ics.*')])/10.**6 #MB
-            hpos = np.array(hcat.ix[zoomid][['posX','posY','posZ']])
+            #hpos = np.array([zoomx,zoomy,zoomz])#np.array(hcat.ix[zoomid][['posX','posY','posZ']])
             drarr = []
             for parttype in [2,3,4,5]:
                 ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=parttype)
                 drarr.append(np.min(np.sqrt(np.sum((ppos-hpos)**2,1))))
             hindex.append([parenthid,ictype,lx,nv,contamtype,zoomid,
                            icsize,drarr[0],drarr[1],drarr[2],drarr[3],
-                           zoomx,zoomy,zoomz,zoommass,zoomrvir,int(badhaloflag),int(badsubfflag)])
+                           zoomx,zoomy,zoomz,zoommass,zoomrvir,
+                           int(badhaloflag),int(badsubfflag)])
         else:
-            hindex.append([parenthid,ictype,lx,nv,zoomid,
-                           zoomx,zoomy,zoomz,zoommass,zoomrvir,int(badhaloflag),int(oldflag),int(badsubfflag)])
+            allsnapsthere = True
+            for snap in xrange(256):
+                snapstr = str(snap).zfill(3)
+                snappath = hpath+"/outputs/snapdir_"+snapstr+"/snap_"+snapstr+".0.hdf5"
+                if (not os.path.exists(snappath)):
+                    allsnapsthere = False
+                    break
+            ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=2)
+            min2 = np.min(np.sqrt(np.sum((ppos-hpos)**2,1)))
+            hindex.append([parenthid,ictype,lx,nv,contamtype,zoomid,min2,
+                           zoomx,zoomy,zoomz,zoommass,zoomrvir,
+                           int(badhaloflag),int(badsubfflag),int(allsnapsthere)])
         sys.stdout.flush()
         
     if options.write_summary:
-        if options.contam:
-            outname = "/bigbang/data/AnnaGroup/caterpillar/halos/contam_zoom_index.txt"
+        if options.contam != 0:
+            outname = contampath+"/contam_zoom_index.txt"
             asciitable.write(hindex,outname,
                              Writer=asciitable.FixedWidth,
                              names=['parentid','ictype','LX','NV','contamtype','zoomid',
@@ -149,6 +153,8 @@ if __name__=="__main__":
                 outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt"
             asciitable.write(hindex,outname,
                              Writer=asciitable.FixedWidth,
-                             names=['parentid','ictype','LX','NV','zoomid','x','y','z','mvir','rvir','badflag','oldflag','badsubf'],
+                             names=['parentid','ictype','LX','NV','contamtype','zoomid','min2',
+                                    'x','y','z','mvir','rvir',
+                                    'badflag','badsubf','allsnaps'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                      'mvir':'%3.2e','rvir': '%0.1f'})
+                                      'mvir':'%3.2e','rvir': '%0.1f','min2':'%0.6f'})
