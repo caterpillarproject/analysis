@@ -12,7 +12,7 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
                 hubble = 0.6711,
                 nofix=False,verbose=False,retflag=False):
     hosts = hcat.get_hosts()
-    mostpartid = hosts.index[hosts['npart'].argmax()]
+    mostpartid = hosts.index[np.array(hosts['npart']).argmax()]
     mostpart = np.max(hosts['npart'])
     mostpos = hosts.ix[mostpartid][['posX','posY','posZ']]
     badsubfflag = False
@@ -107,6 +107,7 @@ if __name__=="__main__":
         zoomrvir = hcat.ix[zoomid]['rvir']/hcat.h0
         zoomx,zoomy,zoomz = hcat.ix[zoomid][['posX','posY','posZ']]
         hpos = np.array([zoomx,zoomy,zoomz])
+        print hpath
         print "Halo %7i LX %2i has ID %6i: M = %3.2e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
         contamtype = haloutils.get_contamtype(hpath)
         if options.contam != 0:

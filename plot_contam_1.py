@@ -4,6 +4,7 @@ import haloutils
 import asciitable
 import os
 from findhalos.caterpillar_findhalos import get_zoom_id
+import seaborn as sns
 
 def find_contam_dist():
     hpathlist = haloutils.find_halo_paths(contamsuite=True,onlychecklastsnap=True,
@@ -37,6 +38,8 @@ def find_contam_dist():
 def plot_contam_dist(whichfolder,haloidlist=None):
     labelmap = {'A':1,'B':2,'C':3,'D':4,'ELLIPSOID':0,'CONVEX':-1}
     labelmap = {'A4':1,'A5':2,'B':3,'C':4,'D':5,'ELLIPSOID4':-1,'ELLIPSOID5':0,'CONVEX4':-3,'CONVEX5':-2}
+    labelmap = {'A4':1,'A5':2,'B':3,'C':4,'D':5,'ELLIPSOID4':-1,'ELLIPSOID5':0,'CONVEX4':-3,'CONVEX5':-2,
+                'ELLIPSOIDB':6,'ELLIPSOIDC':7}
 
     #data = asciitable.read('contamdist.dat')
     #hidlabel = 'haloid'
@@ -81,7 +84,7 @@ def plot_contam_dist(whichfolder,haloidlist=None):
     for ax in [ax1,ax2]:
         ax.set_xlim([minx-0.5,maxx+0.5])
         ax.set_xticks(np.sort(labelmap.values()))
-        ax.set_xticklabels(['CV4','CV5','EL4','EL5','A4','A5','B','C','D'])
+        ax.set_xticklabels(['CV4','CV5','EL4','EL5','A4','A5','B','C','D','ELB','ELC'])
         ax.legend(loc='best')
     return fig1,fig2
 
@@ -90,4 +93,4 @@ if __name__=="__main__":
         fig1,fig2 = plot_contam_dist(whichfolder)
         fig1.savefig(whichfolder+'contamdist.png',bbox_inches='tight')
         fig2.savefig(whichfolder+'contamsize.png',bbox_inches='tight')
-        plt.close("all")
+    plt.close("all")

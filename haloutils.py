@@ -39,7 +39,8 @@ def get_parent_hid(outpath):
     return int(hidstr[1:])
 def get_contamtype(outpath):
     contamtype = get_foldername(outpath).split('_')[-1]
-    if 'NV' in contamtype: raise ValueError("outpath has no contamtype")
+    if 'NV' in contamtype and 'CONVEX' not in contamtype: 
+        raise ValueError("outpath has no contamtype")
     return contamtype
 def get_zoom_params(outpath):
     """ return ictype, LX, NV """
@@ -150,6 +151,7 @@ def find_halo_paths(basepath=global_halobase,
         try:
             for filename in os.listdir(subdirnames):
                 if filename=='contamination_suite': continue
+                if filename[0] != 'H': continue
                 halosubdirlist.append(filename)
                 thisictype,levelmax,nrvir = get_zoom_params(filename)
                 haloid = hidstr(get_parent_hid(filename))
@@ -232,7 +234,7 @@ def load_scat(hpath):
 
 def load_rscat(hpath,snap,verbose=True):
     try:
-        rcat = RDR.RSDataReader(hpath+'/halos',snap,version=7,digits=1)
+        rcat = RDR.RSDataReader(hpath+'/halos',snap,version=8,digits=1)
     except IOError:
         versionlist = [2,3,4,5,6,7]
         testlist = []
@@ -261,6 +263,7 @@ def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
     return rsg.read_block(snappath,block,parttype=parttype,ids=ids)
 
 def load_soft(hpath):
+    """ plummer equivalent grav. softening = h/2.8 """
     try:
         fname = hpath+'/param.txt-usedvalues'
         if not os.path.exists(fname): raise IOError("Could not find file "+fname)
