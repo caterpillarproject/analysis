@@ -46,13 +46,51 @@ def get_zoom_params(outpath):
     """ return ictype, LX, NV """
     split = get_foldername(outpath).split('_')
     return split[1],int(split[5][2:]),int(split[7][2:])
-def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase):
+def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
     haloid = hidstr(haloid); ictype = ictype.upper()
-    if contamtype==None:
-        return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
-    return halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)+'_'+str(contamtype)
-def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase):
-    return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase)
+    outpath = halobase+'/'+haloid+'/'+haloid+'_'+ictype+'_'+'Z127_P7_LN7_LX'+str(lx)+'_O4_NV'+str(nv)
+    if contamtype != None:
+        outpath += '_'+str(contamtype)
+    if check and not os.path.exists(outpath):
+        raise IOError("Invalid hpath")
+    return outpath
+def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
+    return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=checkpath)
+
+def get_available_hpaths(hid,contam=False,
+                         checkgadget=True,
+                         onlychecklastsnap=True,
+                         checkallblocks=False,
+                         hdf5=True,verbose=False):
+    hidpath = global_halobase+'/'+hidstr(hid)
+    if contam: hidpath += '/contamination_suite'
+    if not os.path.exists(hidpath):
+        raise IOError("Invalid hid: "+hidpath)
+    hpathlist = []
+    for foldername in os.listdir(hidpath):
+        if foldername[0] != 'H': continue
+        hpath = hidpath+'/'+foldername
+        if not os.path.isdir(hpath): continue
+        try:
+            if checkgadget and not gadget_finished(hpath,onlychecklastsnap=onlychecklastsnap,
+                                                   checkallblocks=checkallblocks,hdf5=hdf5,verbose=verbose):
+                continue
+        except IOError:
+            continue
+        hpathlist.append(hpath)
+    return hpathlist
+def get_lxlist(hid,gethpaths=False):
+    outlist = []
+    availablehpaths = get_available_hpaths(hid)
+    for lx in [14,13,12,11]:
+        for hpath in availablehpaths:
+            if 'LX'+str(lx) in hpath: 
+                if gethpaths:
+                    outlist.append(hpath)
+                else: 
+                    outlist.append(lx)
+    assert len(outlist)==len(np.unique(outlist))
+    return outlist
 
 def check_last_subfind_exists(outpath):
     numsnaps = get_numsnaps(outpath)
@@ -93,8 +131,40 @@ def check_is_sorted(outpath,snap=0,hdf5=True):
     except:
         return False
 
+def gadget_finished(outpath,
+                    onlychecklastsnap=False,
+                    checkallblocks=False,
+                    hdf5=True,verbose=False):
+    numsnaps = get_numsnaps(outpath)
+    gadgetpath = outpath+'/outputs'
+    if (not os.path.exists(gadgetpath)):
+        if verbose: print "  Gadget folder not present in "+get_foldername(outpath)
+        return False
+    if onlychecklastsnap: #only check last snap
+        snapstr = str(numsnaps-1).zfill(3)
+        snappath = gadgetpath+"/snapdir_"+snapstr+"/snap_"+snapstr+".0"
+        if hdf5: snappath += ".hdf5"
+        if (not os.path.exists(snappath)):
+            if verbose: print "  Snap "+snapstr+" not in "+get_foldername(outpath)
+            return False
+        else:
+            return True
+    for snap in xrange(numsnaps): # check that all snaps are there
+        snapstr = str(snap).zfill(3)
+        snappath = gadgetpath+"/snapdir_"+snapstr+"/snap_"+snapstr+".0"
+        if hdf5: snappath += ".hdf5"
+        if (not os.path.exists(snappath)):
+            if verbose: print "  Snap "+snapstr+" not in "+get_foldername(outpath)
+            return False
+        if checkallblocks:
+            for snapfile in glob.glob(gadgetpath+"/snapdir_"+snapstr+'/*'):
+                if (os.path.getsize(snapfile) <= 0):
+                    if verbose: print snapfile,"has no data (skipping)"
+                    return False
+    return True
+
 def find_halo_paths(basepath=global_halobase,
-                    nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictype="BB",
+                    nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictypelist=["BB","BE","BC"],
                     contamsuite=False,
                     require_rockstar=False,require_subfind=False,
                     require_mergertree=False,autoconvert_mergertree=False,
@@ -107,35 +177,7 @@ def find_halo_paths(basepath=global_halobase,
         print "basepath:",basepath
         print "nrvirlist:",nrvirlist
         print "levellist:",levellist
-        print "ictype:",ictype
-    def gadget_finished(outpath):
-        numsnaps = get_numsnaps(outpath)
-        gadgetpath = outpath+'/outputs'
-        if (not os.path.exists(gadgetpath)):
-            if verbose: print "  Gadget folder not present in "+get_foldername(outpath)
-            return False
-        if onlychecklastsnap: #only check last snap
-            snapstr = str(numsnaps-1).zfill(3)
-            snappath = gadgetpath+"/snapdir_"+snapstr+"/snap_"+snapstr+".0"
-            if hdf5: snappath += ".hdf5"
-            if (not os.path.exists(snappath)):
-                if verbose: print "  Snap "+snapstr+" not in "+get_foldername(outpath)
-                return False
-            else:
-                return True
-        for snap in xrange(numsnaps): # check that all snaps are there
-            snapstr = str(snap).zfill(3)
-            snappath = gadgetpath+"/snapdir_"+snapstr+"/snap_"+snapstr+".0"
-            if hdf5: snappath += ".hdf5"
-            if (not os.path.exists(snappath)):
-                if verbose: print "  Snap "+snapstr+" not in "+get_foldername(outpath)
-                return False
-            if checkallblocks:
-                for snapfile in glob.glob(gadgetpath+"/snapdir_"+snapstr+'/*'):
-                    if (os.path.getsize(snapfile) <= 0):
-                        if verbose: print snapfile,"has no data (skipping)"
-                        return False
-        return True
+        print "ictypelist:",ictypelist
 
     halopathlist = []
     haloidlist = []
@@ -143,34 +185,18 @@ def find_halo_paths(basepath=global_halobase,
         if filename[0] == "H":
             haloidlist.append(filename)
     for haloid in haloidlist:
-        if contamsuite:
-            subdirnames = basepath + "/" + haloid + '/contamination_suite'
-        else:
-            subdirnames = basepath + "/" + haloid
-        halosubdirlist = []
-        try:
-            for filename in os.listdir(subdirnames):
-                if filename=='contamination_suite': continue
-                if filename[0] != 'H': continue
-                halosubdirlist.append(filename)
-                thisictype,levelmax,nrvir = get_zoom_params(filename)
-                haloid = hidstr(get_parent_hid(filename))
-                if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype==thisictype):
-                    if contamsuite:
-                        outpath = basepath+"/"+haloid+"/contamination_suite/"+filename
-                    else:
-                        outpath = basepath+"/"+haloid+"/"+filename
-                    try:
-                        if gadget_finished(outpath): halopathlist.append(outpath)
-                    except IOError as e:
-                        print "ERROR: skipping",outpath
-                        continue
-        except IOError as e:
-            print "IOError: skipping",subdirnames
-            continue
-        except OSError as e:
-            print "OSError: skipping",subdirnames
-            continue
+        hpathlist = get_available_hpaths(haloid,contam=contamsuite,checkgadget=False)
+        for hpath in hpathlist:
+            ictype,levelmax,nrvir = get_zoom_params(hpath)
+            if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype in ictypelist):
+                try:
+                    if gadget_finished(hpath,
+                                       onlychecklastsnap=onlychecklastsnap,
+                                       checkallblocks=checkallblocks,
+                                       hdf5=hdf5,verbose=verbose):
+                        halopathlist.append(hpath)
+                except IOError as e:
+                    print "ERROR: skipping",hpath
 
     if require_rockstar:
         newhalopathlist = []
