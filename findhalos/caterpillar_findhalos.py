@@ -90,7 +90,7 @@ if __name__=="__main__":
     else:
         hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=True,
                                           onlychecklastsnap=True,
-                                          nrvirlist=nrvirlist,levellist=levellist)
+                                          nrvirlist=nrvirlist,levellist=levellist,verbose=True)
 
     print "Number of halos with rockstar and subfind:",len(hlist)
 
@@ -109,7 +109,6 @@ if __name__=="__main__":
         hpos = np.array([zoomx,zoomy,zoomz])
         print hpath
         print "Halo %7i LX %2i has ID %6i: M = %3.2e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
-        contamtype = haloutils.get_contamtype(hpath)
         if options.contam != 0:
             icsize = np.sum([os.path.getsize(icfile) for icfile in glob.glob(hpath+'/ics.*')])/10.**6 #MB
             #hpos = np.array([zoomx,zoomy,zoomz])#np.array(hcat.ix[zoomid][['posX','posY','posZ']])
@@ -117,7 +116,7 @@ if __name__=="__main__":
             for parttype in [2,3,4,5]:
                 ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=parttype)
                 drarr.append(np.min(np.sqrt(np.sum((ppos-hpos)**2,1))))
-            hindex.append([parenthid,ictype,lx,nv,contamtype,zoomid,
+            hindex.append([parenthid,ictype,lx,nv,zoomid,
                            icsize,drarr[0],drarr[1],drarr[2],drarr[3],
                            zoomx,zoomy,zoomz,zoommass,zoomrvir,
                            int(badhaloflag),int(badsubfflag)])
@@ -131,7 +130,7 @@ if __name__=="__main__":
                     break
             ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=2)
             min2 = np.min(np.sqrt(np.sum((ppos-hpos)**2,1)))
-            hindex.append([parenthid,ictype,lx,nv,contamtype,zoomid,min2,
+            hindex.append([parenthid,ictype,lx,nv,zoomid,min2,
                            zoomx,zoomy,zoomz,zoommass,zoomrvir,
                            int(badhaloflag),int(badsubfflag),int(allsnapsthere)])
         sys.stdout.flush()
@@ -141,7 +140,7 @@ if __name__=="__main__":
             outname = contampath+"/contam_zoom_index.txt"
             asciitable.write(hindex,outname,
                              Writer=asciitable.FixedWidth,
-                             names=['parentid','ictype','LX','NV','contamtype','zoomid',
+                             names=['parentid','ictype','LX','NV','zoomid',
                                     'icsize','min2','min3','min4','min5',
                                     'x','y','z','mvir','rvir','badflag','badsubf'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
@@ -154,7 +153,7 @@ if __name__=="__main__":
                 outname = "/bigbang/data/AnnaGroup/caterpillar/halos/parent_zoom_index.txt"
             asciitable.write(hindex,outname,
                              Writer=asciitable.FixedWidth,
-                             names=['parentid','ictype','LX','NV','contamtype','zoomid','min2',
+                             names=['parentid','ictype','LX','NV','zoomid','min2',
                                     'x','y','z','mvir','rvir',
                                     'badflag','badsubf','allsnaps'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',

@@ -26,7 +26,7 @@ def logEINprofile(r,r2,logrho2,alpha):
     return logrho2+np.log10(np.e)*(-2/alpha * (x**alpha - 1))
     #return np.log10(EINprofile(r,r2,10**logrho2,alpha))
 
-def fitNFW(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)]):
+def fitNFW(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)],verbose=False):
     nbins = len(rarr)
     logrho = np.log10(rhoarr)
     def Q2(x):
@@ -34,10 +34,10 @@ def fitNFW(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)]):
         logrhomodel = logNFWprofile(rarr,rs,logrhos)
         return np.sum((logrho-logrhomodel)**2)/nbins
     x,f,d = fmin_l_bfgs_b(Q2,x0,approx_grad=True,bounds=bounds)
-    print "NFW Fit value:",x,Q2(x)
+    if verbose: print "NFW Fit value:",x,Q2(x)
     return x[0],10**x[1]
     
-def fitM99(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)]):
+def fitM99(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)],verbose=False):
     nbins = len(rarr)
     logrho = np.log10(rhoarr)
     def Q2(x):
@@ -45,10 +45,10 @@ def fitM99(rarr,rhoarr,x0=[.05,6.5],bounds=[(.001,3),(5,8)]):
         logrhomodel = logM99profile(rarr,rs,logrhos)
         return np.sum((logrho-logrhomodel)**2)/nbins
     x,f,d = fmin_l_bfgs_b(Q2,x0,approx_grad=True,bounds=bounds)
-    print "M99 Fit value:",x,Q2(x)
+    if verbose: print "M99 Fit value:",x,Q2(x)
     return x[0],10**x[1]
     
-def fitEinasto(rarr,rhoarr,x0=[.05,6.5,.17],bounds=[(.001,3),(5,8),(.01,.3)]):
+def fitEinasto(rarr,rhoarr,x0=[.05,6.5,.17],bounds=[(.001,3),(5,8),(.01,.3)],verbose=False):
     nbins = len(rarr)
     logrho = np.log10(rhoarr)
     def Q2(x):
@@ -56,5 +56,5 @@ def fitEinasto(rarr,rhoarr,x0=[.05,6.5,.17],bounds=[(.001,3),(5,8),(.01,.3)]):
         logrhomodel = logEINprofile(rarr,r2,logrho2,alpha)
         return np.sum((logrho-logrhomodel)**2)/nbins
     x,f,d = fmin_l_bfgs_b(Q2,x0,approx_grad=True,bounds=bounds)
-    print "EIN Fit value:",x,Q2(x)
+    if verbose: print "EIN Fit value:",x,Q2(x)
     return x[0],10**x[1],x[2]
