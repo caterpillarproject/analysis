@@ -1,6 +1,5 @@
 import numpy as np
 import os,sys,platform
-import subprocess
 import asciitable
 
 import readsnapshots.readsnapHDF5_greg as rsg
@@ -9,7 +8,7 @@ import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
 from brendanlib.grifflib import determinebasepath
 
-global_basepath = determinebasepath(platform.node())
+global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
@@ -31,17 +30,18 @@ def hidstr(hid):
 def get_parent_zoom_index(filename=global_halobase+"/parent_zoom_index.txt"):
     return asciitable.read(filename, Reader=asciitable.FixedWidth)
 def get_numsnaps(outpath):
-    return sum(1 for line in open(outpath+'/ExpansionList'))
+    if os.path.exists(outpath+'/ExpansionList'):
+        return sum(1 for line in open(outpath+'/ExpansionList'))
+    else:
+        print "WARNING: "+outpath+"/ExpansionList not found, using default (256)"
+        return 256
 def get_foldername(outpath):
     return os.path.basename(os.path.normpath(outpath))
 def get_parent_hid(outpath):
     hidstr = get_foldername(outpath).split('_')[0]
     return int(hidstr[1:])
 def get_contamtype(outpath):
-    contamtype = get_foldername(outpath).split('_')[-1]
-    if 'NV' in contamtype and 'CONVEX' not in contamtype: 
-        raise ValueError("outpath has no contamtype")
-    return contamtype
+    return get_zoom_params(outpath)[0]
 def get_zoom_params(outpath):
     """ return ictype, LX, NV """
     split = get_foldername(outpath).split('_')
@@ -55,14 +55,20 @@ def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,che
         raise IOError("Invalid hpath")
     return outpath
 def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
-    return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=checkpath)
+    return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=check)
+def get_hpath_lx(hid,lx):
+    lxpaths = get_lxlist(hid,gethpaths=True)
+    for hpath in lxpaths:
+        if 'LX'+str(lx) in hpath: return hpath
+    return None
 
 def get_available_hpaths(hid,contam=False,
                          checkgadget=True,
                          onlychecklastsnap=True,
                          checkallblocks=False,
-                         hdf5=True,verbose=False):
-    hidpath = global_halobase+'/'+hidstr(hid)
+                         hdf5=True,verbose=False,
+                         basepath=global_halobase):
+    hidpath = basepath+'/'+hidstr(hid)
     if contam: hidpath += '/contamination_suite'
     if not os.path.exists(hidpath):
         raise IOError("Invalid hid: "+hidpath)
@@ -163,41 +169,12 @@ def gadget_finished(outpath,
                     return False
     return True
 
-def find_halo_paths(basepath=global_halobase,
-                    nrvirlist=[3,4,5,6],levellist=[11,12,13,14],ictypelist=["BB","BE","BC"],
-                    contamsuite=False,
-                    require_rockstar=False,require_subfind=False,
-                    require_mergertree=False,autoconvert_mergertree=False,
-                    require_sorted=False,
-                    checkallblocks=False,
-                    onlychecklastsnap=False,verbose=False,hdf5=True):
-    """ Returns a list of paths to halos that have gadget completed/rsynced
-        with the specified nrvirlist/levellist/ictype """
-    if verbose:
-        print "basepath:",basepath
-        print "nrvirlist:",nrvirlist
-        print "levellist:",levellist
-        print "ictypelist:",ictypelist
-
-    halopathlist = []
-    haloidlist = []
-    for filename in os.listdir(basepath):
-        if filename[0] == "H":
-            haloidlist.append(filename)
-    for haloid in haloidlist:
-        hpathlist = get_available_hpaths(haloid,contam=contamsuite,checkgadget=False)
-        for hpath in hpathlist:
-            ictype,levelmax,nrvir = get_zoom_params(hpath)
-            if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype in ictypelist):
-                try:
-                    if gadget_finished(hpath,
-                                       onlychecklastsnap=onlychecklastsnap,
-                                       checkallblocks=checkallblocks,
-                                       hdf5=hdf5,verbose=verbose):
-                        halopathlist.append(hpath)
-                except IOError as e:
-                    print "ERROR: skipping",hpath
-
+def restrict_halopaths(halopathlist,
+                       require_rockstar=False,
+                       require_subfind=False,
+                       require_sorted=False,
+                       require_mergertree=False,
+                       autoconvert_mergertree=False):
     if require_rockstar:
         newhalopathlist = []
         for outpath in halopathlist:
@@ -224,15 +201,60 @@ def find_halo_paths(basepath=global_halobase,
         halopathlist = newhalopathlist
     return halopathlist
 
+def find_halo_paths(basepath=global_halobase,
+                    nrvirlist=[3,4,5,6],levellist=[11,12,13,14],
+                    ictypelist=["BA","BB","BC","BD","EA","EB","EC","CA","CB","CC"],
+                    contamsuite=False,
+                    require_rockstar=False,require_subfind=False,
+                    require_mergertree=False,autoconvert_mergertree=False,
+                    require_sorted=False,
+                    checkallblocks=False,
+                    onlychecklastsnap=False,verbose=False,hdf5=True):
+    """ Returns a list of paths to halos that have gadget completed/rsynced
+        with the specified nrvirlist/levellist/ictype """
+    if verbose:
+        print "basepath:",basepath
+        print "nrvirlist:",nrvirlist
+        print "levellist:",levellist
+        print "ictypelist:",ictypelist
+
+    halopathlist = []
+    haloidlist = []
+    for filename in os.listdir(basepath):
+        if filename[0] == "H":
+            haloidlist.append(filename)
+    for haloid in haloidlist:
+        hpathlist = get_available_hpaths(haloid,contam=contamsuite,checkgadget=False,
+                                         basepath=basepath)
+        for hpath in hpathlist:
+            ictype,levelmax,nrvir = get_zoom_params(hpath)
+            if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype in ictypelist):
+                try:
+                    if gadget_finished(hpath,
+                                       onlychecklastsnap=onlychecklastsnap,
+                                       checkallblocks=checkallblocks,
+                                       hdf5=hdf5,verbose=verbose):
+                        halopathlist.append(hpath)
+                except IOError as e:
+                    print "ERROR: skipping",hpath
+
+    halopathlist = restrict_halopaths(halopathlist,
+                                      require_rockstar=require_rockstar,
+                                      require_subfind=require_subfind,
+                                      require_sorted=require_sorted,
+                                      require_mergertree=require_mergertree,
+                                      autoconvert_mergertree=autoconvert_mergertree)
+    return halopathlist
+
 def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     haloid = get_parent_hid(hpath)
     ictype,lx,nv = get_zoom_params(hpath)
     htable = get_parent_zoom_index()
     haloid = hidint(haloid); lx = int(lx); nv = int(nv)
-    #if lx==14 and haloid==1327707: return 188661
-    if lx==14 and haloid==706754: return 269650
-    if lx==14 and haloid==649524: return 481480
-    if lx==14 and haloid==1725139: return 135325
+
+    if lx==14 and haloid==95289: return 216145
+    if lx==14 and haloid==581141: return 184804
+    if lx==14 and haloid==5320: return 197220
 
     idmask = htable['parentid']==haloid
     icmask = htable['ictype']==ictype.upper()
@@ -261,7 +283,8 @@ def load_scat(hpath):
 def load_rscat(hpath,snap,verbose=True):
     try:
         rcat = RDR.RSDataReader(hpath+'/halos',snap,version=8,digits=1)
-    except IOError:
+    except IOError as e:
+        print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
@@ -304,8 +327,8 @@ def load_soft(hpath):
         if forceres==-1: raise IOError("Could not find force resolution")
     except IOError as e:
         print "WARNING:",e
-        ictype,lx,nv = haloutils.get_zoom_params(hpath)
-        forceres = 100./2.^lx/40.
+        ictype,lx,nv = get_zoom_params(hpath)
+        forceres = 100./2.^lx/80.
     return forceres
 
 def load_aqcat(whichAq,snap):
