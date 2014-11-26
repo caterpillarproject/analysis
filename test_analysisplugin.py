@@ -10,9 +10,11 @@ def test_calculation():
     SHMF = SHMFPlugin()
     Prof = ProfilePlugin()
     Proj = ProjPlugin()
+    MT = MassAccrPlugin()
 
     haloidlist = get_haloidlist(1)
-    haloidlist = [649861,1725139]
+    #haloidlist = [649861,1725139]
+    #haloidlist = [1130025]
     for hid in haloidlist:
         hpaths = haloutils.get_available_hpaths(hid)
         hpaths = haloutils.restrict_halopaths(hpaths,require_rockstar=True)
@@ -22,6 +24,7 @@ def test_calculation():
             SHMF(hpath)
             Prof(hpath)
             #Proj(hpath)
+            #MT(hpath)
 
     #for hpath in ["/bigbang/data/AnnaGroup/caterpillar/halos/H95289/H95289_BB_Z127_P7_LN7_LX11_O4_NV4",
     #              "/bigbang/data/AnnaGroup/caterpillar/halos/H95289/H95289_BB_Z127_P7_LN7_LX12_O4_NV4",
@@ -51,6 +54,9 @@ def plot_analysis():
     ProjP12 = ProjPlotter(12,vmin=None,vmax=None)
     ProjR13 = ProjReader(13)
     ProjP13 = ProjPlotter(13,vmin=None,vmax=None)
+
+    MTR = MassAccrReader()
+    MTP = MassAccrPlotter()
     for sheet in [1]:
         sheetplot(sheet,SHMFR,SHMFP)
         #sheetplot(sheet,SHMFR,sSHMFP)
@@ -65,6 +71,7 @@ def plot_analysis():
         #sheetplot(sheet,ProjR12,ProjP12,aspect1=True)
         #print '13'
         #sheetplot(sheet,ProjR13,ProjP13,aspect1=True)
+        sheetplot(sheet,MTR,MTP)
     plt.close('all')
 
 if __name__=="__main__":
