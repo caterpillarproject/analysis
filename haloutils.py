@@ -118,12 +118,12 @@ def check_last_rockstar_exists(outpath,fullbin=True,particles=False):
     return halo_exists and part_exists
 
 def check_mergertree_exists(outpath,autoconvert=False):
-    ascii_exists = os.path.exists(outpath+'/trees/tree_0_0_0.dat')
-    binary_exists = os.path.exists(outpath+'/trees/tree.bin')
-    if not binary_exists and autoconvert:
+    ascii_exists = os.path.exists(outpath+'/halos/trees/tree_0_0_0.dat')
+    binary_exists = os.path.exists(outpath+'/halos/trees/tree.bin')
+    if autoconvert and ascii_exists and not binary_exists:
         print "---check_mergertree_exists: Automatically converting ascii to binary"
-        MTC.convertmt(outpath+'/trees',version=4)
-        binary_exists = os.path.exists(outpath+'/trees/tree.bin')
+        MTC.convertmt(outpath+'/halos/trees',version=4)
+        binary_exists = os.path.exists(outpath+'/halos/trees/tree.bin')
     return ascii_exists and binary_exists
 
 def check_is_sorted(outpath,snap=0,hdf5=True):
@@ -252,9 +252,9 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     htable = get_parent_zoom_index()
     haloid = hidint(haloid); lx = int(lx); nv = int(nv)
 
-    if lx==14 and haloid==95289: return 216145
-    if lx==14 and haloid==581141: return 184804
-    if lx==14 and haloid==5320: return 197220
+    #if lx==14 and haloid==95289: return 216145
+    #if lx==14 and haloid==581141: return 184796
+    #if lx==14 and haloid==5320: return 87151
 
     idmask = htable['parentid']==haloid
     icmask = htable['ictype']==ictype.upper()
