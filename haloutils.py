@@ -7,6 +7,7 @@ import readhalos.RSDataReader as RDR
 import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
 from brendanlib.grifflib import determinebasepath
+import glob
 
 global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
