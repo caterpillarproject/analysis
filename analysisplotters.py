@@ -28,6 +28,7 @@ class NvmaxPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             v = vlist[i]; N = Nlist[i]
+            if v==None: continue
             minv = minvlist[i]
             ii = np.where(v >= minv)
             ax.plot(v[ii],N[ii],color=color,**kwargs)
@@ -50,6 +51,7 @@ class NvmaxpPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             v = vlist[i]; N = Nplist[i]
+            if v==None: continue
             minv = minvlist[i]
             ii = np.where(v >= minv)
             ax.plot(v[ii],N[ii],color=color,**kwargs)
@@ -72,6 +74,7 @@ class sNvmaxPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             v = vlist[i]; N = sNlist[i]
+            if v==None: continue
             minv = sminvlist[i]
             ii = np.where(v >= minv)
             ax.plot(v[ii],N[ii],color=color,**kwargs)
@@ -94,6 +97,7 @@ class sNvmaxpPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             v = vlist[i]; N = sNplist[i]
+            if v==None: continue
             minv = sminvlist[i]
             ii = np.where(v >= minv)
             ax.plot(v[ii],N[ii],color=color,**kwargs)
@@ -119,6 +123,7 @@ class SHMFPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             x = xlist[i]; y = ylist[i]
+            if x==None: continue
             #ii = y>ymin
             #ax.plot(x[ii],y[ii],color=color,**kwargs)
             ax.plot(x,y,color=color,**kwargs)
@@ -141,6 +146,7 @@ class sSHMFPlotter(PlotterBase):
         for i,lx in enumerate(lxlist):
             color = self.colordict[lx]
             x = sxlist[i]; y = sylist[i]
+            if x==None: continue
             #ii = y>ymin
             #ax.plot(x[ii],y[ii],color=color,**kwargs)
             ax.plot(x,y,color=color,**kwargs)
@@ -166,6 +172,7 @@ class ProfilePlotter(PlotterBase):
             color = self.colordict[lx]
             r = rlist[i]; rho = rholist[i]
             p03r = p03rlist[i]; rvir = rvirlist[i]; r200c = r200clist[i]
+            if r == None: continue
             ax.plot(r,(r/1000.)**2 * rho, color=color, **kwargs)
             ax.plot([p03r,p03r],[ymin,ymax],color=color,ls='--',**kwargs)
             ax.plot([rvir,rvir],[ymin,ymax],'k-.')
@@ -220,3 +227,29 @@ class ProjPlotter(PlotterBase):
         ax.text(-width/2.+width*.05,width/2.-width*.1,haloutils.hidstr(hid),color='white')
         ax.set_xticks([]); ax.set_yticks([])
         ax.set_xlim([-width/2.,width/2.]); ax.set_ylim([-width/2.,width/2.])
+
+class MassAccrPlotter(PlotterBase):
+    def __init__(self):
+        self.fprefix='MT'
+        self.fpostfix=''
+    def __call__(self,ax,data,fignum=None,**kwargs):
+        try:
+            hid,lxlist,tablist = data
+        except TypeError as e:
+            hid = data; lxlist = []
+        xmin = 0; xmax = 1
+        ymin = 10**6; ymax = 10.**13
+        ax.set_yscale('log')
+        for i,lx in enumerate(lxlist):
+            color = self.colordict[lx]
+            tab = tablist[i]
+            if tab==None: continue
+            x = tab['scale']
+            y = tab['mvir']
+            ax.plot(x,y,color=color,**kwargs)
+        ax.set_xlabel('scale')
+        ax.set_ylabel(r'$M$ [$M_\odot$]')
+        ax.set_xlim([xmin,xmax])
+        ax.set_ylim([ymin,ymax])
+        plotlabel = haloutils.hidstr(hid)
+        ax.text(0.1,ymax*10**-.5,plotlabel,color='black',fontsize='medium')

@@ -7,11 +7,11 @@ def get_haloidlist(sheet):
     if sheet==1:
         haloidlist = [95289, 1195448, 1725139,
                       447649, 5320, 581141,
-                      649861, 1130025, 1631506]
+                      94687, 1130025, 1387186]
     elif sheet==2:
-        haloidlist = [1599902, 1354437, 94687,
-                      581180, 581180, 581180, 
-                      581180, 581180, 581180]
+        haloidlist = [649861,1599902, 1354437,
+                      1631506, 1232164, 264569, 
+                      581180, 1422331, 1725372] #1725272, 
     else:
         exit("Invalid sheet number")
     assert len(haloidlist) == 9
@@ -19,7 +19,8 @@ def get_haloidlist(sheet):
 
 def sheetplot(sheetnum,Reader,Plotter,figsize=None,save=True,pdf=False):
     #TODO take a list of Plotter objects for the same reader
-    figfilename = Plotter.fprefix+'_s'+str(sheetnum)+'_'+Plotter.fpostfix
+    figfilename = Plotter.fprefix+'_s'+str(sheetnum)
+    if Plotter.fpostfix != '': figfilename += '_'+Plotter.fpostfix
     if pdf: figfilename += '.pdf'
     else:   figfilename += '.png'
     haloidlist = get_haloidlist(sheetnum)

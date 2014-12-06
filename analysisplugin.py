@@ -5,6 +5,7 @@ from profiles.densityprofile import densityprofilesorted,getr200sorted
 import readsnapshots.readsnapHDF5_greg as rsg
 import pynbody as pnb
 import pylab as plt
+import asciitable
 
 OUTPUTFOLDERNAME = 'analysis'
 
@@ -169,3 +170,39 @@ class ProjPlugin(AnalysisPluginBase):
                             width=radius,resolution=1000,noplot=True)
         plt.close("all")
         np.save(self.get_outfname(hpath),(im,radius))
+
+class MassAccrPlugin(AnalysisPluginBase):
+    def __init__(self):
+        self.filename='massaccr.dat'
+    def __call__(self,hpath):
+        if not haloutils.check_mergertree_exists(hpath,autoconvert=True):
+            print "  No merger tree available, skipping"
+            return
+        zoomid = haloutils.load_zoomid(hpath)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        mtc = haloutils.load_mtc(hpath,haloids=[zoomid])
+        mt = mtc[0]
+        mb = mt.getMainBranch()
+        scale = mb['scale'][::-1]
+        snap = mb['snap'][::-1]
+        mvir = mb['mvir'][::-1]/rscat.h0
+        sammvir = mb['sam_mvir'][::-1]/rscat.h0
+        vmax = mb['vmax'][::-1]
+        TU = mb['T/|U|'][::-1]
+        scaleMM = mb['scale_of_last_MM'][::-1]
+        x = mb['posX'][::-1]
+        y = mb['posY'][::-1]
+        z = mb['posZ'][::-1]
+        spin = mb['spin'][::-1]
+        spinbullock = mb['spin_bullock'][::-1]
+        asciitable.write({'scale':scale,'snap':snap,
+                          'mvir':mvir,'sam_mvir':sammvir,
+                          'vmax':vmax,'T/|U|':TU,
+                          'scale_of_last_MM':scaleMM,
+                          'x':x,'y':y,'z':z,
+                          'spin':spin,'spin_bullock':spinbullock},
+                         self.get_outfname(hpath),
+                         names=['scale','snap','mvir','sam_mvir','vmax',
+                                'T/|U|','scale_of_last_MM','x','y','z',
+                                'spin','spin_bullock'])
+        

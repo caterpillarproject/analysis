@@ -22,17 +22,25 @@ class NvmaxReader(ReaderBase):
         minvlist = []; sminvlist = []
         
         for hpath in lxhpaths:
-            thisfilename = self.get_filename(hpath)
-            data = asciitable.read(thisfilename,delimiter=' ',data_start=1)
-            
-            vlist.append(data['col1'])
-            Nlist.append(data['col2'])
-            sNlist.append(data['col3'])
-            Nplist.append(data['col4'])
-            sNplist.append(data['col5'])
-            with open(thisfilename,'r') as f:
-                split = f.readline().split(" ")
-                minvlist.append(float(split[0])); sminvlist.append(float(split[1]))
+            try:
+                thisfilename = self.get_filename(hpath)
+                data = asciitable.read(thisfilename,delimiter=' ',data_start=1)
+                vlist.append(data['col1'])
+                Nlist.append(data['col2'])
+                sNlist.append(data['col3'])
+                Nplist.append(data['col4'])
+                sNplist.append(data['col5'])
+                with open(thisfilename,'r') as f:
+                    split = f.readline().split(" ")
+                    minvlist.append(float(split[0])); sminvlist.append(float(split[1]))
+            except IOError as e:
+                vlist.append(None)
+                Nlist.append(None)
+                sNlist.append(None)
+                Nplist.append(None)
+                sNplist.append(None)
+                minvlist.append(None)
+                sminvlist.append(None)
         return hid,lxlist,vlist,Nlist,minvlist,sNlist,sminvlist,Nplist,sNplist
 
 class SHMFReader(ReaderBase):
@@ -45,12 +53,18 @@ class SHMFReader(ReaderBase):
         xlist = []; ylist = []
         sxlist = []; sylist = []
         for hpath in lxhpaths:
-            thisfilename = self.get_filename(hpath)
-            data = asciitable.read(thisfilename,delimiter=' ')
-            xlist.append(data['col1'])
-            ylist.append(data['col2'])
-            sxlist.append(data['col3'])
-            sylist.append(data['col4'])
+            try:
+                thisfilename = self.get_filename(hpath)
+                data = asciitable.read(thisfilename,delimiter=' ')
+                xlist.append(data['col1'])
+                ylist.append(data['col2'])
+                sxlist.append(data['col3'])
+                sylist.append(data['col4'])
+            except IOError as e:
+                xlist.append(None)
+                ylist.append(None)
+                sxlist.append(None)
+                sylist.append(None)
         return hid,lxlist,xlist,ylist,sxlist,sylist
 
 class ProfileReader(ReaderBase):
@@ -63,16 +77,23 @@ class ProfileReader(ReaderBase):
         rlist = []; rholist = []; p03rlist = []
         rvirlist = []; r200clist = []
         for hpath in lxhpaths:
-            thisfilename = self.get_filename(hpath)
-            data = np.array(asciitable.read(thisfilename,delimiter=" ",data_start=1))
-            rlist.append(1000.*data['col1'])
-            rholist.append(data['col2'])
-            f = open(thisfilename,'r')
-            p03r,rvir,r200c,halomass = f.readline().split(" ")
-            p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c)
-            f.close()
-            p03rlist.append(p03r); rvirlist.append(rvir)
-            r200clist.append(r200c)
+            try:
+                thisfilename = self.get_filename(hpath)
+                data = np.array(asciitable.read(thisfilename,delimiter=" ",data_start=1))
+                rlist.append(1000.*data['col1'])
+                rholist.append(data['col2'])
+                f = open(thisfilename,'r')
+                p03r,rvir,r200c,halomass = f.readline().split(" ")
+                p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c)
+                f.close()
+                p03rlist.append(p03r); rvirlist.append(rvir)
+                r200clist.append(r200c)
+            except IOError as e:
+                rlist.append(None)
+                rholist.append(None)
+                p03rlist.append(None)
+                rvirlist.append(None)
+                r200clist.append(None)
         return hid,lxlist,rlist,rholist,p03rlist,rvirlist,r200clist
 
 class ProjReader(ReaderBase):
@@ -94,3 +115,20 @@ class ProjReader(ReaderBase):
         hpath = hpathmatches[0]
         im,width = np.load(self.get_filename(hpath))
         return hid,self.lx,im,width
+
+class MassAccrReader(ReaderBase):
+    def __init__(self):
+        self.filename = 'massaccr.dat'
+    def __call__(self,hid):
+        lxhpaths = haloutils.get_lxlist(hid,gethpaths=True)
+        lxlist = haloutils.get_lxlist(hid)
+        
+        tablist = []
+        for hpath in lxhpaths:
+            try:
+                thisfilename = self.get_filename(hpath)
+                tab = asciitable.read(thisfilename,header_start=0)
+                tablist.append(tab)
+            except IOError as e:
+                tablist.append(None)
+        return hid,lxlist,tablist
