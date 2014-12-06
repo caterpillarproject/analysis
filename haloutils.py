@@ -253,10 +253,6 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     htable = get_parent_zoom_index()
     haloid = hidint(haloid); lx = int(lx); nv = int(nv)
 
-    #if lx==14 and haloid==95289: return 216145
-    #if lx==14 and haloid==581141: return 184796
-    #if lx==14 and haloid==5320: return 87151
-
     idmask = htable['parentid']==haloid
     icmask = htable['ictype']==ictype.upper()
     lxmask = htable['LX']==lx
@@ -269,7 +265,8 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
         exit()
     row = htable[maskall]
     if row['badflag']+row['badsubf'] > 0:
-        print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
+        if (lx != 14) or (lx==14 and row['badflag']>0):
+            print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
     return row['zoomid'][0]
 
 def load_pcatz0(old=False):
