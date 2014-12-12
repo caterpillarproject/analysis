@@ -391,7 +391,7 @@ class ProfilePlugin(PluginBase):
     def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,calcp03r=True,calcr200=True):
         haloparts = rscat.get_all_particles_from_halo(rsid)
         halopos = np.array(rscat.ix[rsid][['posX','posY','posZ']])
-        halorvir = float(rscat.ix[rsid]['rvir']) * header.hubble #kpc
+        halorvir = float(rscat.ix[rsid]['rvir']) / header.hubble #kpc
         halomass = rscat.ix[rsid]['mvir']/header.hubble
         try:
             haloparts = np.sort(haloparts)
@@ -436,10 +436,9 @@ class ProfilePlugin(PluginBase):
         return interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
     def mltr_to_vcirc(self,rarr,mltr):
         """ rarr in Mpc (including h), mltr in Msun (including h), return km/s """
-        G = 1 #TODO fix units etc
-        v2 = 2*G*mltr/rarr
-        raise NotImplementedError
-        #return np.sqrt(v2)
+        const = 6.67e-17*1.988e30*3.241e-23 #G * Msun->kg * m->Mpc to km/s
+        v2 = const*mltr/rarr
+        return np.sqrt(v2)
     
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
@@ -468,6 +467,41 @@ class ProfilePlugin(PluginBase):
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
         if labelon: self.label_plot(hpath,ax)
 
+class VelocityProfilePlugin(ProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):
+        super(VelocityProfilePlugin,self).__init__()
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = vmin;  self.ymax = vmax
+        self.xlabel = r'r [kpc]' #$h^{-1}$ 
+        self.ylabel = r'$v_{circ}$ [km/s]'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'vcirc'
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        data = np.array(asciitable.read(thisfilename,delimiter=" ",data_start=1))
+        r = data['col1'] #Mpc
+        mltr = data['col2'] #Msun
+        vcirc = self.mltr_to_vcirc(r,mltr) #km/s
+        f = open(thisfilename,'r')
+        p03r,rvir,r200c,halomass = f.readline().split(" ")
+        p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
+        return r,vcirc,p03r,rvir,r200c
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        r,vcirc,p03r,rvir,r200c = data
+        r = r*1000. # kpc
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        ii2 = r >= p03r
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], vcirc[ii1], color=color, lw=1, **kwargs)
+            ax.plot(r[ii2], vcirc[ii2], color=color, lw=3, **kwargs)
+        else:
+            ax.plot(r[ii1], vcirc[ii1], lw=1, **kwargs)
+            ax.plot(r[ii2], vcirc[ii2], lw=3, **kwargs)
+        if labelon: self.label_plot(hpath,ax)
+
 class SubProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
         super(SubProfilePlugin,self).__init__(rmin=rmin,rmax=rmax,ymin=ymin,ymax=ymax)
@@ -484,7 +518,7 @@ class SubProfilePlugin(ProfilePlugin):
         self.autofigname = 'subrhor2'
     def get_scaled_rarr(self,rvir):
         """ rvir in kpc, return Mpc """
-        out = rvir.reshape(-1,1)/1000.*np.logspace(-5,0,self.nr).reshape(1,-1)
+        out = 3*rvir.reshape(-1,1)/1000.*np.logspace(-5,0,self.nr).reshape(1,-1)
         if out.shape[0]==1: return out[0]
         return out
     def _analyze(self,hpath):
@@ -506,7 +540,7 @@ class SubProfilePlugin(ProfilePlugin):
         header = rsg.snapshot_header(snapfile+'.0')
         for i,subid in enumerate(subids):
             thismvir = float(subs.ix[subid]['mvir'])/header.hubble
-            thisrvir = float(subs.ix[subid]['rvir'])*header.hubble
+            thisrvir = float(subs.ix[subid]['rvir'])/header.hubble
             rarr = self.get_scaled_rarr(thisrvir)
             rarr,mltr,p03rmin,halorvir,r200c,halomass = self.compute_one_profile(rarr,hpath,rscat,subid,snap,header,calcp03r=False,calcr200=False)
             rvirarr[i] = halorvir
@@ -531,7 +565,7 @@ class SubProfilePlugin(ProfilePlugin):
         for i in range(len(rsid)):
             rhoarr[i,:] = self.mltr_to_rho(rarr[i],mltrarr[i,:])
         return rsid,rarr,rvir,rhoarr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,alpha=.1,color='k',**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,alpha=.2,color='k',**kwargs):
         rsid,rarr,rvir,rhoarr = data
         rhoarr = rhoarr/10**10 #10^10 Msun/Mpc^3
         rarr = rarr*1000 #kpc
@@ -542,7 +576,39 @@ class SubProfilePlugin(ProfilePlugin):
         for i in xrange(len(rsid)):
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
-            ax.plot(rarr[i,ii], plotqty[i,ii], color=color, lw=1, alpha=alpha, **kwargs)
+            ax.plot(rarr[i,ii], plotqty[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
+        if labelon: self.label_plot(hpath,ax)
+class SubVelocityProfilePlugin(SubProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):
+        super(SubVelocityProfilePlugin,self).__init__()
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = vmin;  self.ymax = vmax
+        self.xlabel = r'r [kpc]' #$h^{-1}$ 
+        self.ylabel = r'$v_{circ}$ [km/s]'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subvcirc'
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        data = asciitable.read(thisfilename,header_start=0)
+        rsid = data['rsid']
+        rvir = data['rvir']
+        mltrarr = data[self.profilenames]
+        mltrarr = mltrarr.view(np.float).reshape(mltrarr.shape+(-1,))
+        rarr = self.get_scaled_rarr(rvir)
+        vcircarr = np.zeros(mltrarr.shape)
+        for i in range(len(rsid)):
+            vcircarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrarr[i,:])
+        return rsid,rarr,rvir,vcircarr
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,alpha=.2,color='k',**kwargs):
+        rsid,rarr,rvir,vcircarr = data
+        rarr = rarr*1000 #kpc
+        eps = 1000*haloutils.load_soft(hpath)
+        if lx != None:
+            color = self.colordict[lx]
+        for i in xrange(len(rsid)):
+            ii = rarr[i,:] >= eps
+            if np.sum(ii) == 0: continue
+            ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
         if labelon: self.label_plot(hpath,ax)
 
 class MassAccrPlugin(PluginBase):
