@@ -96,7 +96,7 @@ class PluginBase(object):
             return self._read(hpath)
         elif autocalc:
             try:
-                print "Automatically analyzing "+haloutils.get_foldername(hpath)+"..."
+                print "Automatically analyzing "+haloutils.get_foldername(hpath)+"..."+self.filename
                 self.analyze(hpath,recalc=recalc)
                 print "Done!"
                 return self._read(hpath)
