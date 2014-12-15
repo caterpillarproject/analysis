@@ -278,16 +278,16 @@ def load_pcatz0(old=False):
 def load_scat(hpath):
     return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_rscat(hpath,snap,verbose=True):
+def load_rscat(hpath,snap,verbose=True,halodir='halos'):
     try:
-        rcat = RDR.RSDataReader(hpath+'/halos',snap,version=8,digits=1)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1)
     except IOError as e:
         print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
             try:
-                rcat = RDR.RSDataReader(hpath+'/halos',snap,version=version)
+                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version)
                 testlist.append(True)
             except KeyError:
                 testlist.append(False)
@@ -297,11 +297,11 @@ def load_rscat(hpath,snap,verbose=True):
             version = np.array(versionlist)[np.array(testlist)][0]
             if verbose:
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/halos',snap,version=version)
+            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version)
     return rcat
 
-def load_mtc(hpath,verbose=True,**kwargs):
-    return MTC.MTCatalogue(hpath+'/halos/trees',version=4,**kwargs)
+def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
+    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 
 def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
     #assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
