@@ -250,7 +250,8 @@ class MultiPlugin(PluginBase):
         assert hpath != None
         for plug in self.pluglist: assert plug.filename != None
         fnames = [hpath+'/'+self.OUTPUTFOLDERNAME+'/'+plug.filename for plug in self.pluglist]
-        for fname in fnames: if not os.path.exists(fname): raise IOError
+        for fname in fnames:
+            if not os.path.exists(fname): raise IOError
         return fnames
     def file_exists(self,hpath):
         """ Use this function to check if the data file is already created """
