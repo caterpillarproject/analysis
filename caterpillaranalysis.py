@@ -89,9 +89,18 @@ class PluginBase(object):
         Read data associated with halo path.
         @param hpath: which halo's data to read
         @param autocalc: if true, automatically calls analyze() when data is missing (default True)
-        @param recalc: if true, force recalculation of the analysis (default False)
+        @param recalc: if true, force recalculation of the analysis (default False). 
+                       Can also pass in list of halo IDs to recalculate (useful if e.g. fixing one halo)
         """
         if hpath==None: return None
+        if type(recalc) is list or type(recalc) is np.ndarray:
+            ## if list of haloids, check if current hid is in that list
+            # TODO allow specifying LX
+            assert autocalc==True
+            recalcids = [haloutils.hidint(hid) for hid in recalc]
+            thishid = haloutils.get_parent_hid(hpath)
+            recalc = (thishid in recalcids)
+
         if not recalc and self.file_exists(hpath):
             return self._read(hpath)
         elif autocalc:
@@ -119,6 +128,7 @@ class PluginBase(object):
         @param lx: used for lxplot()
         @param labelon: if True, label axis with the halo ID
         @param recalc: if true, force recalculation of the analysis (default False)
+                       Can also pass in list of halo IDs to recalculate (useful if e.g. fixing one halo)
         @param formatonly: if true, only format the plot (default False)
         @param **kwargs: keyword arguments (intended for plotting parameters)
         """
