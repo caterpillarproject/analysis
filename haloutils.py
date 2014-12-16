@@ -1,6 +1,7 @@
 import numpy as np
 import os,sys,platform
 import asciitable
+import pickle
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
@@ -8,6 +9,7 @@ import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
 from brendanlib.grifflib import determinebasepath
 import glob
+
 
 global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
@@ -335,3 +337,21 @@ def load_aqcat(whichAq,snap):
         raise ValueError("Aquarius is snaps 0-127")
     rspath = global_basepath+'/aquarius/Aq-'+whichAq+'/2/halos'
     return RDR.RSDataReader(rspath,snap,version=7)
+
+def get_quant_zoom(halo_path,quant):
+    htable = get_parent_zoom_index()
+    halo_split = halo_path.split("_")
+    haloid = int(halo_path.split("/H")[-1].split("_")[0].strip("H"))
+    geom,lx,nrvir = get_zoom_params(halo_path.split("/")[-1])
+    mask = (haloid == htable['parentid']) & \
+           (geom == htable['ictype']) & \
+           (int(lx) == htable['LX']) & \
+           (int(nrvir) == htable['NV']) 
+
+    if len(htable[mask][quant])>1:
+        return htable[mask][quant]
+    else:
+        return float(htable[mask][quant])
+
+def get_main_branch_quant(hpath):
+    return pickle.load( open( hpath+"/analysis/main_branch.p", "rb" ) )
