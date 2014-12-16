@@ -18,7 +18,7 @@ def get_haloidlist(sheet):
     assert len(haloidlist) == 12
     return haloidlist
 
-def convergeplot(sheetnum,plug,figfilename=None,figsize=None,**kwargs):
+def convergeplot(sheetnum,plug,whichlx=[14,13,12,11],figfilename=None,figsize=None,**kwargs):
     haloidlist = get_haloidlist(sheetnum)
     if figsize==None: figsize=(9,11)
     fig,axarr = plt.subplots(4,3,figsize=figsize,
@@ -26,7 +26,7 @@ def convergeplot(sheetnum,plug,figfilename=None,figsize=None,**kwargs):
     plt.subplots_adjust(wspace=0,hspace=0)
     axlist = axarr.reshape(-1)
     for i,(hid,ax) in enumerate(zip(haloidlist,axlist)):
-        plug.lxplot(hid,ax,**kwargs)
+        plug.lxplot(hid,ax,whichlx=whichlx,**kwargs)
     for ax in np.ravel(axarr[0:2,:]):
         ax.set_xlabel('')
     for ax in np.ravel(axarr[:,1:3]):
