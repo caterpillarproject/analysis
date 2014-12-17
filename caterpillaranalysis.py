@@ -296,7 +296,11 @@ class MultiPlugin(PluginBase):
         datalist = []
         for plug in self.pluglist:
             datalist.append(plug.read(hpath,autocalc=autocalc,recalc=recalc))
-        return datalist
+        nonetest = False
+        for data in datalist:
+            if data==None: nonetest=True
+        if nonetest: return None
+        else: return datalist
 
     ### No need to redefine plot() as long as _plot is defined properly.
     def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
