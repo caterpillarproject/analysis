@@ -308,7 +308,7 @@ class MultiPlugin(PluginBase):
         raise NotImplementedError
 
 class NvmaxPlugin(PluginBase):
-    def __init__(self,vmin=0.3,vmax=100,Nmin=1,Nmax=10**4.5):
+    def __init__(self,vmin=0.3,vmax=100,Nmin=1,Nmax=10**5):
         super(NvmaxPlugin,self).__init__()
         self.filename='Nvmax.dat'
         self.logvmin = -1.
@@ -441,7 +441,7 @@ class SHMFPlugin(PluginBase):
         if labelon: self.label_plot(hpath,ax)
 
 class ProfilePlugin(PluginBase):
-    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
+    def __init__(self,,ymin=10**-1.5,ymax=10**2.5):
         super(ProfilePlugin,self).__init__()
         self.filename='rsprofile.dat'
 
@@ -803,4 +803,140 @@ class SubPhaseContourPlugin(PluginBase):
             cs = ax.contour(X,Y,Z,levels = levels,colors=self.colordict[lx],**kwargs)
         else:
             cs = ax.contour(X,Y,Z,levels = levels,**kwargs)
+        if labelon: self.label_plot(hpath,ax)
+
+class SubhaloRadialPlugin(PluginBase):
+    def __init__(self,rmin=10**-2,rmax=10**3):
+        super(SubhaloRadialPlugin,self).__init__()
+        self.filename='subradial.dat'
+
+        self.xmin = rmax; self.xmax = rmax
+        self.ymin = 1; self.ymax = 10**5
+        self.xlabel = r'$r$ [kpc]'
+        self.ylabel = r'$N(<r)$'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subradial'
+    def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No Rockstar")
+        zoomid = haloutils.load_zoomid(hpath)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+        subs = self.get_rssubs(rscat,zoomid)
+        spos = np.array(subs[['posX','posY','posZ']])
+        dist = 1000*self.distance(spos,hpos)/rscat.h0 #kpc
+        #TODO test sorting
+        iisort = np.argsort(dist)
+        sortedids = rscat.data.index[iisort]
+        sorteddist= dist[iisort]
+        submass = np.array(subs.ix[sortedids]['mvir'])
+        subrvir = np.array(subs.ix[sortedids]['rvir'])
+        
+        names = ['id','dist','mass','rvir']
+        outdict=dict(zip(names,[sortedids,sorteddist,submass,subrvir]))
+        asciitable.write(outdict,self.get_outfname(hpath),names=names)
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        tab = asciitable.read(thisfilename,header_start=0)
+        return tab['id'],tab['dist'],tab['mass'],tab['rvir']
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        id,dist,mass,rvir = data
+        num = np.arange(1,1+len(dist))[::-1]
+        if lx != None:
+            ax.plot(dist,num,color=self.colordict[lx],**kwargs)
+        else:
+            ax.plot(dist,num,**kwargs)
+        if labelon: self.label_plot(hpath,ax)
+
+class SubhaloRadialMassPlugin(ProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3):
+        super(SubhaloRadialMassPlugin,self).__init__()
+        self.filename='subradialmass.dat'
+
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = 10**4; self.ymax = 10**11 #Msun?
+        self.xlabel = r'$r$ [kpc]'
+        self.ylabel = r'Substructure enclosed mass'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subradialmass'
+    def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No Rockstar")
+        snap = haloutils.get_numsnaps(hpath)-1
+        snapstr = str(snap).zfill(3)
+        snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
+        header = rsg.snapshot_header(snapfile+'.0')
+        rscat = haloutils.load_rscat(hpath,snap)
+        subs = self.get_rssubs(rscat,zoomid)
+        subids = np.array(subs['id'])
+        rarr = self.get_rarr()
+        rarr,mltrarr,haloparts = self.compute_subpart_profile(rarr,hpath,rscat,subids,snap,header)
+        np.savez(self.get_outfname(hpath),rarr=rarr[2:],mltr=mltrarr[1:],haloparts=haloparts)
+    def compute_host_profile(self,hpath,zoomid=-1,snap=255):
+        raise NotImplementedError
+    def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,calcp03r=True,calcr200=True):
+        raise NotImplementedError
+    def compute_subpart_profile(self,rarr,hpath,rscat,subids,snap,header,calcp03r=False,calcr200=False):
+        zoomid = haloutils.load_zoomid(hpath)
+        haloparts = set([])
+        for subid in subids:
+            haloparts.add(rscat.get_all_particles_from_halo(subid))
+        haloparts = np.array(haloparts)
+        halopos = np.array(rscat.ix[rsid][['posX','posY','posZ']])
+        try:
+            haloparts = np.sort(haloparts)
+            partpos = haloutils.load_partblock(hpath,snap,"POS ",parttype=1,ids=haloparts)
+        except IndexError as e:
+            raise RuntimeError("Contamination in halo")
+        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,partpos,header,haloparts,halopos,
+                                                     calcp03r=calcp03r,calcr200=calcr200)
+        return rarr,mltrarr,haloparts #all in physical units
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        data = np.load(thisfilename)
+        r = data['rarr']
+        mltr = data['mltr']
+        rho = self.mltr_to_rho(r,mltr)
+        return r,rho
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        r,rho = data
+        r = r*1000. # kpc
+        rho = rho/10**10 #10^10 Msun/Mpc^3
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
+        else:
+            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
+        if labelon: self.label_plot(hpath,ax)
+
+class SubhaloRadialMassFracPlugin(MultiPlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3):
+        allplug = ProfilePlugin()
+        subplug = SubhaloRadialMassPlugin()
+        super(MultiPlugin,self).__init__([allplug,subplug])
+        
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = 10**-5; self.ymax = 10**0 #Msun?
+        self.xlabel = r'$r$ [kpc]'
+        self.ylabel = r'Mass fraction in sub'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subradialmassfrac'
+    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
+        alldata = datalist[0]
+        subdata = datalist[1]
+        r,rho,p03r,rvir,r200c = alldata        
+        rsub,rhosub = subdata
+        assert np.all(r==rsub)
+        assert len(rho)==len(rhosub)
+        mfrac = rhosub/rho
+        assert np.all((mfrac <= 1) & (mfrac >= 0))
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
+        else:
+            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
         if labelon: self.label_plot(hpath,ax)
