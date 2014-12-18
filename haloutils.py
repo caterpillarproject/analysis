@@ -1,5 +1,9 @@
-import numpy as np
 import os,sys,platform
+if 'compute-0-' in platform.node():
+    import matplotlib
+    matplotlib.use('Agg')
+
+import numpy as np
 import asciitable
 
 import readsnapshots.readsnapHDF5_greg as rsg
