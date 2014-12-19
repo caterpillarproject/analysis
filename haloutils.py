@@ -251,7 +251,7 @@ def find_halo_paths(basepath=global_halobase,
                                       autoconvert_mergertree=autoconvert_mergertree)
     return halopathlist
 
-def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
+def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     haloid = get_parent_hid(hpath)
     ictype,lx,nv = get_zoom_params(hpath)
     htable = get_parent_zoom_index()
@@ -271,7 +271,16 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     if row['badflag']+row['badsubf'] > 0:
         if (lx != 14) or (lx==14 and row['badflag']>0):
             print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
+    return row
+def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
+    row = _load_index_row(hpath,filename=filename)
     return row['zoomid'][0]
+def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
+    row = _load_index_row(hpath,filename=filename)
+    mvir = float(row['mvir']) # physical Msun
+    rvir = float(row['rvir']) # physical kpc
+    vvir = np.sqrt(4.34e-6 * mvir/rvir) # physical km/s
+    return mvir,rvir,vvir
 
 def load_pcatz0(old=False):
     if old:
