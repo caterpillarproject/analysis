@@ -6,7 +6,7 @@ import pylab as plt
 if __name__=="__main__":
     Nvmax      = NvmaxPlugin()
     SHMF       = SHMFPlugin()
-    intSHMF    = integrableSHMFPlugin()
+    intSHMF    = IntegrableSHMFPlugin()
     Profile    = ProfilePlugin()
     VelProfile = VelocityProfilePlugin()
     MassAccr   = MassAccrPlugin()
@@ -15,6 +15,7 @@ if __name__=="__main__":
     SubProfile     = SubProfilePlugin()
     SubVelProfile  = SubVelocityProfilePlugin()
     SubRad         = SubhaloRadialPlugin()
+    intSubRad      = IntegrableSubhaloRadialPlugin()
     SubRadMass     = SubhaloRadialMassPlugin()
     SubRadMassFrac = SubhaloRadialMassFracPlugin()
 
@@ -33,11 +34,12 @@ if __name__=="__main__":
     #convergeplot(1,SubProfile,whichlx=[12],figfilename='subprofLX12_s1.png',recalc=myrecalc)
     #convergeplot(1,SubProfile,whichlx=[13],figfilename='subprofLX13_s1.png',recalc=myrecalc)
     #convergeplot(1,SubProfile,whichlx=[14],figfilename='subprofLX14_s1.png',recalc=myrecalc)
-    convergeplot(1,SubVelProfile,whichlx=[12],figfilename='subvelprofLX12_s1.png',recalc=myrecalc)
-    convergeplot(1,SubVelProfile,whichlx=[13],figfilename='subvelprofLX13_s1.png',recalc=myrecalc)
-    convergeplot(1,SubVelProfile,whichlx=[14],figfilename='subvelprofLX14_s1.png',recalc=myrecalc)
+    #convergeplot(1,SubVelProfile,whichlx=[12],figfilename='subvelprofLX12_s1.png',recalc=myrecalc)
+    #convergeplot(1,SubVelProfile,whichlx=[13],figfilename='subvelprofLX13_s1.png',recalc=myrecalc)
+    #convergeplot(1,SubVelProfile,whichlx=[14],figfilename='subvelprofLX14_s1.png',recalc=myrecalc)
     #convergeplot(1,SubVelProfile,whichlx=[14],figfilename='normsubvelprofLX14_s1.png',recalc=myrecalc,normtohost=True)
     #convergeplot(1,SubRad,figfilename='subradLX_s1.png',recalc=myrecalc)
+    convergeplot(1,intSubRad,whichlx=[14],figfilename='intsubradLX14_s1.png',recalc=myrecalc)
     #convergeplot(1,SubRadMass,whichlx=[14],figfilename='subradmassLX_s1.png',recalc=myrecalc)
     #convergeplot(1,SubRadMassFrac,whichlx=[11,12,13],figfilename='subradmassfracLX_s1.png',recalc=myrecalc)
 

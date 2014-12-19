@@ -471,9 +471,9 @@ class SHMFPlugin(PluginBase):
             ax.plot(x,y,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(x,y,**kwargs)
-class integrableSHMFPlugin(SHMFPlugin):
+class IntegrableSHMFPlugin(SHMFPlugin):
     def __init__(self):
-        super(integrableSHMFPlugin,self).__init__()
+        super(IntegrableSHMFPlugin,self).__init__()
         self.xmin = self.n_xmin; self.xmax = self.n_xmax
         self.ymin = 0;   self.ymax = 1.1
         self.n_ymin = 0; self.n_ymax = 1.1
@@ -482,6 +482,8 @@ class integrableSHMFPlugin(SHMFPlugin):
         self.ylog=False #this way you can visually integrate
         self.autofigname = 'integrableSHMF'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         x,y,sx,sy = data
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
         x = x/mvir; y = y*mvir
@@ -878,14 +880,14 @@ class SubPhaseContourPlugin(PluginBase):
             cs = ax.contour(X,Y,Z,levels = levels,**kwargs)
 
 class SubhaloRadialPlugin(PluginBase):
-    def __init__(self,rmin=1,rmax=1000,ymin=1,ymax=10**4.5):
+    def __init__(self,rmin=1,rmax=1000,ymin=10**-3,ymax=10**3):
         super(SubhaloRadialPlugin,self).__init__()
         self.filename='subradial.dat'
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin; self.ymax = ymax
         self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'$N(<r)$'
+        self.ylabel = r'$n(r)/<n>$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradial'
     def _analyze(self,hpath):
@@ -897,7 +899,6 @@ class SubhaloRadialPlugin(PluginBase):
         subs = self.get_rssubs(rscat,zoomid)
         spos = np.array(subs[['posX','posY','posZ']])
         dist = 1000*self.distance(spos,hpos)/rscat.h0 #kpc
-        #TODO test sorting
         iisort = np.argsort(dist)
         sortedids = rscat.data.index[iisort]
         sorteddist= dist[iisort]
@@ -912,14 +913,51 @@ class SubhaloRadialPlugin(PluginBase):
         tab = asciitable.read(thisfilename,header_start=0)
         return tab['id'],tab['dist'],tab['mass'],tab['rvir']
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        # TODO refactor histogramming into read?
+        subid,dist,submass,subrvir = data
+        #Nltr = 1+np.arange(len(dist))
+        rarr = np.logspace(-1,3,40)
+        h_r, x_r = np.histogram(dist, bins=np.concatenate(([0],rarr)))
+        Nltr = np.cumsum(h_r)
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        # units are number/kpc^3
+        tck = interpolate.splrep(rarr,Nltr)
+        n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+        n_mean = Nltr[-1]/(4*np.pi/3. * rvir**3)
+        n_ratio= n_of_r/n_mean
         if normtohost:
-            raise NotImplementedError
-        id,dist,mass,rvir = data
-        num = np.arange(1,1+len(dist))[::-1]
+            rarr = rarr/rvir
         if lx != None:
-            ax.plot(dist,num,color=self.colordict[lx],**kwargs)
+            ax.plot(rarr,n_ratio,color=self.colordict[lx],**kwargs)
         else:
-            ax.plot(dist,num,**kwargs)
+            ax.plot(rarr,n_ratio,**kwargs)
+class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
+    def __init__(self):
+        super(IntegrableSubhaloRadialPlugin,self).__init__()
+        self.ymin = 0;   self.ymax = 0.12
+        self.n_ymin = 0; self.n_ymax = 0.12
+        self.ylabel = r'$df/dlogr$'
+        self.ylog=False
+        self.autofigname = 'integrablesubrad'
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        # TODO refactor histogramming into read?
+        subid,dist,submass,subrvir = data
+        #Nltr = 1+np.arange(len(dist))
+        rarr = np.logspace(0,3,30)
+        h_r, x_r = np.histogram(dist, bins=np.concatenate(([0],rarr)))
+        Nltr = np.cumsum(h_r)
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        # units are number/kpc^3
+        tck = interpolate.splrep(rarr,Nltr)
+        n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+        n_plot = n_of_r*rarr
+        n_plot = n_plot/np.sum(n_plot)
+        if normtohost:
+            rarr = rarr/rvir
+        if lx != None:
+            ax.plot(rarr,n_plot,color=self.colordict[lx],**kwargs)
+        else:
+            ax.plot(rarr,n_plot,**kwargs)
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
