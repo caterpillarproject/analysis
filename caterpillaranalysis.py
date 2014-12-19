@@ -4,7 +4,6 @@ import os,subprocess,sys
 import asciitable
 import pynbody as pnb
 import readsnapshots.readsnapHDF5_greg as rsg
-#from profiles.densityprofile import densityprofilesorted,getr200sorted
 import haloutils
 import scipy.optimize as optimize
 from scipy import interpolate
@@ -14,6 +13,7 @@ class PluginBase(object):
     When extending this class, make sure to define the following variables in __init__:
     Data: filename
     Plotting: xmin, xmax, ymin, ymax, xlog, ylog, xlabel, ylabel
+              n_xmin, n_xmax, n_ymin, n_ymax, n_xlabel, n_ylabel (for normtohost)
     Figure name (for haloplot): autofigname
 
     Define the following methods:
@@ -21,9 +21,12 @@ class PluginBase(object):
         compute relevant quantities, save in hpath/OUTPUTFOLDERNAME
     _read(self,hpath)
         read the data computed/saved with _analyze(), return data
-    _plot(self,hpath,data,ax,lx=None,**kwargs)
+    _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs)
         take data from _read() and plot in ax.
         lx input is used when stacking multiple LX's on same plot (see convergeplot)
+        labelon calls self.label_plot in convergeplot, or you can define a custom labeling function
+        normtohost should normalize quantities to host halo (e.g. r/rvir, v/vvir, m/mvir) or z=0
+            or whatever other quantity makes sense to remove the effect of host mass
         **kwargs should be used for plotting functions
     """
     colordict = {11:'b',12:'r',13:'g',14:'m'}
@@ -33,14 +36,14 @@ class PluginBase(object):
         self.allhalos=True
         self.radius=None
         self.verbose=False
-        self.xmin=None
-        self.xmax=None
-        self.ymin=None
-        self.ymax=None
+        self.xmin=None; self.n_xmin=None
+        self.xmax=None; self.n_xmax=None
+        self.ymin=None; self.n_ymin=None
+        self.ymax=None; self.n_ymax=None
         self.xlog=None
         self.ylog=None
-        self.xlabel=''
-        self.ylabel=''
+        self.xlabel=''; self.n_xlabel=''
+        self.ylabel=''; self.n_ylabel=''
         self.autofigname=None
     def get_outfname(self,hpath):
         """ Use this function in _analysis to generate the data filename """
@@ -120,10 +123,10 @@ class PluginBase(object):
             return None
 
     ### Plotting using output of read()
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         """ Implemented by plugins """
         raise NotImplementedError
-    def plot(self,hpath,ax,lx=None,labelon=False,recalc=False,stop_on_error=False,formatonly=False,**kwargs):
+    def plot(self,hpath,ax,lx=None,labelon=False,normtohost=False,recalc=False,stop_on_error=False,formatonly=False,**kwargs):
         """
         Creates a plot of the data in hpath. Automatically calls analyze() if data missing.
         @param hpath: which halo to plot
@@ -136,15 +139,17 @@ class PluginBase(object):
         @param **kwargs: keyword arguments (intended for plotting parameters)
         """
         if formatonly: #TODO this isn't very elegant
-            self.format_plot(ax)
-            if labelon: self.label_plot(hpath,ax)
+            self.format_plot(ax,normtohost=normtohost)
+            if labelon: self.label_plot(hpath,ax,normtohost=normtohost)
             return
         data = self.read(hpath,recalc=recalc,stop_on_error=stop_on_error)
         if data==None:
-            self.format_plot(ax)
+            self.format_plot(ax,normtohost=normtohost)
+            if labelon: self.label_plot(hpath,ax,normtohost=normtohost)
             return
-        self._plot(hpath,data,ax,lx=lx,labelon=labelon,**kwargs)
-        self.format_plot(ax)
+        self._plot(hpath,data,ax,lx=lx,labelon=labelon,normtohost=normtohost,**kwargs)
+        if labelon: self.label_plot(hpath,ax,normtohost=normtohost)
+        self.format_plot(ax,normtohost=normtohost)
     def lxplot(self,hid,ax,whichlx=[11,12,13,14],**kwargs):
         lxlist = haloutils.get_lxlist(hid)
         hpaths = haloutils.get_lxlist(hid,gethpaths=True)
@@ -155,30 +160,42 @@ class PluginBase(object):
         raise NotImplementedError
 
     ### Default plotting formatting
-    def format_plot(self,ax):
-        assert self.xmin != None and self.xmax != None and self.xmax > self.xmin
-        assert self.ymin != None and self.ymax != None and self.ymax > self.ymin
+    def get_plot_params(self,normtohost):
+        if normtohost:
+            assert self.n_xmin != None and self.n_xmax != None and self.n_xmax > self.n_xmin
+            assert self.n_ymin != None and self.n_ymax != None and self.n_ymax > self.n_ymin
+            xmin = self.n_xmin; xmax = self.n_xmax; ymin = self.n_ymin; ymax = self.n_ymax
+            xlabel = self.n_xlabel; ylabel = self.n_ylabel
+        else:
+            assert self.xmin != None and self.xmax != None and self.xmax > self.xmin
+            assert self.ymin != None and self.ymax != None and self.ymax > self.ymin
+            xmin = self.xmin; xmax = self.xmax; ymin = self.ymin; ymax = self.ymax
+            xlabel = self.xlabel; ylabel = self.ylabel
         assert self.xlog != None and self.ylog != None
-        ax.set_xlim((self.xmin,self.xmax))
-        ax.set_ylim((self.ymin,self.ymax))
-        ax.set_xlabel(self.xlabel)
-        ax.set_ylabel(self.ylabel)
-        if self.xlog: ax.set_xscale('log')
-        if self.ylog: ax.set_yscale('log')
-    def label_plot(self,hpath,ax,label=None,dx=.05,dy=.1):
+        return xmin,xmax,ymin,ymax,self.xlog,self.ylog,xlabel,ylabel
+    def format_plot(self,ax,normtohost=False):
+        xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
+        ax.set_xlim((xmin,xmax))
+        ax.set_ylim((ymin,ymax))
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        if xlog: ax.set_xscale('log')
+        if ylog: ax.set_yscale('log')
+    def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
         if label==None: label = haloutils.hidstr(haloutils.get_parent_hid(hpath))
-        if self.xlog: 
-            logxoff = np.log10(self.xmax/self.xmin)*dx
-            xlabel  = self.xmin * 10**logxoff
+        xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
+        if xlog: 
+            logxoff = np.log10(xmax/xmin)*dx
+            xlabel  = xmin * 10**logxoff
         else:
-            xoff    = (self.xmax-self.xmin)*dx
-            xlabel  = self.xmin + xoff
-        if self.ylog: 
-            logyoff = np.log10(self.ymax/self.ymin)*dy
-            ylabel  = self.ymax * 10**(-logyoff)
+            xoff    = (xmax-xmin)*dx
+            xlabel  = xmin + xoff
+        if ylog: 
+            logyoff = np.log10(ymax/ymin)*dy
+            ylabel  = ymax * 10**(-logyoff)
         else:
-            yoff    = (self.ymax-self.ymin)*dy
-            ylabel  = self.ymax - yoff
+            yoff    = (ymax-ymin)*dy
+            ylabel  = ymax - yoff
         ax.text(xlabel,ylabel,label,color='black',fontsize='medium')
 
     ### Helper methods for analysis
@@ -242,7 +259,7 @@ class MultiPlugin(PluginBase):
     Also make sure to call super(xxx,self).__init__(pluglist)
 
     Define the following methods:
-    _plot(self,hpath,datalist,ax,lx=None,**kwargs)
+    _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs)
         take datalist (order is the same as pluglist) and plot in ax.
         lx input is used when stacking multiple LX's on same plot (see convergeplot)
         **kwargs should be used for plotting functions
@@ -306,12 +323,12 @@ class MultiPlugin(PluginBase):
         else: return datalist
 
     ### No need to redefine plot() as long as _plot is defined properly.
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         """ Implemented by plugins """
         raise NotImplementedError
 
 class NvmaxPlugin(PluginBase):
-    def __init__(self,vmin=0.3,vmax=100,Nmin=1,Nmax=10**4.5):
+    def __init__(self,vmin=0.3,vmax=100,Nmin=1,Nmax=10**4.9):
         super(NvmaxPlugin,self).__init__()
         self.filename='Nvmax.dat'
         self.logvmin = -1.
@@ -322,6 +339,10 @@ class NvmaxPlugin(PluginBase):
         self.ymin = Nmin;  self.ymax = Nmax
         self.xlabel = r'$V_{\rm max}$ [km/s]'
         self.ylabel = r'N($>V_{\rm max}$)'
+        self.n_xmin = 10**-2.9; self.n_xmax = 10**0.1
+        self.n_ymin = self.ymin;  self.n_ymax = self.ymax
+        self.n_xlabel = r'$V_{\rm max}/V_{\rm vir}$'
+        self.n_ylabel = self.ylabel
         self.xlog = True; self.ylog = True
         self.autofigname='Nvmax'
     def calcNvmax(self,vmax):
@@ -373,25 +394,31 @@ class NvmaxPlugin(PluginBase):
             minv = float(split[0])
             sminv= float(split[1])
         return v,N,minv,sN,sminv,Np,sNp
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         v,N,minv,sN,sminv,Np,sNp = data
-        ii = np.where(v >= minv)
+        ii = v >= minv
+        if normtohost: 
+            mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+            v = v/vvir
         if lx != None:
             ax.plot(v[ii],N[ii],color=self.colordict[lx],**kwargs)
         else:
             ax.plot(v[ii],N[ii],**kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SHMFPlugin(PluginBase):
-    def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
+    def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**1.5,ymax=10**12.0):
         super(SHMFPlugin,self).__init__()
         self.filename='SHMF.dat'
         self.histrange = np.arange(4.0,10.5,0.2)
 
         self.xmin = Mmin; self.xmax = Mmax
         self.ymin = ymin;  self.ymax = ymax
-        self.xlabel = r'$M_{\rm sub} [h^{-1} M_\odot]$'
-        self.ylabel = r'$dn/dM_{\rm sub} [h/M_\odot]$'
+        self.xlabel = r'$M_{\rm sub} [M_\odot]$'
+        self.ylabel = r'$M_{\rm vir} dN/dM_{\rm sub}$'
+        self.n_xmin = Mmin/10**12; self.n_xmax = Mmax/10**12
+        self.n_ymin = ymin;  self.n_ymax = ymax
+        self.n_xlabel = r'$M_{\rm sub}/M_{\rm vir}$'
+        self.n_ylabel = self.ylabel
         self.xlog = True; self.ylog = True
         self.autofigname = 'SHMF'
     def _analyze(self,hpath):
@@ -402,13 +429,13 @@ class SHMFPlugin(PluginBase):
         zoomid = haloutils.load_zoomid(hpath)
         
         subs = self.get_rssubs(rscat,zoomid)
-        subM = np.array(subs['mvir'])
+        subM = np.array(subs['mvir'])/rscat.h0
         x,y = self.MassFunc_dNdM(subM,self.histrange)
 
         try:
             scat = haloutils.load_scat(hpath)
             bestgroup = 0
-            ssubM = scat.sub_mass[0:scat.group_nsubs[0]]*10**10
+            ssubM = scat.sub_mass[0:scat.group_nsubs[0]]*10**10/rscat.h0
             sx,sy = self.MassFunc_dNdM(ssubM,self.histrange)
         except IOError: #No Subfind
             sx = np.zeros(len(x))
@@ -435,13 +462,34 @@ class SHMFPlugin(PluginBase):
         thisfilename = self.get_filename(hpath)
         data = asciitable.read(thisfilename,delimiter=' ')
         return data['col1'],data['col2'],data['col3'],data['col4']
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         x,y,sx,sy = data
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        y = y*mvir
+        if normtohost: x = x/mvir
         if lx != None:
             ax.plot(x,y,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(x,y,**kwargs)
-        if labelon: self.label_plot(hpath,ax)
+class integrableSHMFPlugin(SHMFPlugin):
+    def __init__(self):
+        super(integrableSHMFPlugin,self).__init__()
+        self.xmin = self.n_xmin; self.xmax = self.n_xmax
+        self.ymin = 0;   self.ymax = 1.1
+        self.n_ymin = 0; self.n_ymax = 1.1
+        self.xlabel = self.n_xlabel
+        self.ylabel = r'normed $dN/dlogM_{\rm sub}$'
+        self.ylog=False #this way you can visually integrate
+        self.autofigname = 'integrableSHMF'
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        x,y,sx,sy = data
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        x = x/mvir; y = y*mvir
+        y = y/np.max(y)
+        if lx != None:
+            ax.plot(x,y,color=self.colordict[lx],**kwargs)
+        else:
+            ax.plot(x,y,**kwargs)
 
 class ProfilePlugin(PluginBase):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
@@ -535,7 +583,9 @@ class ProfilePlugin(PluginBase):
         p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
         return r,mltr,p03r,rvir,r200c
 
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         r,mltr,p03r,rvir,r200c = data
         rho = self.mltr_to_rho(r,mltr)
         r = r*1000. # kpc
@@ -550,15 +600,18 @@ class ProfilePlugin(PluginBase):
         else:
             ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class VelocityProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):
         super(VelocityProfilePlugin,self).__init__()
         self.xmin = rmin; self.xmax = rmax
         self.ymin = vmin;  self.ymax = vmax
-        self.xlabel = r'r [kpc]' #$h^{-1}$ 
-        self.ylabel = r'$v_{circ}$ [km/s]'
+        self.xlabel = r'r [kpc]'
+        self.ylabel = r'$v_{\rm circ}$ [km/s]'
+        self.n_xmin = rmin/10**2.5; self.n_xmax = rmax/10**2.5
+        self.n_ymin = vmin/10**2.0; self.n_ymax = vmax/10**2.0
+        self.n_xlabel = r'$r/r_{\rm vir}$'
+        self.n_ylabel = r'$v_{\rm circ}/v_{\rm vir}$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'vcirc'
     def _read(self,hpath):
@@ -572,12 +625,16 @@ class VelocityProfilePlugin(ProfilePlugin):
         p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
         return r,vcirc,p03r,rvir,r200c
 
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         r,vcirc,p03r,rvir,r200c = data
         r = r*1000. # kpc
         eps = 1000*haloutils.load_soft(hpath)
         ii1 = r >= eps
         ii2 = r >= p03r
+        if normtohost:
+            mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+            r = r/rvir
+            vcirc = vcirc/vvir
         if lx != None:
             color = self.colordict[lx]
             ax.plot(r[ii1], vcirc[ii1], color=color, lw=1, **kwargs)
@@ -585,7 +642,6 @@ class VelocityProfilePlugin(ProfilePlugin):
         else:
             ax.plot(r[ii1], vcirc[ii1], lw=1, **kwargs)
             ax.plot(r[ii2], vcirc[ii2], lw=3, **kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SubProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
@@ -647,7 +703,9 @@ class SubProfilePlugin(ProfilePlugin):
         mltrarr = mltrarr.view(np.float).reshape(mltrarr.shape+(-1,))
         rarr = self.get_scaled_rarr(rvir)
         return rsid,rarr,rvir,mltrarr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,alpha=.2,color='k',**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,color='k',**kwargs):
+        if normtohost:
+            raise NotImplementedError
         rsid,rarr,rvir,mltrarr = data
         rhoarr = np.zeros(mltrarr.shape)
         for i in range(len(rsid)):
@@ -662,14 +720,17 @@ class SubProfilePlugin(ProfilePlugin):
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
             ax.plot(rarr[i,ii], plotqty[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
-        if labelon: self.label_plot(hpath,ax)
 class SubVelocityProfilePlugin(SubProfilePlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):
+    def __init__(self,rmin=10**-1.5,rmax=10**3,vmin=10**0,vmax=10**2.3):
         super(SubVelocityProfilePlugin,self).__init__()
         self.xmin = rmin; self.xmax = rmax
         self.ymin = vmin;  self.ymax = vmax
-        self.xlabel = r'r [kpc]' #$h^{-1}$ 
+        self.xlabel = r'r [kpc]'
         self.ylabel = r'$v_{circ}$ [km/s]'
+        self.n_xmin = 10**-3.9; self.n_xmax = 10**0.5
+        self.n_ymin = 10**-2.0; self.n_ymax = 10**0.2
+        self.n_xlabel = r'$r/r_{\rm vir,host}$'
+        self.n_ylabel = r'$v_{\rm circ}/v_{\rm vir,host}$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subvcirc'
     def _read(self,hpath):
@@ -684,17 +745,21 @@ class SubVelocityProfilePlugin(SubProfilePlugin):
         for i in range(len(rsid)):
             vcircarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrarr[i,:])
         return rsid,rarr,rvir,vcircarr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,alpha=.2,color='k',**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,color='k',**kwargs):
         rsid,rarr,rvir,vcircarr = data
         rarr = rarr*1000 #kpc
         eps = 1000*haloutils.load_soft(hpath)
+        if normtohost:
+            mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+            rarr = rarr/rvir
+            vcircarr = vcircarr/vvir
+            eps = eps/rvir
         if lx != None:
             color = self.colordict[lx]
         for i in xrange(len(rsid)):
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
             ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class MassAccrPlugin(PluginBase):
     def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
@@ -705,6 +770,10 @@ class MassAccrPlugin(PluginBase):
         self.ymin = 10**6;  self.ymax = 10**13
         self.xlabel = r'scale'
         self.ylabel = r'$M$ [$M_\odot$]'
+        self.n_xmin = 0; self.n_xmax = 1
+        self.n_ymin = 10**-6.5;  self.n_ymax = 10**0.5
+        self.n_xlabel = r'scale'
+        self.n_ylabel = r'$M/M(a=1)$'
         self.xlog = False; self.ylog = True
         self.autofigname = 'massaccr'
     def _analyze(self,hpath):
@@ -741,15 +810,17 @@ class MassAccrPlugin(PluginBase):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
         return tab
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         tab = data
         x = tab['scale']
         y = tab['mvir']
+        if normtohost:
+            ymax = tab['mvir'][-1]
+            y = y/ymax
         if lx != None:
             ax.plot(x,y,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(x,y,**kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SubPhaseContourPlugin(PluginBase):
     def __init__(self):
@@ -797,13 +868,14 @@ class SubPhaseContourPlugin(PluginBase):
         Z = data['Z']
         levels = data['levels']
         return distratio,velratio,X,Y,Z,levels
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         distratio,velratio,X,Y,Z,levels = data
         if lx != None:
             cs = ax.contour(X,Y,Z,levels = levels,colors=self.colordict[lx],**kwargs)
         else:
             cs = ax.contour(X,Y,Z,levels = levels,**kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SubhaloRadialPlugin(PluginBase):
     def __init__(self,rmin=1,rmax=1000,ymin=1,ymax=10**4.5):
@@ -839,14 +911,15 @@ class SubhaloRadialPlugin(PluginBase):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
         return tab['id'],tab['dist'],tab['mass'],tab['rvir']
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         id,dist,mass,rvir = data
         num = np.arange(1,1+len(dist))[::-1]
         if lx != None:
             ax.plot(dist,num,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(dist,num,**kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
@@ -898,7 +971,9 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
         mltr = data['mltr']
         #rho = self.mltr_to_rho(r,mltr)
         return r,mltr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         r,mltr = data
         r = r*1000. # kpc
         #rho = rho/10**10 #10^10 Msun/Mpc^3
@@ -910,7 +985,6 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
             #ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
         else:
             ax.plot(r[ii1],mltr[ii1],**kwargs)
-        if labelon: self.label_plot(hpath,ax)
 
 class SubhaloRadialMassFracPlugin(MultiPlugin):
     def __init__(self,rmin=10**-1.5,rmax=10**3):
@@ -924,7 +998,9 @@ class SubhaloRadialMassFracPlugin(MultiPlugin):
         self.ylabel = r'Mass fraction in sub'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradialmassfrac'
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
+    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
         alldata = datalist[0]
         subdata = datalist[1]
         r,mltr,p03r,rvir,r200c = alldata        
@@ -941,4 +1017,3 @@ class SubhaloRadialMassFracPlugin(MultiPlugin):
             ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
         else:
             ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
-        if labelon: self.label_plot(hpath,ax)

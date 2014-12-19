@@ -56,20 +56,21 @@ def animated_stackplot(haloids,lx,plug,figfilename=None):
     # Make N figures with one halo id highlighted using solid line and hid label
     raise NotImplementedError
 
-def haloplot(hid,lx,pluglist,savefig=False,savepath=None,pdf=False,**kwargs):
+def haloplot(hid,lx,pluglist,savefig=False,savepath=None,pdf=False,normtohost=False,**kwargs):
     hpath = haloutils.get_hpath_lx(hid,lx)
     hidstr = haloutils.hidstr(hid)
     ictype,lx,nv = haloutils.get_zoom_params(hpath)
     figlist = []
     for plug in pluglist:
         fig,ax = plt.subplots()
-        plug.plot(hpath,ax,**kwargs)
+        plug.plot(hpath,ax,normtohost=normtohost,**kwargs)
         figlist.append(fig)
         if savefig:
             assert plug.autofigname != ''
             # TODO automatic savepath inside the actual halo directory?
             figfilename = './'
             figfilename += hidstr+'_LX'+str(lx)+'_'+plug.autofigname
+            if normtohost: figfilename += '_norm'
             if pdf: figfilename += '.pdf'
             else:   figfilename += '.png'
             fig.savefig(figfilename,bbox_inches='tight')
