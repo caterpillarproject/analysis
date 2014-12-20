@@ -293,14 +293,14 @@ def load_scat(hpath):
 
 def load_rscat(hpath,snap,verbose=True,halodir='halos'):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=0.7)
     except IOError as e:
         print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
             try:
-                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version)
+                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=0.7)
                 testlist.append(True)
             except KeyError:
                 testlist.append(False)
@@ -310,7 +310,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos'):
             version = np.array(versionlist)[np.array(testlist)][0]
             if verbose:
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version)
+            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=0.7)
     return rcat
 
 def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
