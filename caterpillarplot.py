@@ -38,12 +38,16 @@ def convergeplot(sheetnum,plug,whichlx=[14,13,12,11],figfilename=None,figsize=No
     return fig
 
 def stackplot(haloids,lx,plug,figfilename=None,ax=None,**kwargs):
-    if ax == None: fig,ax = plt.subplots()
-    else: assert figfilename==None,'Cannot specify both ax and figfilename'
+    if ax == None: 
+        fig,ax = plt.subplots()
+        plotfig=True
+    else:
+        assert figfilename==None,'Cannot specify both ax and figfilename'
+        plotfig=False
     for hid in haloids:
         hpath = haloutils.get_hpath_lx(hid,lx)
         plug.plot(hpath,ax,**kwargs)
-    if ax == None:
+    if plotfig:
         if figfilename != None:
             fig.savefig(figfilename,bbox_inches='tight')
         else:
