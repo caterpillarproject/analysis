@@ -208,7 +208,7 @@ def restrict_halopaths(halopathlist,
 
 def find_halo_paths(basepath=global_halobase,
                     nrvirlist=[3,4,5,6],levellist=[11,12,13,14],
-                    ictypelist=["BA","BB","BC","BD","EA","EB","EC","CA","CB","CC"],
+                    ictypelist=["BA","BB","BC","BD","EA","EB","EC","EX","CA","CB","CC"],
                     contamsuite=False,
                     require_rockstar=False,require_subfind=False,
                     require_mergertree=False,autoconvert_mergertree=False,
