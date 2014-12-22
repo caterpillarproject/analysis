@@ -7,4 +7,4 @@ sbatch submit4.sbatch
 sbatch submit5.sbatch
 sbatch submit6.sbatch
 sbatch submit7.sbatch
-#sbatch submit8.sbatch
+sbatch submit8.sbatch
