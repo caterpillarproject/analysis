@@ -7,9 +7,16 @@ from optparse import OptionParser
 if __name__=="__main__":
     parser = OptionParser()
     (options,args) = parser.parse_args()
-    arg = int(args[0])
-
     firsttwelve = get_haloidlist(1)
+    if len(args) == 0:
+        #plug = NvmaxPlugin()
+        plug = MassAccrPlugin()
+        stackplot(firsttwelve,14,plug,lw=2,autocolor=1,figfilename='testcolor1.png',normtohost=True)
+        stackplot(firsttwelve,14,plug,lw=2,autocolor=2,figfilename='testcolor2.png',normtohost=True)
+        stackplot(firsttwelve,14,plug,lw=2,autocolor=3,figfilename='testcolor3.png',normtohost=True)
+        arg = None
+    else:
+        arg = int(args[0])
 
     myrecalc = False
     if arg == 1:
@@ -54,14 +61,17 @@ if __name__=="__main__":
         convergeplot(1,SubVelProfile,whichlx=[14],figfilename='normsubvelprofLX14_s1.png',recalc=False,normtohost=True)
     if arg == 7:
         SubRad         = SubhaloRadialPlugin()
+        SubRadByMass   = SubhaloRadialByMassPlugin()
         intSubRad      = IntegrableSubhaloRadialPlugin()
-        convergeplot(1,SubRad,figfilename='subradLX_s1.png',recalc=myrecalc)
-        convergeplot(1,intSubRad,whichlx=[14],figfilename='intsubradLX14_s1.png',recalc=False)
+        #convergeplot(1,SubRad,figfilename='subradLX_s1.png',recalc=myrecalc)
+        convergeplot(1,SubRadByMass,whichlx=[14],figfilename='subradbymassLX_s1.png',recalc=False)
+        #convergeplot(1,intSubRad,whichlx=[14],figfilename='intsubradLX14_s1.png',recalc=False)
     if arg == 8:
         SubRadMass     = SubhaloRadialMassPlugin()
         SubRadMassFrac = SubhaloRadialMassFracPlugin()
         convergeplot(1,SubRadMass,figfilename='subradmassLX_s1.png',recalc=myrecalc)
         convergeplot(1,SubRadMassFrac,figfilename='subradmassfracLX_s1.png',recalc=False)
+        stackplot(firsttwelve,14,SubRadMassFrac,figfilename='stackLX14_subradmassfrac_s1.png',color='k',alpha=.2,recalc=False)
 
     #testhid = firsttwelve[2]
     #haloplot(testhid,12,pluglist=[Nvmax,SHMF,Profile,MassAccr],recalc=myrecalc)
