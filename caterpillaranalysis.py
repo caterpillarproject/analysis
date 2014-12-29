@@ -880,7 +880,7 @@ class SubPhaseContourPlugin(PluginBase):
             cs = ax.contour(X,Y,Z,levels = levels,**kwargs)
 
 class SubhaloRadialPlugin(PluginBase):
-    def __init__(self,rmin=1,rmax=1000,ymin=10**-3,ymax=10**3):
+    def __init__(self,rmin=.01,rmax=1000,ymin=10**-3,ymax=10**3):
         super(SubhaloRadialPlugin,self).__init__()
         self.filename='subradial.dat'
 
@@ -915,8 +915,7 @@ class SubhaloRadialPlugin(PluginBase):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         # TODO refactor histogramming into read?
         subid,dist,submass,subrvir = data
-        #Nltr = 1+np.arange(len(dist))
-        rarr = np.logspace(-1,3,40)
+        rarr = np.logspace(-2,3,50)
         h_r, x_r = np.histogram(dist, bins=np.concatenate(([0],rarr)))
         Nltr = np.cumsum(h_r)
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
@@ -931,6 +930,35 @@ class SubhaloRadialPlugin(PluginBase):
             ax.plot(rarr,n_ratio,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(rarr,n_ratio,**kwargs)
+class SubhaloRadialByMassPlugin(SubhaloRadialPlugin):
+    def __init__(self):
+        super(SubhaloRadialByMassPlugin,self).__init__()
+        self.autofigname = 'subradbymass'
+        self.logmassbins = np.array([4,5,6,7,8,9,10,11])
+        self.numbins     = 7
+        self.labels = [r'$'+str(self.logmassbins[i])+r'<logM<'+str(self.logmassbins[i+1])+r'$' for i in range(self.numbins)]
+        self.bincolors = ['b','r','g','y','c','m','k']
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        assert lx != None
+        subid,dist,submass,subrvir = data
+        rarr = np.logspace(-2,3,15)
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        
+        for i in range(self.numbins):
+            binmin = 10.**self.logmassbins[i]
+            binmax = 10.**self.logmassbins[i+1]
+            ii = (submass > binmin) & (submass <= binmax)
+            h_r, x_r = np.histogram(dist[ii], bins=np.concatenate(([0],rarr)))
+            Nltr = np.cumsum(h_r)
+            # units are number/kpc^3
+            tck = interpolate.splrep(rarr,Nltr)
+            n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+            n_mean = Nltr[-1]/(4*np.pi/3. * rvir**3)
+            n_ratio= n_of_r/n_mean
+            if normtohost:
+                rarr = rarr/rvir
+            ax.plot(rarr,n_ratio,color=self.bincolors[i],label=self.labels[i],**kwargs)
+            ax.legend(loc='upper left',fontsize='xx-small')
 class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
     def __init__(self):
         super(IntegrableSubhaloRadialPlugin,self).__init__()
@@ -942,8 +970,7 @@ class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         # TODO refactor histogramming into read?
         subid,dist,submass,subrvir = data
-        #Nltr = 1+np.arange(len(dist))
-        rarr = np.logspace(0,3,30)
+        rarr = np.logspace(-2,3,50)
         h_r, x_r = np.histogram(dist, bins=np.concatenate(([0],rarr)))
         Nltr = np.cumsum(h_r)
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
@@ -1007,20 +1034,17 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
         data = np.load(thisfilename)
         r = data['rarr']
         mltr = data['mltr']
-        #rho = self.mltr_to_rho(r,mltr)
         return r,mltr
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         if normtohost:
             raise NotImplementedError
         r,mltr = data
         r = r*1000. # kpc
-        #rho = rho/10**10 #10^10 Msun/Mpc^3
         eps = 1000*haloutils.load_soft(hpath)
         ii1 = r >= eps
         if lx != None:
             color = self.colordict[lx]
             ax.plot(r[ii1],mltr[ii1],color=color,**kwargs)
-            #ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
         else:
             ax.plot(r[ii1],mltr[ii1],**kwargs)
 
