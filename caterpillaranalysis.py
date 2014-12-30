@@ -900,7 +900,7 @@ class SubhaloRadialPlugin(PluginBase):
         spos = np.array(subs[['posX','posY','posZ']])
         dist = 1000*self.distance(spos,hpos)/rscat.h0 #kpc
         iisort = np.argsort(dist)
-        sortedids = rscat.data.index[iisort]
+        sortedids = subs.index[iisort]
         sorteddist= dist[iisort]
         submass = np.array(subs.ix[sortedids]['mvir'])
         subrvir = np.array(subs.ix[sortedids]['rvir'])
@@ -921,7 +921,7 @@ class SubhaloRadialPlugin(PluginBase):
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
         # units are number/kpc^3
         tck = interpolate.splrep(rarr,Nltr)
-        n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+        n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2) ## TODO DON'T USE SPLINE
         n_mean = Nltr[-1]/(4*np.pi/3. * rvir**3)
         n_ratio= n_of_r/n_mean
         if normtohost:
@@ -985,6 +985,36 @@ class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
             ax.plot(rarr,n_plot,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(rarr,n_plot,**kwargs)
+class IntegrableSubhaloRadialByMassPlugin(SubhaloRadialByMassPlugin):
+    def __init__(self):
+        super(IntegrableSubhaloRadialByMassPlugin,self).__init__()
+        self.ymin = 0;   self.ymax = 1.1
+        self.n_ymin = 0; self.n_ymax = 1.1
+        self.ylabel = r'$df/dlogr$'
+        self.ylog=False
+        self.autofigname = 'integrablesubradbymass'
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        assert lx != None
+        subid,dist,submass,subrvir = data
+        rarr = np.logspace(-2,3,15)
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        
+        for i in range(self.numbins):
+            binmin = 10.**self.logmassbins[i]
+            binmax = 10.**self.logmassbins[i+1]
+            ii = (submass > binmin) & (submass <= binmax)
+            h_r, x_r = np.histogram(dist[ii], bins=np.concatenate(([0],rarr)))
+            Nltr = np.cumsum(h_r)
+            # units are number/kpc^3
+            tck = interpolate.splrep(rarr,Nltr)
+            n_of_r = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+            n_plot = n_of_r*rarr
+            n_plot = n_plot/np.sum(n_plot)
+            if normtohost:
+                rarr = rarr/rvir
+            ax.plot(rarr,n_plot,color=self.bincolors[i],label=self.labels[i],**kwargs)
+            ax.legend(loc='center left',fontsize='xx-small')
+    
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):

@@ -17,6 +17,8 @@ if __name__=="__main__":
     SubRad         = SubhaloRadialPlugin()
     intSubRad      = IntegrableSubhaloRadialPlugin()
     SubRadMass     = SubhaloRadialMassPlugin()
+    SubRadByMass   = SubhaloRadialByMassPlugin()
+    intSubRadByMass= IntegrableSubhaloRadialByMassPlugin()
     SubRadMassFrac = SubhaloRadialMassFracPlugin()
 
     myrecalc = False
@@ -38,10 +40,12 @@ if __name__=="__main__":
     #convergeplot(1,SubVelProfile,whichlx=[13],figfilename='subvelprofLX13_s1.png',recalc=myrecalc)
     #convergeplot(1,SubVelProfile,whichlx=[14],figfilename='subvelprofLX14_s1.png',recalc=myrecalc)
     #convergeplot(1,SubVelProfile,whichlx=[14],figfilename='normsubvelprofLX14_s1.png',recalc=myrecalc,normtohost=True)
-    #convergeplot(1,SubRad,figfilename='subradLX_s1.png',recalc=myrecalc)
+    convergeplot(1,SubRad,figfilename='subradLX_s1.png',recalc=myrecalc)
     convergeplot(1,intSubRad,whichlx=[14],figfilename='intsubradLX14_s1.png',recalc=myrecalc)
-    #convergeplot(1,SubRadMass,whichlx=[14],figfilename='subradmassLX_s1.png',recalc=myrecalc)
-    #convergeplot(1,SubRadMassFrac,whichlx=[11,12,13],figfilename='subradmassfracLX_s1.png',recalc=myrecalc)
+    convergeplot(1,SubRadByMass,whichlx=[14],figfilename='subradbymassLX14_s1.png',recalc=myrecalc)
+    convergeplot(1,intSubRadByMass,whichlx=[14],figfilename='intsubradbymassLX14_s1.png',recalc=myrecalc)
+    #convergeplot(1,SubRadMass,whichlx=[14],figfilename='subradmassLX14_s1.png',recalc=myrecalc)
+    #convergeplot(1,SubRadMassFrac,figfilename='subradmassfracLX_s1.png',recalc=myrecalc)
 
     firsttwelve = get_haloidlist(1)
     #stackplot(firsttwelve,14,SHMF,color='k',alpha=.2,recalc=myrecalc)
