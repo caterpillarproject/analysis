@@ -184,7 +184,7 @@ class PluginBase(object):
     def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
         if label==None: 
             #label = haloutils.hidstr(haloutils.get_parent_hid(hpath))
-            label = haloutils.hid_sname(hpath)
+            label = haloutils.hpath_sname(hpath)
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
         if xlog: 
             logxoff = np.log10(xmax/xmin)*dx
