@@ -13,6 +13,39 @@ global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
+hid2name = {1631506: "Hera",
+            1195448: "Hermes",
+            1725139: "Artemis",
+            447649:  "Poseiden",
+            5320:    "Apollo",
+            581141:  "Athena",
+            94687:   "Ares",
+            1130025: "Aphrodite",
+            1387186: "Hephaestus",
+            581180:  "Hestia",
+            1725372: "Demeter",
+            1354437: "Zeus"}
+hid2sname = {1631506: "Hera",
+             1195448: "Herm",
+             1725139: "Artm",
+             447649:  "Psdn",
+             5320:    "Apol",
+             581141:  "Athn",
+             94687:   "Ares",
+             1130025: "Aphr",
+             1387186: "Heph",
+             581180:  "Hest",
+             1725372: "Demt",
+             1354437: "Zeus"}
+def hid_name(hid):
+    return hid2name[hidint(hid)]
+def hid_sname(hid):
+    return hid2sname[hidint(hid)]
+def hpath_name(hpath):
+    return hid_name(get_parent_hid(hpath))
+def hpath_sname(hpath):
+    return hid_sname(get_parent_hid(hpath))
+
 def hidint(hid):
     """ converts halo ID to int """
     if type(hid)==int or type(hid)==np.int64: return hid
