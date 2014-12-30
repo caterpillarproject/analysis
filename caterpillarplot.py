@@ -1,6 +1,7 @@
 import haloutils
 import numpy as np
 import pylab as plt
+import seaborn.apionly as sns
 
 def get_haloidlist(sheet):
     if sheet==1:
@@ -37,16 +38,32 @@ def convergeplot(sheetnum,plug,whichlx=[14,13,12,11],figfilename=None,figsize=No
         plt.show()
     return fig
 
-def stackplot(haloids,lx,plug,figfilename=None,ax=None,**kwargs):
+def get_color_palette(autocolor,n_colors):
+        if autocolor == 1:
+            colors = sns.cubehelix_palette(n_colors,0,1,.8,.8,.7,.1)
+        elif autocolor == 2:
+            colors = sns.color_palette('Set3',n_colors=n_colors)
+        elif autocolor == 3:
+            colors = sns.cubehelix_palette(n_colors=n_colors,start=0.5,rot=-1.5,gamma=1,hue=1,light=.8)
+        else: raise ValueError("autocolor must be 1, 2, 3, or None")
+        return colors
+
+def stackplot(haloids,lx,plug,figfilename=None,ax=None,autocolor=None,**kwargs):
+    if autocolor != None:
+        colors = get_color_palette(autocolor,len(haloids))
+
     if ax == None: 
         fig,ax = plt.subplots()
         plotfig=True
     else:
         assert figfilename==None,'Cannot specify both ax and figfilename'
         plotfig=False
-    for hid in haloids:
+    for i,hid in enumerate(haloids):
         hpath = haloutils.get_hpath_lx(hid,lx)
-        plug.plot(hpath,ax,**kwargs)
+        if autocolor == None:
+            plug.plot(hpath,ax,**kwargs)
+        else:
+            plug.plot(hpath,ax,color=colors[i],**kwargs)
     if plotfig:
         if figfilename != None:
             fig.savefig(figfilename,bbox_inches='tight')
