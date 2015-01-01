@@ -39,7 +39,7 @@ def plot_contam_dist(whichfolderlist,haloidlist):
         iisort = np.argsort(contamx)
         contamx = contamx[iisort]
         mindist = np.array(thisdat['min2'])[iisort]/.6711
-        ax1.plot(contamx,mindist,'o-',label=haloutils.hidstr(hid),color=color)
+        ax1.plot(contamx,mindist,'o-',label=haloutils.hid_sname(hid),color=color)
         filesizes = np.array(thisdat['icsize'])[iisort]
         ax2.plot(contamx,filesizes,'o-',label=haloutils.hidstr(hid),color=color)
         ax1.legend(loc='upper center',bbox_to_anchor=(.5,1.05),ncol=3,fancybox=True,fontsize='small')
@@ -65,7 +65,7 @@ if __name__=="__main__":
     whichfolderlist[1] = 'low'
 
     fig = plot_contam_dist(whichfolderlist,hidlist)
-    fig.savefig('paper_contam.pdf',bbox_inches='tight')
+    fig.savefig('paper_contam.png',bbox_inches='tight')
     plt.close('all')
 
 
