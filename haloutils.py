@@ -311,16 +311,16 @@ def load_pcatz0(old=False):
 def load_scat(hpath):
     return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_rscat(hpath,snap,verbose=True,halodir='halos'):
+def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=0.7):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=0.7)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac)
     except IOError as e:
         print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
             try:
-                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=0.7)
+                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
                 testlist.append(True)
             except KeyError:
                 testlist.append(False)
@@ -330,7 +330,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos'):
             version = np.array(versionlist)[np.array(testlist)][0]
             if verbose:
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=0.7)
+            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
     return rcat
 
 def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
