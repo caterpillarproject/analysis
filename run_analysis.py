@@ -1,5 +1,6 @@
 import haloutils
 from caterpillaranalysis import *
+from subradplugin import *
 from caterpillarplot import *
 import pylab as plt
 from optparse import OptionParser
