@@ -2,6 +2,7 @@ import haloutils
 from caterpillaranalysis import *
 from subradplugin import *
 from caterpillarplot import *
+from tbtfplugin import *
 import pylab as plt
 from optparse import OptionParser
 
@@ -69,6 +70,9 @@ if __name__=="__main__":
         convergeplot(1,SubVelProfile,whichlx=[12],figfilename='normsubvelprofLX12_s1.png',recalc=False,normtohost=True)
         convergeplot(1,SubVelProfile,whichlx=[13],figfilename='normsubvelprofLX13_s1.png',recalc=False,normtohost=True)
         convergeplot(1,SubVelProfile,whichlx=[14],figfilename='normsubvelprofLX14_s1.png',recalc=False,normtohost=True)
+
+        TBTF = TBTFPlugin()
+        convergeplot(1,TBTF,whichlx=[14],figfilename='tbtfLX14_s1.png',recalc=False)
     if arg == 7:
         SubRad         = SubhaloRadialPlugin()
         intSubRad      = IntegrableSubhaloRadialPlugin()
