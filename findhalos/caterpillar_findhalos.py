@@ -141,7 +141,7 @@ if __name__=="__main__":
         zoomx,zoomy,zoomz = hcat.ix[zoomid][['posX','posY','posZ']]
         hpos = np.array([zoomx,zoomy,zoomz])
         print hpath
-        print "Halo %7i LX %2i has ID %6i: M = %3.2e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
+        print "Halo %7i LX %2i has ID %6i: M = %4.3e R = %4.1f (%4.2f,%4.2f,%4.2f)" % (parenthid, lx, zoomid, zoommass,zoomrvir, zoomx,zoomy,zoomz)
         if options.contam != 0:
             icsize = np.sum([os.path.getsize(icfile) for icfile in glob.glob(hpath+'/ics.*')])/10.**6 #MB
             #hpos = np.array([zoomx,zoomy,zoomz])#np.array(hcat.ix[zoomid][['posX','posY','posZ']])
@@ -176,7 +176,7 @@ if __name__=="__main__":
                                     'icsize','min2','min3','min4','min5',
                                     'x','y','z','mvir','rvir','badflag','badsubf'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                      'mvir':'%3.2e','rvir': '%0.1f',
+                                      'mvir':'%4.3e','rvir': '%0.1f',
                                       'min2':'%0.6f','min3':'%0.6f','min4':'%0.6f','min5':'%0.6f',})
         else:
             asciitable.write(hindex,outname,
@@ -185,4 +185,4 @@ if __name__=="__main__":
                                     'x','y','z','mvir','rvir',
                                     'badflag','badsubf','allsnaps'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                      'mvir':'%3.2e','rvir': '%0.1f','min2':'%0.6f'})
+                                      'mvir':'%4.3e','rvir': '%0.1f','min2':'%0.6f'})
