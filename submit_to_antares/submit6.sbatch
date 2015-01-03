@@ -5,4 +5,4 @@
 #SBATCH -e output6.o
 
 echo "Sub Profiles"
-python run_analysis.py 6
+python ../run_analysis.py 6

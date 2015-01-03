@@ -5,4 +5,4 @@
 #SBATCH -e output2.o
 
 echo "SHMF"
-python run_analysis.py 2
+python ../run_analysis.py 2

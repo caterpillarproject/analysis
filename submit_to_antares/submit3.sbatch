@@ -5,4 +5,4 @@
 #SBATCH -e output3.o
 
 echo "Host Profiles"
-python run_analysis.py 3
+python ../run_analysis.py 3

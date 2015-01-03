@@ -29,14 +29,10 @@ if __name__=="__main__":
     if arg == 2:
         SHMF       = SHMFPlugin()
         intSHMF    = IntegrableSHMFPlugin()
-        BoundSHMF  = BoundSHMFPlugin()
         convergeplot(1,SHMF,lw=2,figfilename='SHMFLX_s1.png',recalc=myrecalc)
         convergeplot(1,SHMF,lw=2,figfilename='normSHMFLX_s1.png',normtohost=True)
-        convergeplot(1,BoundSHMF,lw=2,figfilename='BoundSHMFLX_s1.png')
-        convergeplot(1,BoundSHMF,lw=2,figfilename='normBoundSHMFLX_s1.png',normtohost=True)
         convergeplot(1,intSHMF,lw=2,figfilename='intSHMFLX_s1.png')
         stackplot(firsttwelve,14,SHMF,figfilename='stackLX14_normSHMF_s1.png',lw=2,color='k',alpha=.2,normtohost=True)
-        stackplot(firsttwelve,14,BoundSHMF,figfilename='stackLX14_normBoundSHMF_s1.png',lw=2,color='k',alpha=.2,normtohost=True)
     if arg == 3:
         Profile    = ProfilePlugin()
         VelProfile = VelocityProfilePlugin()

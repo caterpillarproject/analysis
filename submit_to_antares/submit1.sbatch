@@ -5,4 +5,4 @@
 #SBATCH -e output1.o
 
 echo "Nvmax"
-python run_analysis.py 1
+python ../run_analysis.py 1

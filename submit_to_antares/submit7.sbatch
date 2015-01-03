@@ -5,4 +5,4 @@
 #SBATCH -e output7.o
 
 echo "SubRadial"
-python run_analysis.py 7
+python ../run_analysis.py 7

@@ -470,9 +470,10 @@ class SHMFPlugin(PluginBase):
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         data = asciitable.read(thisfilename,delimiter=' ')
-        return data['col1'],data['col2'],data['col3'],data['col4'],data['col5'],data['col6']
+        #don't return mvir, only mgrav
+        return data['col5'],data['col6'],data['col3'],data['col4']
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        x,y,sx,sy,bx,by = data
+        x,y,sx,sy = data
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
         y = y*mvir
         if normtohost: x = x/mvir
@@ -493,7 +494,7 @@ class IntegrableSHMFPlugin(SHMFPlugin):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         if normtohost:
             raise NotImplementedError
-        x,y,sx,sy,bx,by = data
+        x,y,sx,sy = data
         mvir,rvir,vvir=haloutils.load_haloprops(hpath)
         x = x/mvir; y = y*mvir
         y = y/np.max(y)
@@ -501,22 +502,6 @@ class IntegrableSHMFPlugin(SHMFPlugin):
             ax.plot(x,y,color=self.colordict[lx],**kwargs)
         else:
             ax.plot(x,y,**kwargs)
-class BoundSHMFPlugin(SHMFPlugin):
-    def __init__(self):
-        super(BoundSHMFPlugin,self).__init__()
-        self.xlabel = r'$M_{\rm subgrav} [M_\odot]$'
-        self.ylabel = r'$M_{\rm vir} dN/dM_{\rm subgrav}$'
-        self.n_xlabel = r'$M_{\rm subgrav}/M_{\rm vir}$'
-        self.autofigname = 'boundSHMF'
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        x,y,sx,sy,bx,by = data
-        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
-        by = by*mvir
-        if normtohost: bx = bx/mvir
-        if lx != None:
-            ax.plot(bx,by,color=self.colordict[lx],**kwargs)
-        else:
-            ax.plot(bx,by,**kwargs)
 
 class ProfilePlugin(PluginBase):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
@@ -693,13 +678,13 @@ class SubProfilePlugin(ProfilePlugin):
         zoomid = haloutils.load_zoomid(hpath)
         rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         subs = rscat.get_subhalos_within_halo(zoomid) #no subsubhalos
-        subs = subs[subs['mvir']/rscat.h0 > self.mmin]
+        subs = subs[subs['mgrav']/rscat.h0 > self.mmin]
         subids = np.array(subs['id'])
 
         nsubs = len(subs)
         nr = self.nr
         rvirarr = np.zeros(nsubs)
-        mvirarr = np.zeros(nsubs)
+        mgravarr = np.zeros(nsubs)
         allmltrarr  = np.zeros((nsubs,nr))
 
         snap = 255
@@ -707,17 +692,17 @@ class SubProfilePlugin(ProfilePlugin):
         snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
         header = rsg.snapshot_header(snapfile+'.0')
         for i,subid in enumerate(subids):
-            thismvir = float(subs.ix[subid]['mvir'])/header.hubble
+            thismgrav = float(subs.ix[subid]['mgrav'])/header.hubble
             thisrvir = float(subs.ix[subid]['rvir'])/header.hubble
             rarr = self.get_scaled_rarr(thisrvir)
             rarr,mltr,p03rmin,halorvir,r200c,halomass = self.compute_one_profile(rarr,hpath,rscat,subid,snap,header,calcp03r=False,calcr200=False)
             rvirarr[i] = halorvir
-            mvirarr[i] = thismvir
+            mgravarr[i] = thismgrav
             allmltrarr[i,:] = mltr
             #p03rarr[i] = p03rmin
             #r200carr[i]= r200c
-        names = ['rsid','rvir','mvir']+self.profilenames
-        outdict = {'rsid':subids,'rvir':rvirarr,'mvir':mvirarr}
+        names = ['rsid','rvir','mgrav']+self.profilenames
+        outdict = {'rsid':subids,'rvir':rvirarr,'mgrav':mgravarr}
         for col in range(nr):
             outdict[self.profilenames[col]] = allmltrarr[:,col]
         asciitable.write(outdict,self.get_outfname(hpath),names=names)
@@ -814,6 +799,7 @@ class MassAccrPlugin(PluginBase):
         scale = mb['scale'][::-1]
         snap = mb['snap'][::-1]
         mvir = mb['mvir'][::-1]/rscat.h0
+        mgrav = mb['mgrav'][::-1]/rscat.h0
         sammvir = mb['sam_mvir'][::-1]/rscat.h0
         vmax = mb['vmax'][::-1]
         TU = mb['T/|U|'][::-1]
@@ -824,13 +810,13 @@ class MassAccrPlugin(PluginBase):
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
-                          'mvir':mvir,'sam_mvir':sammvir,
+                          'mvir':mvir,'mgrav':mgrav,'sam_mvir':sammvir,
                           'vmax':vmax,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
                           'spin':spin,'spin_bullock':spinbullock},
                          self.get_outfname(hpath),
-                         names=['scale','snap','mvir','sam_mvir','vmax',
+                         names=['scale','snap','mvir','mgrav','sam_mvir','vmax',
                                 'T/|U|','scale_of_last_MM','x','y','z',
                                 'spin','spin_bullock'])
     def _read(self,hpath):

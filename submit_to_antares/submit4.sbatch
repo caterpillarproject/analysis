@@ -5,4 +5,4 @@
 #SBATCH -e output4.o
 
 echo "Mass Accretion History"
-python run_analysis.py 4
+python ../run_analysis.py 4

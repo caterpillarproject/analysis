@@ -5,4 +5,4 @@
 #SBATCH -e output5.o
 
 echo "Subhalo phase space"
-python run_analysis.py 5
+python ../run_analysis.py 5

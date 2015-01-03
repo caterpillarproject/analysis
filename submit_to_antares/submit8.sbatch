@@ -5,4 +5,4 @@
 #SBATCH -e output8.o
 
 echo "SubRadialMass (takes a long time)"
-python run_analysis.py 8
+python ../run_analysis.py 8
