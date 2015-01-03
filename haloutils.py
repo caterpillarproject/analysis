@@ -37,30 +37,30 @@ global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
-hid2name = {1631506: "Hera",
-            1195448: "Hermes",
-            1725139: "Artemis",
-            447649:  "Poseiden",
-            5320:    "Apollo",
-            581141:  "Athena",
-            94687:   "Ares",
-            1130025: "Aphrodite",
-            1387186: "Hephaestus",
-            581180:  "Hestia",
-            1725372: "Demeter",
-            1354437: "Zeus"}
-hid2sname = {1631506: "Hera",
-             1195448: "Herm",
-             1725139: "Artm",
-             447649:  "Psdn",
-             5320:    "Apol",
-             581141:  "Athn",
-             94687:   "Ares",
-             1130025: "Aphr",
-             1387186: "Heph",
-             581180:  "Hest",
-             1725372: "Demt",
-             1354437: "Zeus"}
+hid2name = {1631506: "Mnemosyne",
+            264569:  "Tethys",
+            1725139: "Theia",
+            447649:  "Phoebe",
+            5320:    "Rhea",
+            581141:  "Themis",
+            94687:   "Oceanus",
+            1130025: "Hyperion",
+            1387186: "Coeus",
+            581180:  "Cronus",
+            1725372: "Crius",
+            1354437: "Iapetus"}
+hid2sname = {1631506: "Mnemo",
+             264569:  "Teths",
+             1725139: "Theia",
+             447649:  "Phoeb",
+             5320:    "Rhea",
+             581141:  "Thems",
+             94687:   "Ocean",
+             1130025: "Hyper",
+             1387186: "Coeus",
+             581180:  "Crons",
+             1725372: "Crius",
+             1354437: "Iapet"}
 def hid_name(hid):
     return hid2name[hidint(hid)]
 def hid_sname(hid):
