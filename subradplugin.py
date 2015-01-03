@@ -164,7 +164,7 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         super(SubhaloRadialSubmassFracPlugin,self).__init__([allplug,subplug])
         
         self.xmin = rmin; self.xmax = rmax
-        self.ymin = 10**-4; self.ymax = 10**0 #Msun?
+        self.ymin = 10**-4; self.ymax = 10**0
         self.xlabel = r'$r$ [kpc]'
         self.ylabel = r'Mass fraction in sub'
         self.xlog = True; self.ylog = True
@@ -177,19 +177,16 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         r,mltr,p03r,rvir,r200c = alldata        
         rbin = np.concatenate(([0],r))
         subid,dist,submass,submgrav,subrvir = subdata
-        ii = submgrav/submass > 0.7
+        ii = submgrav/submass > 0.9
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         dist /= 1000. #kpc to Mpc
         m_r, x_r = np.histogram(dist, weights = submgrav, bins=rbin)
         mltrsub = np.cumsum(m_r)
 
-        #rsub,mltrsub = subdata
-        #assert np.sum(np.abs(r-rsub)) < 10**-9
         r = r*1000
         iigood = mltr>0
         mfrac = mltrsub/mltr
-        #assert np.all((mfrac[iigood] <= 1) & (mfrac[iigood] >= 0)),"Max: %f, Min: %f" % (np.max(mfrac[iigood]),np.min(mfrac[iigood]))
         assert np.all(mfrac[iigood] >= 0),"Max: %f, Min: %f" % (np.max(mfrac[iigood]),np.min(mfrac[iigood]))
         eps = 1000*haloutils.load_soft(hpath)
         ii1 = r >= eps
@@ -201,6 +198,7 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
+        print "WARNING: this plugin probably doesn't give useful results right now due to using all (bound+unbound) particles"
         super(SubhaloRadialMassPlugin,self).__init__()
         self.filename='subradialmass.npz'
 
@@ -263,66 +261,9 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
         else:
             ax.plot(r[ii1],mltr[ii1],**kwargs)
 
-class SubhaloRadialBoundMassPlugin(SubhaloRadialMassPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        super(SubhaloRadialBoundMassPlugin,self).__init__()
-        self.filename='subradialboundmass.npz'
-        self.boundcutoff = 0.9
-
-        self.xmin = rmin; self.xmax = rmax
-        self.ymin = 10**4; self.ymax = 10**13 #Msun
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Substructure enclosed mass'
-        self.xlog = True; self.ylog = True
-        self.autofigname = 'subradialboundmass'
-    def _analyze(self,hpath):
-        if not haloutils.check_last_rockstar_exists(hpath):
-            raise IOError("No Rockstar")
-        snap = haloutils.get_numsnaps(hpath)-1
-        snapstr = str(snap).zfill(3)
-        snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
-        header = rsg.snapshot_header(snapfile+'.0')
-        zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,snap)
-        subs = self.get_rssubs(rscat,zoomid)
-        subs = subs[subs['mgrav']/subs['mvir']>self.boundcutoff]
-        subids = np.array(subs['id'])
-        rarr = self.get_rarr()
-        rarr,mltrarr,haloparts = self.compute_subpart_profile(rarr,hpath,rscat,subids,snap,header)
-        np.savez(self.get_outfname(hpath),rarr=rarr,mltr=mltrarr,haloparts=haloparts)
-    def _read(self,hpath):
-        thisfilename = self.get_filename(hpath)
-        data = np.load(thisfilename)
-        r = data['rarr']
-        mltr = data['mltr']
-        return r,mltr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        if normtohost:
-            raise NotImplementedError
-        r,mltr = data
-        r = r*1000. # kpc
-        eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        if lx != None:
-            color = self.colordict[lx]
-            ax.plot(r[ii1],mltr[ii1],color=color,**kwargs)
-        else:
-            ax.plot(r[ii1],mltr[ii1],**kwargs)
-class SubhaloRadialBound95MassPlugin(SubhaloRadialBoundMassPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        super(SubhaloRadialBound95MassPlugin,self).__init__()
-        self.filename='subradialbound95mass.npz'
-        self.boundcutoff = 0.95
-        self.autofigname = 'subradialbound95mass'
-class SubhaloRadialBound99MassPlugin(SubhaloRadialBoundMassPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        super(SubhaloRadialBound99MassPlugin,self).__init__()
-        self.filename='subradialbound99mass.npz'
-        self.boundcutoff = 0.99
-        self.autofigname = 'subradialbound99mass'
-
 class SubhaloRadialMassFracPlugin(MultiPlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
+        print "WARNING: this is not the right plugin for substructure mass (use SubhaloRadialSubmassFracPlugin)"
         allplug = ProfilePlugin()
         subplug = SubhaloRadialMassPlugin()
         super(SubhaloRadialMassFracPlugin,self).__init__([allplug,subplug])
@@ -333,99 +274,6 @@ class SubhaloRadialMassFracPlugin(MultiPlugin):
         self.ylabel = r'Mass fraction in sub'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradialmassfrac'
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        if normtohost:
-            raise NotImplementedError
-        alldata = datalist[0]
-        subdata = datalist[1]
-        r,mltr,p03r,rvir,r200c = alldata        
-        rsub,mltrsub = subdata
-        assert np.sum(np.abs(r-rsub)) < 10**-9
-        r = r*1000
-        iigood = mltr>0
-        mfrac = mltrsub/mltr
-        assert np.all((mfrac[iigood] <= 1) & (mfrac[iigood] >= 0)),"Max: %f, Min: %f" % (np.max(mfrac),np.min(mfrac))
-        eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        if lx != None:
-            color = self.colordict[lx]
-            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
-        else:
-            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
-class SubhaloRadialBoundMassFracPlugin(MultiPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        allplug = ProfilePlugin()
-        subplug = SubhaloRadialBoundMassPlugin()
-        super(SubhaloRadialBoundMassFracPlugin,self).__init__([allplug,subplug])
-        
-        self.xmin = rmin; self.xmax = rmax
-        self.ymin = 10**-4; self.ymax = 10**0 #Msun?
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Mass fraction in sub'
-        self.xlog = True; self.ylog = True
-        self.autofigname = 'subradialboundmassfrac'
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        if normtohost:
-            raise NotImplementedError
-        alldata = datalist[0]
-        subdata = datalist[1]
-        r,mltr,p03r,rvir,r200c = alldata        
-        rsub,mltrsub = subdata
-        assert np.sum(np.abs(r-rsub)) < 10**-9
-        r = r*1000
-        iigood = mltr>0
-        mfrac = mltrsub/mltr
-        assert np.all((mfrac[iigood] <= 1) & (mfrac[iigood] >= 0)),"Max: %f, Min: %f" % (np.max(mfrac),np.min(mfrac))
-        eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        if lx != None:
-            color = self.colordict[lx]
-            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
-        else:
-            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
-class SubhaloRadialBound95MassFracPlugin(MultiPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        allplug = ProfilePlugin()
-        subplug = SubhaloRadialBound95MassPlugin()
-        super(SubhaloRadialBound95MassFracPlugin,self).__init__([allplug,subplug])
-        
-        self.xmin = rmin; self.xmax = rmax
-        self.ymin = 10**-4; self.ymax = 10**0 #Msun?
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Mass fraction in sub'
-        self.xlog = True; self.ylog = True
-        self.autofigname = 'subradialbound95massfrac'
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        if normtohost:
-            raise NotImplementedError
-        alldata = datalist[0]
-        subdata = datalist[1]
-        r,mltr,p03r,rvir,r200c = alldata        
-        rsub,mltrsub = subdata
-        assert np.sum(np.abs(r-rsub)) < 10**-9
-        r = r*1000
-        iigood = mltr>0
-        mfrac = mltrsub/mltr
-        assert np.all((mfrac[iigood] <= 1) & (mfrac[iigood] >= 0)),"Max: %f, Min: %f" % (np.max(mfrac),np.min(mfrac))
-        eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        if lx != None:
-            color = self.colordict[lx]
-            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
-        else:
-            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
-class SubhaloRadialBound99MassFracPlugin(MultiPlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3):
-        allplug = ProfilePlugin()
-        subplug = SubhaloRadialBound99MassPlugin()
-        super(SubhaloRadialBound99MassFracPlugin,self).__init__([allplug,subplug])
-        
-        self.xmin = rmin; self.xmax = rmax
-        self.ymin = 10**-4; self.ymax = 10**0 #Msun?
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Mass fraction in sub'
-        self.xlog = True; self.ylog = True
-        self.autofigname = 'subradialbound99massfrac'
     def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         if normtohost:
             raise NotImplementedError
