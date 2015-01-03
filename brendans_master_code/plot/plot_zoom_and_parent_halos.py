@@ -12,6 +12,8 @@ import alexlib.haloutils as htils
 import readhalos.RSDataReader as RSDataReader
 
 """
+Contact: Brendan Griffen <brendan.f.griffen@gmail.com>
+
 This code will plot 5 rows and 3 columns.
 Each column is a different projections (x-y,x-z,y-z)
 
@@ -87,7 +89,7 @@ for haloi in halo_dirs:
     #if int(haloid) in halo_list:
     #print
     sub_dirs = glob.glob(haloi+"/H*")
-    f, axs = plt.subplots(5, 3, figsize=(12,14))
+    f, axs = plt.subplots(6, 3, figsize=(12,14))
     f.subplots_adjust(hspace=0,wspace=0)
     
     # ///////////////////////////////////////////////////////////
