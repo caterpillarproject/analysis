@@ -48,7 +48,7 @@ mw_candidates = allhalos[mask_mass_range]
 halos_greater_than13 = allhalos[allhalos['mvir']/hubble>7e13] # HALOS LARGER THAN 7E13
 
 number_mw_candidates = len(mw_candidates)
-print "Number of MW candidates between 7e11 and 3e12:",number_mw_candidates
+print "Number of MW candidates between 7e11 and 2e12:",number_mw_candidates
 print "Number of halos larger than 7e13 Msol",len(halos_greater_than13)
 
 xpos13 = np.array(np.float64(halos_greater_than13['posX']))
@@ -56,8 +56,8 @@ ypos13 = np.array(np.float64(halos_greater_than13['posY']))
 zpos13 = np.array(np.float64(halos_greater_than13['posZ']))
 
 # OUTPUT FILE
-out = open(outputfile, 'w')
-out.write('# id, msol, rvir, vmax, x, y, z, vx, vy, vz, distance to first 7e13 halo, distance to halo at least half as massive\n')
+#out = open(outputfile, 'w')
+#out.write('# id, msol, rvir, vmax, x, y, z, vx, vy, vz, distance to first 7e13 halo, distance to halo at least half as massive\n')
 
 number_of_candidates = 0
 for i in xrange(0,number_mw_candidates):
@@ -97,9 +97,9 @@ for i in xrange(0,number_mw_candidates):
     # NO HALO LARGER THAN 7e13 CLOSER THAN 4 MPC AND NO HALO HALF THE MASS OF THE HOST WITHIN 2.8 MPC
     if np.min(R13) >= 7. and np.min(RMgtMW) >= 2.8:
         number_of_candidates += 1
-        out.write('%i %e %f %f %f %f %f %f %f %f %f %f \n' % (int(idi),massi,rviri,vmaxi,xposi,yposi,zposi,xveli,yveli,zveli,np.min(R13),np.min(RMgtMW))) 
+#        out.write('%i %e %f %f %f %f %f %f %f %f %f %f \n' % (int(idi),massi,rviri,vmaxi,xposi,yposi,zposi,xveli,yveli,zveli,np.min(R13),np.min(RMgtMW))) 
 
-out.close()
+#out.close()
 
 print "Number of candidates found:",number_of_candidates
 print "Output written to:",outputfile

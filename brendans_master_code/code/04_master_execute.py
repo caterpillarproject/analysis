@@ -36,11 +36,11 @@ Be warned: all mods using 'glib' will do something if you comment them out.
 """
 
 if "antares" not in platform.node():
-	print "YOU ARE NOT RUNNING FROM ANTARES - GOOD BYE!"
+	print "YOU ARE NOT RUNNING FROM ANTARES - GOODBYE!"
 	sys.exit()
 
-nrvir = 4
-lx_list = ["1","2"]  	# Set which levels, you would like to iterate over (for contamination AND/OR full runs)
+nrvir = 5
+lx_list = ["1"]  	    # Set which levels, you would like to iterate over (for contamination AND/OR full runs)
 SUBMIT_GADGET = True 	# Set to false if you don't want to submit Gadget runs (will only copy files if False)
 mass_bin = sys.argv[1]
 
@@ -54,20 +54,25 @@ if not os.path.isdir(base_path):
     sys.exit()
 
 if nrvir == 4:
-    suite_names = ["BA","BB","EA","CA","EB","EC"]
+    suite_names = ["EX"]
+
+    #["BA","BB","EA","CA","EB","EC"]
 if nrvir == 5:
-    suite_names = ["EA","CA","BA"]
+    suite_names = ["EX"]
+
+    #["EA","CA","BA"]
 
 print "+EXECUTING +"
 
 # MAKES ALL CONTAMINATION TEST FOLDERS
-#glib.make_destination_folders_clean(base_path,suite_names,lx=11,nrvir=nrvir)
+glib.make_destination_folders(base_path,suite_names,lx=11,nrvir=nrvir)
 
 # CREATE SUITE LIST FOR CONTAMINATION STUDY ONLY (e.g. halos/.../H{haloid}/contamination_suite/)
 contamination_paths = glob.glob(base_path + "H*/contamination_suite/*NV"+str(nrvir)+"*")
 # Reminder: be sure to set lx_list correctly. "1" for LX11 etc.
 #glib.run_music(contamination_paths,music_path,lagr_path,lx_list)
-#glib.run_gadget(contamination_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
+
+glib.run_gadget(contamination_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
 # Subfind: has not been tested yet.
 #glib.run_subfind(contamination_paths,gadget_file_path)
 
@@ -77,9 +82,9 @@ halo_geometries =  pickle.load( open( base_path+"geometries.p", "rb" ) )
 #glib.run_music_higher_levels(halo_geometries,base_path,music_path,lagr_path,lx_list=lx_list)
 
 # Runs through available halos in dictionary and runs P-Gadget3 on each halo.
-for halo_name,ic_info in halo_geometries.iteritems():
-    suite_paths = glob.glob(base_path+halo_name+"/H*")
-    #glib.run_gadget(suite_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
+#for halo_name,ic_info in halo_geometries.iteritems():
+#    suite_paths = glob.glob(base_path+halo_name+"/H*")
+#    glib.run_gadget(suite_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
 
 print
 print "------ CONTAMINATION RUNS ---------"
