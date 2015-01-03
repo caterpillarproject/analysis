@@ -11,6 +11,8 @@ if __name__=="__main__":
     (options,args) = parser.parse_args()
     firsttwelve = get_haloidlist(1)
     if len(args) == 0:
+        plug = SubhaloRadialSubmassFracPlugin()
+        convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png')
         #plug = NvmaxPlugin()
         #plug = MassAccrPlugin()
         #stackplot(firsttwelve,14,plug,lw=2,autocolor=1,figfilename='testcolor1.png',normtohost=True)

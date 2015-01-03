@@ -157,6 +157,47 @@ class IntegrableSubhaloRadialByMassPlugin(SubhaloRadialByMassPlugin):
             ax.plot(rarr[minii:],n_plot[minii:],color=self.bincolors[i],label=self.labels[i],**kwargs)
             ax.legend(loc='lower left',fontsize='xx-small')
     
+class SubhaloRadialSubmassFracPlugin(MultiPlugin):
+    def __init__(self,rmin=10**0,rmax=10**3):
+        allplug = ProfilePlugin()
+        subplug = SubhaloRadialPlugin()
+        super(SubhaloRadialSubmassFracPlugin,self).__init__([allplug,subplug])
+        
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = 10**-4; self.ymax = 10**0 #Msun?
+        self.xlabel = r'$r$ [kpc]'
+        self.ylabel = r'Mass fraction in sub'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subradialsubmassfrac'
+    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
+        alldata = datalist[0]
+        subdata = datalist[1]
+        r,mltr,p03r,rvir,r200c = alldata        
+        rbin = np.concatenate(([0],r))
+        subid,dist,submass,submgrav,subrvir = subdata
+        ii = submgrav/submass > 0.7
+        dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
+
+        dist /= 1000. #kpc to Mpc
+        m_r, x_r = np.histogram(dist, weights = submgrav, bins=rbin)
+        mltrsub = np.cumsum(m_r)
+
+        #rsub,mltrsub = subdata
+        #assert np.sum(np.abs(r-rsub)) < 10**-9
+        r = r*1000
+        iigood = mltr>0
+        mfrac = mltrsub/mltr
+        #assert np.all((mfrac[iigood] <= 1) & (mfrac[iigood] >= 0)),"Max: %f, Min: %f" % (np.max(mfrac[iigood]),np.min(mfrac[iigood]))
+        assert np.all(mfrac[iigood] >= 0),"Max: %f, Min: %f" % (np.max(mfrac[iigood]),np.min(mfrac[iigood]))
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
+        else:
+            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
