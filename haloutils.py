@@ -7,13 +7,32 @@ import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
-from brendanlib.grifflib import determinebasepath
 import glob
 
+
+
+def determinebasepath(node):
+    if node == "csr-dyn-150.mit.edu":
+        basepath = '/Users/griffen/Desktop/'
+    elif node == "Brendans-MacBook-Pro.local":
+        basepath = '/Users/griffen/Desktop/'
+    elif node == "spacebase":
+        basepath = '/bigbang/data/AnnaGroup/'
+    elif node == "bigbang.mit.edu":
+        basepath = '/bigbang/data/AnnaGroup/'
+    elif node == "antares":
+        basepath = '/bigbang/data/AnnaGroup/'
+    elif 'compute-0-' in node:
+        basepath = '/bigbang/data/AnnaGroup/'
+    else:
+        raise ValueError(node+" is not a valid node")
+        
+    return basepath
 
 global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
+
 
 def hidint(hid):
     """ converts halo ID to int """
