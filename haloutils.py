@@ -165,7 +165,11 @@ def check_last_subfind_exists(outpath):
 
 def check_last_rockstar_exists(outpath,fullbin=True,particles=False):
     numsnaps = get_numsnaps(outpath)
-    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+    lastsnap = numsnaps - 1
+    return check_rockstar_exists(outpath,lastsnap,fullbin=fullbin,particles=particles)
+
+def check_rockstar_exists(outpath,snap,fullbin=True,particles=False):
+    snapstr = str(snap)
     if fullbin:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.fullbin')
     else:
