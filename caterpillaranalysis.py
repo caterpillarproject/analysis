@@ -211,6 +211,7 @@ class PluginBase(object):
             return rscat.get_all_subhalos_within_halo(zoomid,radius=self.radius)
         else:
             return rscat.get_subhalos_within_halo(zoomid,radius=self.radius)
+
     ## Adapted from Greg's BestMethods.py
     def distance(self,posA,posB,boxsize=None):
         dist = abs(posA-posB)
@@ -798,8 +799,8 @@ class MassAccrPlugin(PluginBase):
         mb = mt.getMainBranch()
         scale = mb['scale'][::-1]
         snap = mb['snap'][::-1]
+        phantom = mb['phantom'][::-1]
         mvir = mb['mvir'][::-1]/rscat.h0
-        mgrav = mb['mgrav'][::-1]/rscat.h0
         sammvir = mb['sam_mvir'][::-1]/rscat.h0
         vmax = mb['vmax'][::-1]
         TU = mb['T/|U|'][::-1]
@@ -810,15 +811,16 @@ class MassAccrPlugin(PluginBase):
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
-                          'mvir':mvir,'mgrav':mgrav,'sam_mvir':sammvir,
+                          'mvir':mvir,'sam_mvir':sammvir,
                           'vmax':vmax,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
-                          'spin':spin,'spin_bullock':spinbullock},
+                          'spin':spin,'spin_bullock':spinbullock,
+                          'phantom':phantom},
                          self.get_outfname(hpath),
-                         names=['scale','snap','mvir','mgrav','sam_mvir','vmax',
+                         names=['scale','snap','mvir','sam_mvir','vmax',
                                 'T/|U|','scale_of_last_MM','x','y','z',
-                                'spin','spin_bullock'])
+                                'spin','spin_bullock','phantom'])
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
