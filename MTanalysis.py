@@ -5,8 +5,8 @@ import readsnapshots.readsnapHDF5_greg as rsg
 import haloutils
 import time
 from scipy import interpolate
-import TidalMethods as TM
 from scipy.integrate import quad
+import os, subprocess
 
 # make x-axis scale factor not snapshot
 # based on get_outfname, hpath is the full path to a halo: i.e. 
@@ -22,6 +22,16 @@ from scipy.integrate import quad
 # fails on self._read(hpath) in function read.
 # this is becauses its trying to read lx=11,12,13 also.
 
+
+def distance(posA, posB,boxsize=100.):
+    dist = abs(posA-posB)
+    tmp = dist > boxsize/2.0
+    dist[tmp] = boxsize-dist[tmp]
+    if dist.shape == (3,):
+        return np.sqrt(np.sum(dist**2))
+    else:
+        return np.sqrt(np.sum(dist**2,axis=1))
+
 def H(a,Om=.25,Ol=.75,h=0.73):
     to_inv_sec = 3.241*10**-20
     Ok = 1-Om-Ol
@@ -33,7 +43,7 @@ def TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath):
     halovel = np.array(iSub[['pecVX','pecVY','pecVZ']])
     iPos = haloutils.load_partblock(hpath,iSnap,'POS ',parttype=1,ids=iPids)
     iVel = np.sqrt(iScale)*haloutils.load_partblock(hpath,iSnap,'VEL ',parttype=1,ids=iPids)  
-    dr = iScale*TM.distance(iPos,halopos,boxsize=iCat.boxsize)/iCat.h0 #in MPC physical
+    dr = iScale*distance(iPos,halopos,boxsize=iCat.boxsize)/iCat.h0 #in MPC physical
     peculiarVEL = iVel-halovel
     Hflow = H(iScale, h=iCat.h0)*(iPos-halopos)*iScale/iCat.h0
     physicalVEL = peculiarVEL+Hflow
@@ -49,7 +59,7 @@ def TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath):
     mask = np.array([False]*len(boundsort))
     totag = np.arange(n_tag)
     mask[totag] = True
-    star_particles = iPids[boundsort[mask]]
+    star_particles = iPids[boundsort[mask]] #sorted with most bound written first
     return star_particles
 
 
@@ -284,14 +294,14 @@ class TagExtantPlugin(PluginBase):
         otherdata=[]
         print 'loading mtc'
         sys.stdout.flush()
-        mtc = haloutils.load_mtc(hpath)
+        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
         print 'loaded mtc'
         sys.stdout.flush()
         host = mtc.Trees[0]
         host_mb = host.getMainBranch(0)
         
         good = 0; start_pos=0; toosmall=0; sub_rank=start-1
-        for subRSID in np.array(subs['id']): # EDIT should remove 0:100 after test
+        for subRSID in np.array(subs['id']):
             sub_rank+=1
             sub = getSubTree(mtc,subRSID)
             if sub==None:
@@ -305,6 +315,9 @@ class TagExtantPlugin(PluginBase):
                 continue # skip to next subhalo
             peakmass = np.max(sub_mb['mvir'])
             peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+            peakvmax = np.max(sub_mb['vmax'])
+            peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
+
             print sub_rank, 'peakmass', peakmass
             if peakmass/cat.particle_mass < self.min_particles:
                 #print sub_rank, 'subhalo too small'
@@ -315,7 +328,7 @@ class TagExtantPlugin(PluginBase):
             if iLoc==None:
                 continue
             iMass = sub_mb['mvir'][iLoc]
-            iCat = haloutils.load_rscat(hpath,iSnap)
+            iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None)
             iScale = sub_mb['scale'][iLoc]
             iRSID = sub_mb['origid'][iLoc]
             iSub = iCat.ix[iRSID] 
@@ -324,7 +337,7 @@ class TagExtantPlugin(PluginBase):
             star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
             print sub_rank, len(star_pids), 'num stars tagged'
             allstars=np.r_[allstars,star_pids]
-            otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,start_pos,len(star_pids),peakmass,iMass,sub_mb['mvir'][0],iSnap,peaksnap]
+            otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,start_pos,len(star_pids),peakmass,iMass,peakvmax,peakvmax_snap, sub_mb['mvir'][0],sub_mb['vmax'][0],iSnap,peaksnap]
             start_pos+=len(star_pids)
             print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
             sys.stdout.flush()
@@ -342,9 +355,9 @@ class TagExtantPlugin(PluginBase):
     def _read(self,hpath):
         ids = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantPIDs.dat')
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantData.dat')
-        dtype = [('sub_rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('mvir',"float64"),('isnap',"float64"),('peaksnap',"float64")]
-        holder = np.ndarray( (len(data)/10,), dtype=dtype )
-        data2 = data.reshape(len(data)/10,10)
+        dtype = [('sub_rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('mvir',"float64"),('vmax',"float64"), ('isnap',"float64"),('peaksnap',"float64")]
+        holder = np.ndarray( (len(data)/13,), dtype=dtype )
+        data2 = data.reshape(len(data)/13,13)
         for i in range(data2.shape[0]):
             holder[i]=data2[i]
         return np.array(ids,dtype=np.int64), holder
@@ -370,9 +383,7 @@ class TagDestroyedPlugin(PluginBase):
         print 'in tag destroyed'
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
-        # copy tagExtant code here
-        start = 0; end = 255 # for testing purposes, just tag the first 10
-
+        start = 0
         start_time = time.time()
         snap_z0 = haloutils.get_numsnaps(hpath)-1
         cat = haloutils.load_rscat(hpath,snap_z0)
@@ -382,9 +393,13 @@ class TagDestroyedPlugin(PluginBase):
             print 'host IDs do not match!!'
         hosthalo = cat.ix[hostID]
         subs = cat.get_subhalos_within_halo(hostID)
-        mtc = haloutils.load_mtc(hpath)
+        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
         print 'loaded MTC'
         host = mtc.Trees[0]
+        #### determine end ahead of time.
+        host_mb = host.getMainBranch(0)
+        end = len(host_mb)-1
+        ####
         cur_host_line = 0
         i=start # skip to ith level in MT to start
         for k in range(i):
@@ -394,12 +409,14 @@ class TagDestroyedPlugin(PluginBase):
             merged_subs = host.getNonMMPprogenitors(cur_host_line)
             j=-1; start_pos=0; good=0
             allstars=[]; otherdata=[]
-            host_mb = host.getMainBranch(host.getMMP(cur_host_line))
+            host_mb = host.getMainBranch(host.getMMP(cur_host_line)) # this is where it fails ultimately
             for subline in merged_subs:
                 j+=1
                 sub_mb = host.getMainBranch(subline)
                 peakmass = np.max(sub_mb['mvir'])
                 peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+                peakvmax = np.max(sub_mb['vmax'])
+                peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
                 if peakmass/cat.particle_mass < self.min_particles:
                     sys.stdout.flush()
                     continue
@@ -410,7 +427,7 @@ class TagDestroyedPlugin(PluginBase):
                     continue
                 
                 iMass = sub_mb['mvir'][iLoc]
-                iCat = haloutils.load_rscat(hpath,iSnap)
+                iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None)
                 iScale = iCat.scale
                 iRSID = sub_mb['origid'][iLoc]
                 iSub = iCat.ix[iRSID]
@@ -419,7 +436,7 @@ class TagDestroyedPlugin(PluginBase):
             
                 star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
                 allstars=np.r_[allstars,star_pids]
-                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],iRSID,start_pos,len(star_pids),peakmass,iMass,iSnap,peaksnap,i]
+                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],iRSID,start_pos,len(star_pids),peakmass,iMass,peakvmax,peakvmax_snap,iSnap,peaksnap,i]
                 start_pos+=len(star_pids)
                 print j, 'halo in host level', i
                 good+=1
@@ -427,20 +444,207 @@ class TagDestroyedPlugin(PluginBase):
             print i, 'host level finished. Time = ', (time.time()-start_time)/60., 'minutes'
             print good,'/',j+1,'were tagged'
             sys.stdout.flush()
-            f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs_'+str(i)+'.dat', 'wb')
+            if not os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed'):
+                subprocess.call("mkdir -p "+hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed',shell=True)
+            f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+'DestroyedPIDs_'+str(i)+'.dat', 'wb')
             np.array(allstars).tofile(f)
             f.close()
-            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedData_'+str(i)+'.dat','wb')
+            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+'DestroyedData_'+str(i)+'.dat','wb')
             np.array(otherdata).tofile(g)
             g.close()    
             cur_host_line = host.getMMP(cur_host_line)
             i+=1
         print 'wrote final set of data'
 
+## convert all data into one file
+    def combinefiles(self,hpath):
+            i = 0; data=[]
+            while os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedData_'+str(i)+'.dat'):
+                tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedData_'+str(i)+'.dat')              
+                data = np.r_[data,tmp]
+                dtype = [('rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('isnap',"float64"),('peaksnap',"float64"),('backsnap',"float64")]
+                i+=1
+            holder = np.ndarray( (len(data)/12,), dtype=dtype )
+            data2 = data.reshape(len(data)/12,12)
+            for j in range(data2.shape[0]):
+                holder[j]=data2[j]
+            print np.sum(holder['nstars']), 'nstars from data'
+            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/DestroyedData.dat','wb')
+            np.array(holder).tofile(g)
+            g.close()    
+           
+            # Now write ids to file
+            i = 0; ids=[]
+            while os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedPIDs_'+str(i)+'.dat'):
+                tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedPIDs_'+str(i)+'.dat')
+                ids = np.r_[ids,tmp]
+                i+=1
+                print ids[-1], 'shold not be 0'
+            print len(ids), 'length of ids'
+            f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs.dat', 'wb')
+            np.array(ids, dtype=np.int64).tofile(f)
+            f.close()
+
+            #np.array(bound,dtype=np.float32)
     def _read(self,hpath):
-        thisfilename = self.get_filename(hpath)
-        data = np.fromfile(thisfilename)
+        ids = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs.dat',dtype=np.int64)
+        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedData.dat')
+        dtype = [('rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('isnap',"float64"),('peaksnap',"float64"),('backsnap',"float64")]
+        holder = np.ndarray( (len(data)/12,), dtype=dtype )
+        data2 = data.reshape(len(data)/12,12)
+        for i in range(data2.shape[0]):
+            holder[i]=data2[i]
+        return np.array(ids,dtype=np.int64), holder
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
 
+
+def getScale(isnap):
+    scales = np.array([0.021276596,0.025114727,0.028952858,0.032790989,0.036629120,0.040467251,0.044305382,0.048143513,0.051981644,0.055819775,0.059657906,0.063496037,0.067334168,0.071172299,0.075010430,0.078848561,0.082686692,0.086524823,0.090362954,0.094201085,0.098039216,0.101877347,0.105715478,0.109553609,0.113391740,0.117229871,0.121068002,0.124906133,0.128744264,0.132582395,0.136420526,0.140258657,0.144096788,0.147934919,0.151773050,0.155611181,0.159449312,0.163287443,0.167125574,0.170963705,0.174801836,0.178639967,0.182478098,0.186316229,0.190154360,0.193992491,0.197830622,0.201668753,0.205506884,0.209345015,0.213183146,0.217021277,0.220859408,0.224697539,0.228535670,0.232373801,0.236211932,0.240050063,0.243888194,0.247726325,0.251564456,0.255402587,0.259240718,0.263078849,0.266916980,0.270755111,0.274593242,0.278431373,0.282269504,0.286107635,0.289945766,0.293783897,0.297622028,0.301460159,0.305298290,0.309136421,0.312974552,0.316812683,0.320650814,0.324488945,0.328327076,0.332165207,0.336003338,0.339841469,0.343679599,0.347517730,0.351355861,0.355193992,0.359032123,0.362870254,0.366708385,0.370546516,0.374384647,0.378222778,0.382060909,0.385899040,0.389737171,0.393575302,0.397413433,0.401251564,0.405089695,0.408927826,0.412765957,0.416604088,0.420442219,0.424280350,0.428118481,0.431956612,0.435794743,0.439632874,0.443471005,0.447309136,0.451147267,0.454985398,0.458823529,0.462661660,0.466499791,0.470337922,0.474176053,0.478014184,0.481852315,0.485690446,0.489528577,0.493366708,0.497204839,0.501042970,0.504881101,0.508719232,0.512557363,0.516395494,0.520233625,0.524071756,0.527909887,0.531748018,0.535586149,0.539424280,0.543262411,0.547100542,0.550938673,0.554776804,0.558614935,0.562453066,0.566291197,0.570129328,0.573967459,0.577805590,0.581643721,0.585481852,0.589319983,0.593158114,0.596996245,0.600834376,0.604672507,0.608510638,0.612348769,0.616186900,0.620025031,0.623863162,0.627701293,0.631539424,0.635377555,0.639215686,0.643053817,0.646891948,0.650730079,0.654568210,0.658406341,0.662244472,0.666082603,0.669920734,0.673758865,0.677596996,0.681435127,0.685273258,0.689111389,0.692949520,0.696787651,0.700625782,0.704463913,0.708302044,0.712140175,0.715978306,0.719816437,0.723654568,0.727492699,0.731330830,0.735168961,0.739007092,0.742845223,0.746683354,0.750521485,0.754359616,0.758197747,0.762035878,0.765874009,0.769712140,0.773550271,0.777388402,0.781226533,0.785064664,0.788902795,0.792740926,0.796579057,0.800417188,0.804255319,0.808093450,0.811931581,0.815769712,0.819607843,0.823445974,0.827284105,0.831122236,0.834960367,0.838798498,0.842636629,0.846474760,0.850312891,0.854151022,0.857989153,0.861827284,0.865665415,0.869503546,0.873341677,0.877179808,0.881017939,0.884856070,0.888694201,0.892532332,0.896370463,0.900208594,0.904046725,0.907884856,0.911722987,0.915561118,0.919399249,0.923237380,0.927075511,0.930913642,0.934751773,0.938589904,0.942428035,0.946266166,0.950104297,0.953942428,0.957780559,0.961618690,0.965456821,0.969294952,0.973133083,0.976971214,0.980809345,0.984647476,0.988485607,0.992323738,0.996161869,1.000000000])
+    return scales[isnap]
+
+
+M10 = 11.590
+M11 = 1.195
+N10 = .0351
+N11 = -0.0247
+B10 = 1.376
+B11 = -0.826
+G10 = 0.608
+G11 = 0.329
+def getFraction(M, a):
+    return 2*N(a)*( (M/M1(a) )**-beta(a) + ( M/M1(a) )**gamma(a) )**-1
+    
+def M1(a):
+    return 10**(M10+M11*(1-a))
+
+def N(a):
+    return N10 + N11*(1-a)
+
+def beta(a):
+    return B10 + B11*(1-a)
+
+def gamma(a):
+    return G10 + G11*(1-a)
+
+
+# Code taken from TagFunction
+class TagMass(PluginBase):
+    def __init__(self):
+        super(TagMass,self).__init__()
+        self.filename='ExtantPIDs_moster.dat'
+        self.xmin=1;     self.xmax=400
+        self.ymin=10**-5; self.ymax=10*6
+        self.xlog= True; self.ylog = True
+        self.xlabel='' ; self.ylabel=r''
+        self.autofigname=''
+
+    def _analyze(self,hpath):
+        # RetagExtant
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0)
+        TagExtant = TagExtantPlugin()
+        stars, data = TagExtant.read(hpath)     
+        fracs = getFraction(data['infall_mass']/cat.h0, getScale( np.array(data['isnap'],dtype=np.int32)) )
+        nstars2 = np.round(data['infall_mass']/cat.particle_mass*.05)
+        mper=(data['infall_mass']/cat.h0*fracs)/nstars2
+        start_pos = np.array(data['start_pos'],dtype=np.int32)
+
+        newstars=[]; mper_arr=[]
+        for i in range(len(data)):
+            newstars=np.r_[newstars, stars[start_pos[i]:start_pos[i]+nstars2[i]]]
+            mper_arr=np.r_[mper_arr, [mper[i]]*nstars2[i] ]
+        # rewrite data properly here
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantPIDs_moster.dat','wb')
+        newstars.tofile(f)
+        f.close()
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantMass_moster.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+        # Now retag destroyed data
+        TagDestroyed = TagDestroyedPlugin()
+        stars, data = TagDestroyed.read(hpath)
+        newstars=[];  mper_arr=[]
+        fracs = getFraction(data['infall_mass']/cat.h0, getScale( np.array(data['isnap'],dtype=np.int32)) )
+        nstars2 = np.round(data['infall_mass']/cat.particle_mass*.05)
+        mper=(data['infall_mass']/cat.h0*fracs)/nstars2
+        start_pos = np.array(data['start_pos'],dtype=np.int32)
+        for i in range(len(data)):
+            newstars=np.r_[newstars, stars[start_pos[i]:start_pos[i]+nstars2[i]]]
+            mper_arr=np.r_[mper_arr, [mper[i]]*nstars2[i] ]
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs_moster.dat','wb')
+        newstars.tofile(f)
+        f.close()
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedMass_moster.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+
+    def _read(self,hpath):
+        # extant data
+        idsE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantPIDs_moster.dat')
+        massE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'ExtantMass_moster.dat')
+        # destroyed data
+        idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs_moster.dat')
+        massD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedMass_moster.dat')
+        return np.array(idsE,dtype=np.int64), massE, np.array(idsD,dtype=np.int64), massD
+
+
+class StellarDensProfile(PluginBase):
+    def __init__(self):
+        super(StellarDensProfile,self).__init__()
+        self.filename='StellarDensityProfile.dat'
+        self.xmin=30;     self.xmax=300
+        self.ymin=10**0; self.ymax=10*5
+        self.xlog= True; self.ylog = True
+        self.xlabel='r [kpc]' ; self.ylabel=r'$\rho \ [M_\odot/ kpc^3]$'
+        self.autofigname='Stellar_Dens_Profile'
+
+    def _analyze(self,hpath):
+        TagMass = TagMass()
+        idsE, massE, idsD, massD = TagMass.read(hpath)
+        # combine ids and mass
+        ids = np.r_[idsE,idsD]
+        mass = np.r_[massE, massD]
+        argsort = np.argsort(ids)
+        ids = ids[argsort]
+        mass = mass[argsort]
+        
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0)
+        hostID = haloutils.load_zoomid(hpath)
+        hosthalo = cat.ix[hostID]
+        hostpos = np.array(hosthalo[['posX','posY','posZ']])
+        part_pos = haloutils.load_partblock(hpath,snap_z0,"POS ",parttype=1,ids=ids)
+        dr = distance(part_pos, hostpos,cat.boxsize)*cat.scale/cat.h0*1000. # in kpc physical
+        maxr = float(hosthalo['rvir'])
+        minr = maxr/50.
+        binwidth = 0.03
+        nbins = np.ceil((np.log10(maxr)-np.log10(minr))/binwidth)
+        rarr = 10**np.linspace(np.log10(minr), np.log10(minr)+nbins*binwidth,nbins+1)
+        # bin and sum the mass
+        bins=np.concatenate(([0],rarr))
+        masks=[(dr>bins[i])*(dr<bins[i+1]) for i in range(len(bins)-1)]
+        mper = [np.sum(mass[masks[i]]) for i in range(len(masks))]
+        m_lt_r = np.cumsum(mper)
+        tck = interpolate.splrep(rarr,m_lt_r)
+        rhoarr = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
+        rhoarr.tofile(f)
+        rarr.tofile(f)
+        f.close()
+    
+    def _read(self, hpath):
+        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
+        rhoarr = data[0:len(data)/2]
+        rarr = data[len(data)/2:]
+        return [rhoarr,rarr]
+
+    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
+        rhoarr,rarr = datalist
+        ax.plot(rarr, rhoarr)
+        plt.show()
+        #ax.xticks([30,50,100,200],[30,50,100,200])

@@ -206,11 +206,18 @@ class PluginBase(object):
         ax.text(xlabel,ylabel,label,color='black',fontsize='medium')
 
     ### Helper methods for analysis
+    def load_bound_rscat_if_exists(self,hpath,snap):
+        try:
+            return haloutils.load_bound_rscat(hpath,snap,**kwargs)
+        except IOError:
+            print "ERROR: %s has no bound calculation" % (haloutils.get_foldername(hpath))
+            return haloutils.load_rscat(hpath,snap,**kwargs)
     def get_rssubs(self,rscat,zoomid):
         if self.allhalos:
             return rscat.get_all_subhalos_within_halo(zoomid,radius=self.radius)
         else:
             return rscat.get_subhalos_within_halo(zoomid,radius=self.radius)
+
     ## Adapted from Greg's BestMethods.py
     def distance(self,posA,posB,boxsize=None):
         dist = abs(posA-posB)
@@ -359,7 +366,7 @@ class NvmaxPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
         zoomid = haloutils.load_zoomid(hpath)
         eps = 1000*haloutils.load_soft(hpath)
         
@@ -432,7 +439,7 @@ class SHMFPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
         zoomid = haloutils.load_zoomid(hpath)
         
         subs = self.get_rssubs(rscat,zoomid)
@@ -517,7 +524,7 @@ class ProfilePlugin(PluginBase):
     def _analyze(self,hpath):
         snap = 255
         rarr = self.get_rarr()
-        rscat = haloutils.load_rscat(hpath,snap)
+        rscat = haloutils.load_bound_rscat(hpath,snap)
         haloid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
         zoomid = haloutils.load_zoomid(hpath)
@@ -676,7 +683,7 @@ class SubProfilePlugin(ProfilePlugin):
         return out
     def _analyze(self,hpath):
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         subs = rscat.get_subhalos_within_halo(zoomid) #no subsubhalos
         subs = subs[subs['mgrav']/rscat.h0 > self.mmin]
         subids = np.array(subs['id'])
@@ -792,14 +799,14 @@ class MassAccrPlugin(PluginBase):
         if not haloutils.check_mergertree_exists(hpath,autoconvert=True):
             raise IOError("No Merger Tree")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         mtc = haloutils.load_mtc(hpath,haloids=[zoomid])
         mt = mtc[0]
         mb = mt.getMainBranch()
         scale = mb['scale'][::-1]
         snap = mb['snap'][::-1]
+        phantom = mb['phantom'][::-1]
         mvir = mb['mvir'][::-1]/rscat.h0
-        mgrav = mb['mgrav'][::-1]/rscat.h0
         sammvir = mb['sam_mvir'][::-1]/rscat.h0
         vmax = mb['vmax'][::-1]
         TU = mb['T/|U|'][::-1]
@@ -810,15 +817,16 @@ class MassAccrPlugin(PluginBase):
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
-                          'mvir':mvir,'mgrav':mgrav,'sam_mvir':sammvir,
+                          'mvir':mvir,'sam_mvir':sammvir,
                           'vmax':vmax,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
-                          'spin':spin,'spin_bullock':spinbullock},
+                          'spin':spin,'spin_bullock':spinbullock,
+                          'phantom':phantom},
                          self.get_outfname(hpath),
-                         names=['scale','snap','mvir','mgrav','sam_mvir','vmax',
+                         names=['scale','snap','mvir','sam_mvir','vmax',
                                 'T/|U|','scale_of_last_MM','x','y','z',
-                                'spin','spin_bullock'])
+                                'spin','spin_bullock','phantom'])
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
@@ -861,7 +869,7 @@ class SubPhaseContourPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No Rockstar")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
         hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
         G = 1.326*10**11 # in km^3/s^2/Msun
