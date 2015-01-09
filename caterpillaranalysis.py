@@ -187,7 +187,7 @@ class PluginBase(object):
         if ylog: ax.set_yscale('log')
     def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
         if label==None: 
-            label = haloutils.hidstr(haloutils.get_parent_hid(hpath))
+            label = r'$\rm{'+haloutils.hidstr(haloutils.get_parent_hid(hpath))+r'}$'
         elif label=='gods':
             label = haloutils.hpath_sname(hpath)
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)

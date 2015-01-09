@@ -8,26 +8,43 @@ import haloutils
 
 from caterpillaranalysis import *
 
+import MTanalysis
+
 class TBTFPlugin(SubVelocityProfilePlugin):
     def __init__(self):
         super(TBTFPlugin,self).__init__()
         self.xmin = .1; self.xmax = 2
         self.ymin = 8;  self.ymax = 50
         self.autofigname = 'tbtf'
+        self.minlum = 2.e5
 
-        self.loadwolf10(minlum=2*10**5)
-        self.vcut = 20
+        self.loadwolf10(minlum=self.minlum)
+        self.vcut = 30.
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,**kwargs):
         assert lx != None
         color = self.colordict[lx]
 
-        #TODO load Vpeak > 30km/s
+        #TODO factor out grabbing vpeak?
+        extantplug = MTanalysis.TagExtantPlugin()
+        extantdata = extantplug.read(hpath,autocalc=False)
+        if extantdata == None:
+            print "ERROR: %s does not have Greg's Extant data (not plotting)" % (haloutils.get_foldername(hpath))
+            return
+        extantids,extantdata = extantdata
+        vpeakarr = extantdata['vpeak']
+        keeprsids = (extantdata['rsid'][vpeakarr >= self.vcut]).astype(int)
+
         rsid,rarr,rvir,vcircarr = data
-        vmaxarr = np.max(vcircarr,axis=1)
-        iicut = vmaxarr >= self.vcut
+        iicut = np.in1d(rsid,keeprsids,assume_unique=True)
         rsid = rsid[iicut]
         rvir = rvir[iicut]
         vcircarr = vcircarr[iicut,:]
+
+        nbound = len(rsid)
+        nall = len(keeprsids)
+        #if nall != nbound:
+        #    print "ERROR %s: bound halos have %i >= %3.1f, but extant has %i" % (haloutils.get_foldername(hpath),
+        #                                                                         len(rsid),self.vcut,len(keeprsids))
 
         rarr = rarr*1000 #kpc
         eps = 1000*haloutils.load_soft(hpath)
@@ -42,6 +59,12 @@ class TBTFPlugin(SubVelocityProfilePlugin):
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
             ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
+            xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
+            logxoff = np.log10(xmax/xmin)*.05
+            xlabel  = xmax * 10**(-logxoff)
+            logyoff = np.log10(ymax/ymin)*.1
+            ylabel  = ymax * 10**(-logyoff)
+            ax.text(xlabel,ylabel,r"$%i/%i$" % (nbound,nall),ha='right')
 
     def plotwolf10(self,ax,bigerr=False,normtohost=False,**kwargs):
         r = self.rhalf; v = self.vhalf

@@ -15,6 +15,8 @@ if __name__=="__main__":
     if len(args) == 0:
         #plug = SubhaloRadialSubmassFracPlugin()
         #convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png',stop_on_error=True)
+        TBTF = TBTFPlugin()
+        convergeplot(1,TBTF,whichlx=[14],figfilename='tbtfLX14_s1.png')
         arg = None
     else:
         assert len(args)==1
