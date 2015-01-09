@@ -58,15 +58,10 @@ if __name__=="__main__":
     if arg == 6:
         SubProfile     = SubProfilePlugin()
         SubVelProfile  = SubVelocityProfilePlugin()
-        convergeplot(1,SubProfile,whichlx=[12],figfilename='subprofLX12_s1.png',recalc=myrecalc)
-        convergeplot(1,SubProfile,whichlx=[13],figfilename='subprofLX13_s1.png',recalc=myrecalc)
-        convergeplot(1,SubProfile,whichlx=[14],figfilename='subprofLX14_s1.png',recalc=myrecalc)
-        convergeplot(1,SubVelProfile,whichlx=[12],figfilename='subvelprofLX12_s1.png')
-        convergeplot(1,SubVelProfile,whichlx=[13],figfilename='subvelprofLX13_s1.png')
-        convergeplot(1,SubVelProfile,whichlx=[14],figfilename='subvelprofLX14_s1.png')
-        convergeplot(1,SubVelProfile,whichlx=[12],figfilename='normsubvelprofLX12_s1.png',normtohost=True)
-        convergeplot(1,SubVelProfile,whichlx=[13],figfilename='normsubvelprofLX13_s1.png',normtohost=True)
-        convergeplot(1,SubVelProfile,whichlx=[14],figfilename='normsubvelprofLX14_s1.png',normtohost=True)
+        for lx in [12,13,14]:
+            convergeplot(1,SubProfile,whichlx=[lx],figfilename='subprofLX'+str(lx)+'_s1.png',recalc=myrecalc)
+            convergeplot(1,SubVelProfile,whichlx=[lx],figfilename='subvelprofLX'+str(lx)+'_s1.png')
+            convergeplot(1,SubVelProfile,whichlx=[lx],figfilename='normsubvelprofLX'+str(lx)+'_s1.png',normtohost=True)
 
         TBTF = TBTFPlugin()
         convergeplot(1,TBTF,whichlx=[14],figfilename='tbtfLX14_s1.png')

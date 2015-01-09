@@ -22,7 +22,7 @@ class SubhaloRadialPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No Rockstar")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
         subs = self.get_rssubs(rscat,zoomid)
         spos = np.array(subs[['posX','posY','posZ']])
@@ -216,7 +216,7 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
         snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
         header = rsg.snapshot_header(snapfile+'.0')
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_rscat(hpath,snap)
+        rscat = haloutils.load_bound_rscat(hpath,snap)
         subs = self.get_rssubs(rscat,zoomid)
         subids = np.array(subs['id'])
         rarr = self.get_rarr()
