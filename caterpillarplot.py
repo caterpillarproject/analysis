@@ -54,22 +54,41 @@ def stackplot(haloids,lx,plug,figfilename=None,ax=None,autocolor=None,**kwargs):
 
     if ax == None: 
         fig,ax = plt.subplots()
-        plotfig=True
+        plotfig = True
     else:
         assert figfilename==None,'Cannot specify both ax and figfilename'
-        plotfig=False
+        plotfig = False
     for i,hid in enumerate(haloids):
         hpath = haloutils.get_hpath_lx(hid,lx)
         if autocolor == None:
             plug.plot(hpath,ax,**kwargs)
         else:
             plug.plot(hpath,ax,color=colors[i],**kwargs)
-    if plotfig:
-        if figfilename != None:
-            fig.savefig(figfilename,bbox_inches='tight')
-        else:
-            plt.show()
-        return fig
+    if not plotfig: return
+    if figfilename != None:
+        fig.savefig(figfilename,bbox_inches='tight')
+    else:
+        plt.show()
+    return fig
+
+def paper_stackplot(lx,plug,figfilename=None,ax=None,**kwargs):
+    colordict = haloutils.get_colors_for_halos()
+    haloids = get_haloidlist(1)
+    if ax == None: 
+        fig,ax = plt.subplots()
+        plotfig = True
+    else:
+        assert figfilename==None,'Cannot specify both ax and figfilename'
+        plotfig = False
+    for hid in haloids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        plug.plot(hpath,ax,color=colordict[hid],**kwargs)
+    if not plotfig: return
+    if figfilename != None:
+        fig.savefig(figfilename,bbox_inches='tight')
+    else:
+        plt.show()
+    return fig
 
 def animated_stackplot(haloids,lx,plug,figfilename=None):
     # TODO
