@@ -38,16 +38,6 @@ def convergeplot(sheetnum,plug,whichlx=[14,13,12,11],figfilename=None,figsize=No
         plt.show()
     return fig
 
-def get_color_palette(autocolor,n_colors):
-        if autocolor == 1:
-            colors = sns.cubehelix_palette(n_colors,0,1,.8,.8,.7,.1)
-        elif autocolor == 2:
-            colors = sns.color_palette('Set3',n_colors=n_colors)
-        elif autocolor == 3:
-            colors = sns.cubehelix_palette(n_colors=n_colors,start=0.5,rot=-1.5,gamma=1,hue=1,light=.8)
-        else: raise ValueError("autocolor must be 1, 2, 3, or None")
-        return colors
-
 def stackplot(haloids,lx,plug,figfilename=None,ax=None,autocolor=None,**kwargs):
     if autocolor != None:
         colors = get_color_palette(autocolor,len(haloids))
