@@ -348,16 +348,18 @@ def load_pcatz0(old=False):
 def load_scat(hpath):
     return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=0.7):
+def load_bound_rscat(hpath,snap,verbose=True,halodir='halos'):
+    return load_rscat(hpath,snap,verbose=verbose,halodir=halodir,minboundpart=20)
+def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minboundpart=None):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     except IOError as e:
         print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
             try:
-                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
+                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
                 testlist.append(True)
             except KeyError:
                 testlist.append(False)
@@ -367,8 +369,10 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=0.7):
             version = np.array(versionlist)[np.array(testlist)][0]
             if verbose:
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
+            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     return rcat
+def load_rsboundindex(hpath,snap):
+    return asciitable.read(hpath+'/halos/halos_'+str(snap)+'/iterboundindex.csv',names=['hid','numbound','numtot','loc','numiter'])
 
 def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
