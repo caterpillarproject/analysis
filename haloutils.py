@@ -120,6 +120,13 @@ def get_hpath_lx(hid,lx):
         if 'LX'+str(lx) in hpath: return hpath
     return None
 
+def get_paper_paths_lx(lx):
+    return [get_hpath_lx(hid,lx) for hid in hid2name.keys()]
+
+def get_paper_paths():
+    return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
+
+
 def get_available_hpaths(hid,contam=False,
                          checkgadget=True,
                          onlychecklastsnap=True,
@@ -370,6 +377,8 @@ def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 def load_zoom_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)
+def load_pmtc(hpath,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
+    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=3,**kwargs)
 
 def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
     #assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
@@ -419,5 +428,40 @@ def get_quant_zoom(halo_path,quant):
     else:
         return float(htable[mask][quant])
 
-def get_main_branch_quant(hpath):
+def get_main_branch(hpath):
     return pickle.load( open( hpath+"/analysis/main_branch.p", "rb" ) )
+
+def get_halo_header(hpath,snap=255):
+    return rsg.snapshot_header(hpath+"/outputs/snapdir_"+str(snap)+"/snap_"+str(snap))
+
+def get_colors(ncolors=12):
+
+    colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),  
+                 (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),  
+                 (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),  
+                 (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),  
+                 (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)] 
+    
+    for i in range(ncolors):  
+        r, g, b = colors[i]  
+        colors[i] = (r / 255., g / 255., b / 255.)  
+
+    return colors
+
+def get_colors_for_halos(nhalos=len(hid2name)):
+
+    colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),  
+                 (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),  
+                 (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),  
+                 (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),  
+                 (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)] 
+    
+    for i in range(nhalos):  
+        r, g, b = colors[i]  
+        colors[i] = (r / 255., g / 255., b / 255.)  
+
+    index = {}
+    for i in range(nhalos):
+        index[hid2name.keys()[i]] = colors[i]
+
+    return index
