@@ -6,16 +6,16 @@ from subradplugin import *
 
 import haloutils
 
+params = {'axes.labelsize': 22,
+          'text.fontsize': 22,
+          'legend.fontsize': 14,
+          'xtick.labelsize': 18,
+          'ytick.labelsize': 18,
+          'backend': 'ps',
+          'text.usetex': True}
+plt.rcParams.update(params)
+
 def old():
-    params = {'axes.labelsize': 22,
-              'text.fontsize': 22,
-              'legend.fontsize': 14,
-              'xtick.labelsize': 18,
-              'ytick.labelsize': 18,
-              #'backend': 'ps',
-              'text.usetex': True}
-    
-    plt.rcParams.update(params)
 
     fig,axarr = plt.subplots(3,2,figsize=(16,24))
     fig.subplots_adjust(hspace=.3,wspace=.25)
@@ -53,17 +53,6 @@ def old():
     plt.show()
 
 if __name__=="__main__":
-    
-    params = {'axes.labelsize': 22,
-              'text.fontsize': 22,
-              'legend.fontsize': 14,
-              'xtick.labelsize': 18,
-              'ytick.labelsize': 18,
-              #'backend': 'ps',
-              'text.usetex': True}
-    
-    plt.rcParams.update(params)
-
     plugNvmax = NvmaxPlugin()
     plugSHMF  = SHMFPlugin()
     plugLinMassAccr = LinearMassAccrPlugin()
