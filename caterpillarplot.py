@@ -61,18 +61,21 @@ def stackplot(haloids,lx,plug,figfilename=None,ax=None,autocolor=None,**kwargs):
         plt.show()
     return fig
 
-def paper_stackplot(lx,plug,figfilename=None,ax=None,**kwargs):
+def paper_stackplot(lx,plug,figfilename=None,ax=None,legendloc=None,**kwargs):
     colordict = haloutils.get_colors_for_halos()
     haloids = get_haloidlist(1)
+    labeldict = haloutils.hid2name
     if ax == None: 
-        fig,ax = plt.subplots()
+        fig,ax = plt.subplots(figsize=(8,8))
         plotfig = True
     else:
         assert figfilename==None,'Cannot specify both ax and figfilename'
         plotfig = False
     for hid in haloids:
         hpath = haloutils.get_hpath_lx(hid,lx)
-        plug.plot(hpath,ax,color=colordict[hid],**kwargs)
+        plug.plot(hpath,ax,color=colordict[hid],label=labeldict[hid],**kwargs)
+    if legendloc != None:
+        ax.legend(loc=legendloc,ncol=2,frameon=False)
     if not plotfig: return
     if figfilename != None:
         fig.savefig(figfilename,bbox_inches='tight')

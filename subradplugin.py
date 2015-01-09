@@ -14,7 +14,7 @@ class SubhaloRadialPlugin(PluginBase):
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin; self.ymax = ymax
-        self.xlabel = r'$r$ [kpc]'
+        self.xlabel = r'$r\ (kpc)$'
         self.ylabel = r'$n(r)/<n>$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradial'
@@ -165,8 +165,9 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         
         self.xmin = rmin; self.xmax = rmax
         self.ymin = 10**-4; self.ymax = 10**0
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Mass fraction in sub'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$f_{m,\ \rm{subs}}$'
+        #self.ylabel = r'$\rm{Mass\ fraction\ in\ sub}$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradialsubmassfrac'
     def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):
@@ -192,9 +193,9 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         ii1 = r >= eps
         if lx != None:
             color = self.colordict[lx]
-            ax.plot(r[ii1], mfrac[ii1], color=color, lw=1, **kwargs)
+            ax.plot(r[ii1], mfrac[ii1], color=color, **kwargs)
         else:
-            ax.plot(r[ii1], mfrac[ii1], lw=1, **kwargs)
+            ax.plot(r[ii1], mfrac[ii1], **kwargs)
 
 class SubhaloRadialMassPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3):
@@ -204,8 +205,8 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = 10**4; self.ymax = 10**13 #Msun
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Substructure enclosed mass'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$Substructure\ enclosed\ mass$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradialmass'
     def _analyze(self,hpath):
@@ -270,8 +271,8 @@ class SubhaloRadialMassFracPlugin(MultiPlugin):
         
         self.xmin = rmin; self.xmax = rmax
         self.ymin = 10**-4; self.ymax = 10**0 #Msun?
-        self.xlabel = r'$r$ [kpc]'
-        self.ylabel = r'Mass fraction in sub'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$f_{m,\ \rm{subs}}$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subradialmassfrac'
     def _plot(self,hpath,datalist,ax,lx=None,labelon=False,normtohost=False,**kwargs):

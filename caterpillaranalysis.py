@@ -351,8 +351,8 @@ class NvmaxPlugin(PluginBase):
         self.vmaxbins = 10.**np.arange(self.logvmin,self.logvmax+self.dlogv,self.dlogv)
         self.xmin = vmin; self.xmax = vmax
         self.ymin = Nmin;  self.ymax = Nmax
-        self.xlabel = r'$V_{\rm max}$ [km/s]'
-        self.ylabel = r'N($>V_{\rm max}$)'
+        self.xlabel = r'$V_{\rm max}\ (km/s)$'
+        self.ylabel = r'$N(>V_{\rm max})$'
         self.n_xmin = 10**-2.9; self.n_xmax = 10**0.1
         self.n_ymin = self.ymin;  self.n_ymax = self.ymax
         self.n_xlabel = r'$V_{\rm max}/V_{\rm vir}$'
@@ -427,7 +427,7 @@ class SHMFPlugin(PluginBase):
 
         self.xmin = Mmin; self.xmax = Mmax
         self.ymin = ymin;  self.ymax = ymax
-        self.xlabel = r'$M_{\rm sub} [M_\odot]$'
+        self.xlabel = r'$M_{\rm sub} (M_\odot)$'
         self.ylabel = r'$M_{\rm vir} dN/dM_{\rm sub}$'
         self.n_xmin = Mmin/10**12; self.n_xmax = Mmax/10**12
         self.n_ymin = ymin;  self.n_ymax = ymax
@@ -495,7 +495,7 @@ class IntegrableSHMFPlugin(SHMFPlugin):
         self.ymin = 0;   self.ymax = 1.1
         self.n_ymin = 0; self.n_ymax = 1.1
         self.xlabel = self.n_xlabel
-        self.ylabel = r'normed $dN/dlogM_{\rm sub}$'
+        self.ylabel = r'$normed\ dN/dlogM_{\rm sub}$'
         self.ylog=False #this way you can visually integrate
         self.autofigname = 'integrableSHMF'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
@@ -517,8 +517,8 @@ class ProfilePlugin(PluginBase):
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin;  self.ymax = ymax
-        self.xlabel = r'r [kpc]' #$h^{-1}$ 
-        self.ylabel = r'$r^2 \rho(r)$ [$10^{10} M_\odot$ Mpc$^{-1}$]'
+        self.xlabel = r'$r\ (kpc)$' #$h^{-1}$ 
+        self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'rhor2'
     def _analyze(self,hpath):
@@ -625,8 +625,8 @@ class VelocityProfilePlugin(ProfilePlugin):
         super(VelocityProfilePlugin,self).__init__()
         self.xmin = rmin; self.xmax = rmax
         self.ymin = vmin;  self.ymax = vmax
-        self.xlabel = r'r [kpc]'
-        self.ylabel = r'$v_{\rm circ}$ [km/s]'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$v_{\rm circ} (km/s)$'
         self.n_xmin = rmin/10**2.5; self.n_xmax = rmax/10**2.5
         self.n_ymin = vmin/10**2.0; self.n_ymax = vmax/10**2.0
         self.n_xlabel = r'$r/r_{\rm vir}$'
@@ -672,8 +672,8 @@ class SubProfilePlugin(ProfilePlugin):
         
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin;  self.ymax = ymax
-        self.xlabel = r'r [kpc]' #$h^{-1}$ 
-        self.ylabel = r'$r^2 \rho(r)$ [$10^{10} M_\odot$ Mpc$^{-1}$]'
+        self.xlabel = r'$r\ (kpc)$' #$h^{-1}$ 
+        self.ylabel = r'$r^2 \rho(r)\ [10^{10}\ M_\odot\ Mpc^{-1}]$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'subrhor2'
     def get_scaled_rarr(self,rvir):
@@ -744,8 +744,8 @@ class SubVelocityProfilePlugin(SubProfilePlugin):
         super(SubVelocityProfilePlugin,self).__init__()
         self.xmin = rmin; self.xmax = rmax
         self.ymin = vmin;  self.ymax = vmax
-        self.xlabel = r'r [kpc]'
-        self.ylabel = r'$v_{circ}$ [km/s]'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$v_{circ}\ (km/s)$'
         self.n_xmin = 10**-3.9; self.n_xmax = 10**0.5
         self.n_ymin = 10**-2.0; self.n_ymax = 10**0.2
         self.n_xlabel = r'$r/r_{\rm vir,host}$'
@@ -787,11 +787,11 @@ class MassAccrPlugin(PluginBase):
 
         self.xmin = 0; self.xmax = 1
         self.ymin = 10**6;  self.ymax = 10**13
-        self.xlabel = r'scale'
-        self.ylabel = r'$M$ [$M_\odot$]'
+        self.xlabel = r'$\rm{scale\ factor}$'
+        self.ylabel = r'$M\ (M_\odot)$'
         self.n_xmin = 0; self.n_xmax = 1
         self.n_ymin = 10**-6.5;  self.n_ymax = 10**0.5
-        self.n_xlabel = r'scale'
+        self.n_xlabel = r'$\rm{scale\ factor}$'
         self.n_ylabel = r'$M/M(a=1)$'
         self.xlog = False; self.ylog = True
         self.autofigname = 'massaccr'
