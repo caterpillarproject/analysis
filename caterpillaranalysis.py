@@ -539,8 +539,12 @@ class ProfilePlugin(PluginBase):
                 f.write(str(r)+" "+str(mltr)+"\n")
     def get_rarr(self):
         return np.logspace(-5,0,50)
-    def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,calcp03r=True,calcr200=True):
-        haloparts = rscat.get_all_particles_from_halo(rsid)
+    def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,
+                            calcp03r=True,calcr200=True,retdr=False,usebound=False):
+        if usebound:
+            haloparts = rscat.get_bound_particles_from_halo(rsid)
+        else:
+            haloparts = rscat.get_all_particles_from_halo(rsid)
         halopos = np.array(rscat.ix[rsid][['posX','posY','posZ']])
         halorvir = float(rscat.ix[rsid]['rvir']) / header.hubble #kpc
         halomass = rscat.ix[rsid]['mvir']/header.hubble
@@ -550,13 +554,14 @@ class ProfilePlugin(PluginBase):
         except IndexError as e:
             print e
             raise RuntimeError("Contamination in halo")
-        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,partpos,header,haloparts,halopos,
+        dr = np.sort(self.distance(partpos,halopos))/header.hubble #Mpc
+        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,dr,header,haloparts,
                                                      calcp03r=calcp03r,calcr200=calcr200)
+        if retdr: return rarr,mltrarr,p03rmin,halorvir,r200c,halomass,dr #all in physical units
         return rarr,mltrarr,p03rmin,halorvir,r200c,halomass #all in physical units
-    def calc_mltr_radii(self,rarr,partpos,header,haloparts,halopos,calcp03r=True,calcr200=True,verbose=False):
+    def calc_mltr_radii(self,rarr,dr,header,haloparts,calcp03r=True,calcr200=True,verbose=False):
         parttype=1 # Only works if no contamination
         mpart = header.massarr[parttype]*10**10/header.hubble #Msun
-        dr = np.sort(self.distance(partpos,halopos))/header.hubble #Mpc
         if verbose:
             print "  Particle type",parttype
             if len(dr) != 0:
@@ -584,14 +589,20 @@ class ProfilePlugin(PluginBase):
         return m_lt_r,p03rmin,r200c
     def mltr_to_rho(self,rarr,mltr):
         """ rarr in Mpc (including h), mltr in Msun (including h), return Msun/Mpc^3 """
-        tck = interpolate.splrep(rarr,mltr)
-        return interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+        #tck = interpolate.splrep(rarr,mltr)
+        #return interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
+        rarr = np.concatenate(([0],rarr))
+        Marr = self.mltr_to_Marr(mltr)
+        Varr = 4*np.pi/3 * (rarr[1:]**3-rarr[:-1]**3)
+        return Marr/Varr
     def mltr_to_vcirc(self,rarr,mltr):
         """ rarr in Mpc (including h), mltr in Msun (including h), return km/s """
         const = 6.67e-17*1.988e30*3.241e-23 #G * Msun->kg * m->Mpc to km/s
         v2 = const*mltr/rarr
         return np.sqrt(v2)
-    
+    def mltr_to_Marr(self,mltr):
+        return np.diff(np.concatenate(([0],mltr)))
+
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         data = np.array(asciitable.read(thisfilename,delimiter=" ",data_start=1))
