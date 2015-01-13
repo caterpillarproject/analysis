@@ -3,6 +3,7 @@ from caterpillaranalysis import *
 from subradplugin import *
 from caterpillarplot import *
 from tbtfplugin import *
+from subprofileplugin import *
 import pylab as plt
 from optparse import OptionParser
 
@@ -17,6 +18,8 @@ if __name__=="__main__":
     if len(args) == 0:
         #plug = SubhaloRadialSubmassFracPlugin()
         #convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png',stop_on_error=True)
+        plug = SubProfileSoftPlugin()
+        convergeplot(1,plug,whichlx=[14],figfilename='subprofcorrectionLX14_s1.png',stop_on_error=True,recalc=True)
         arg = None
     else:
         assert len(args)==1
