@@ -379,7 +379,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minbound
             rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     return rcat
 def load_rsboundindex(hpath,snap):
-    return asciitable.read(hpath+'/halos/halos_'+str(snap)+'/iterboundindex.csv',names=['hid','numbound','numtot','loc','numiter'])
+    return RDR.load_rsboundindex(hpath,snap)
 
 def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
