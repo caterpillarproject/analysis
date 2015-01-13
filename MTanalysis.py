@@ -32,11 +32,6 @@ def distance(posA, posB,boxsize=100.):
     else:
         return np.sqrt(np.sum(dist**2,axis=1))
 
-def H(a,Om=.25,Ol=.75,h=0.73):
-    to_inv_sec = 3.241*10**-20
-    Ok = 1-Om-Ol
-    return 100*h*(Om*(1/a)**3 + Ok*(1/a)**2 + Ol)**.5
-
 def TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath):
     #print snap_z0, 'snap_0'
     halopos = np.array(iSub[['posX','posY','posZ']])
@@ -45,7 +40,7 @@ def TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath):
     iVel = np.sqrt(iScale)*haloutils.load_partblock(hpath,iSnap,'VEL ',parttype=1,ids=iPids)  
     dr = iScale*distance(iPos,halopos,boxsize=iCat.boxsize)/iCat.h0 #in MPC physical
     peculiarVEL = iVel-halovel
-    Hflow = H(iScale, h=iCat.h0)*(iPos-halopos)*iScale/iCat.h0
+    Hflow = iCat.H()*(iPos-halopos)*iScale/iCat.h0
     physicalVEL = peculiarVEL+Hflow
     vel = np.sqrt(sum((physicalVEL**2).T))
     U = PotentialE(dr,iCat) # dr should be physical, no little h
@@ -128,139 +123,6 @@ def getSubTree(mtc,rsid, hostrow=0):
             return mtc.Trees[i]
     print 'halo with RSID =', rsid, 'not found in mt' 
     return None
-
-class FullTreePlugin(MultiPlugin):
-    def __init__(self):
-        DestroyedTree = DestroyedTreePlugin()
-        ExtantTree = ExtantTreePlugin()
-        super(FullTreePlugin,self).__init__([DestroyedTree, ExtantTree])
-        self.xmin=0;     self.xmax=256
-        self.ymin=10**8; self.ymax=5*10**11
-        self.xlog= False; self.ylog = True
-        self.xlabel='scale factor' ; self.ylabel='Mass Accreted' # want these to be adjustable
-        self.autofigname='MergerHistory'
-
-    def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
-        destr, ext = datalist
-        if destr == None:
-            return
-        print destr, 'destr', hpath
-        nsnaps = 256
-        nhalos = np.array([0]*nsnaps)
-        masstot = np.array([0]*nsnaps)
-        for i in range(nsnaps):
-            mask = destr['isnap'] == i
-            nhalos[i] = np.sum(mask)
-            masstot[i] = np.sum(destr[mask]['infall_mass'])
-
-        nhalosE = np.array([0]*nsnaps)
-        masstotE = np.array([0]*nsnaps)  
-        for i in range(nsnaps):
-            mask = ext['isnap'] ==i
-            nhalosE[i]=np.sum(mask)
-            masstotE[i]=np.sum(ext[mask]['infall_mass'])        
-        ax.bar(np.arange(nsnaps),masstot,label='destroyed',color='blue')
-        ax.bar(np.arange(nsnaps),masstotE,label='extant',color='red',bottom=masstot)
-        #ax.legend()
-
-
-
-class DestroyedTreePlugin(PluginBase):
-    def __init__(self):
-        super(DestroyedTreePlugin,self).__init__()
-        self.filename='DestroyedData.dat'
-        self.xmin=0;     self.xmax=256
-        self.ymin=10**8; self.ymax=5*10**11
-        self.xlog= False; self.ylog = True
-        self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
-        self.autofigname='MergerHistory'
-
-    # hpath has to exist already for _analyze to be not called to run.
-    # suggests hpath must be path to the filename of the data written out to file
-    def _analyze(self,hpath):
-        if not haloutils.check_last_rockstar_exists(hpath):
-            raise IOError("No rockstar")
-
-    # must change this to read in data properly
-    # should combine all individual files into one single file.
-    # then must move each file from my spacebase folder 
-    # over to the halos/ folder to be read in later
-
-    # i combined data to all be the same name
-    # should just have to read 'this file name'
-    # and then convert it to the right dtype array.
-    def _read(self,hpath):
-        thisfilename = self.get_filename(hpath)
-        data = np.fromfile(thisfilename)
-        dtype = [('rank',"float64"),('rsid',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('isnap',"float64"),('peaksnap',"float64"),('backsnap',"float64")]
-        holder = np.ndarray( (len(data)/7,), dtype=dtype )
-        data2 = data.reshape(len(data)/7,7)
-        for j in range(data2.shape[0]):
-            holder[j]=data2[j]
-        return holder
-
-
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
-        nsnaps=256
-        nhalos = np.array([0]*nsnaps)
-        masstot = np.array([0]*nsnaps)
-        for i in range(nsnaps):
-            mask = data['isnap'] == i
-            nhalos[i] = np.sum(mask)
-            masstot[i] = np.sum(data[mask]['infall_mass'])
-        
-        ax.bar(np.arange(nsnaps),masstot,label='destroyed',**kwargs)
-        # convert snapshot to scale factor
-
-class ExtantTreePlugin(PluginBase):
-    def __init__(self):
-        super(ExtantTreePlugin,self).__init__()
-        self.filename='ExtantData.dat'
-        self.xmin=0;     self.xmax=256
-        self.ymin=10**8; self.ymax=5*10**11
-        self.xlog= False; self.ylog = True
-        self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
-        self.autofigname='MergerHistory'
-
-    # hpath has to exist already for _analyze to be not called to run.
-    # suggests hpath must be path to the filename of the data written out to file
-    def _analyze(self,hpath):
-        if not haloutils.check_last_rockstar_exists(hpath):
-            raise IOError("No rockstar")
-
-    # must change this to read in data properly
-    # should combine all individual files into one single file.
-    # then must move each file from my spacebase folder 
-    # over to the halos/ folder to be read in later
-
-    # i combined data to all be the same name
-    # should just have to read 'this file name'
-    # and then convert it to the right dtype array.
-    def _read(self,hpath):
-        thisfilename = self.get_filename(hpath)
-        data = np.fromfile(thisfilename)
-        dtype = [('sub_rank',"float64"),('rsid',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('mvir','float64'),('isnap',"float64"),('peaksnap',"float64")]
-        holder = np.ndarray( (len(data)/7,), dtype=dtype )
-        data2 = data.reshape(len(data)/7,7)
-        for j in range(data2.shape[0]):
-            holder[j]=data2[j]
-        return holder
-
-
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
-        nsnaps=256
-        nhalos = np.array([0]*nsnaps)
-        masstot = np.array([0]*nsnaps)
-        for i in range(nsnaps):
-            mask = data['isnap'] == i
-            nhalos[i] = np.sum(mask)
-            masstot[i] = np.sum(data[mask]['infall_mass'])
-        
-        ax.bar(np.arange(nsnaps),masstot,label='Extant',**kwargs)
-        #ax.legend()
-        #ax.gca().invert_xaxis()
-        # convert snapshot to scale factor
-        # combine extant data too
 
 
 class TagExtantPlugin(PluginBase):
