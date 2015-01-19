@@ -352,8 +352,8 @@ def load_pcatz0(old=False):
     else:
         return RDR.RSDataReader(global_prntbase+"/rockstar",127,version=6)
 
-def load_scat(hpath):
-    return RSF.subfind_catalog(hpath+'/outputs',255)
+def load_scat(hpath,double=False):
+    return RSF.subfind_catalog(hpath+'/outputs',255,double=double)
 
 def load_bound_rscat(hpath,snap,verbose=True,halodir='halos'):
     return load_rscat(hpath,snap,verbose=verbose,halodir=halodir,minboundpart=20)
