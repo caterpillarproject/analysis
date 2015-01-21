@@ -571,14 +571,18 @@ class ProfilePlugin(PluginBase):
                     print "  densityprofile warning:",nout,"particles lie outside max(rarr)"
         h_r, x_r = np.histogram(dr, bins=np.concatenate(([0],rarr)))
         N_lt_r = np.cumsum(h_r)
+        #m_of_r = h_r*mpart
         m_lt_r = N_lt_r*mpart #Msun
 
         if calcp03r or calcr200:
             rhocrit = 2.776e11 * (header.hubble)**2 #Msun/Mpc^3
             rhobar = m_lt_r/(4*np.pi/3 * rarr**3) #Msun/Mpc^3
         if calcp03r:
-            p03 = np.sqrt(200)/8.0 * N_lt_r/np.log(N_lt_r) / np.sqrt(rhobar/rhocrit)
-            p03rmin = rarr[np.min(np.where(np.logical_and(p03>=1,np.isfinite(p03)))[0])] #Mpc
+            try:
+                p03 = np.sqrt(200)/8.0 * N_lt_r/np.log(N_lt_r) / np.sqrt(rhobar/rhocrit)
+                p03rmin = rarr[np.min(np.where(np.logical_and(p03>=1,np.isfinite(p03)))[0])] #Mpc
+            except ValueError:
+                p03rmin = None
         else: p03rmin = None
         if calcr200:
             tck = interpolate.splrep(rarr,rhobar)

@@ -10,45 +10,8 @@ from scipy.optimize import curve_fit
 
 from caterpillaranalysis import *
 
-def test_fit(rbin,dr,mpart):
-    rmid = 10**((np.log10(rbin[1:])+np.log10(rbin[:-1]))/2.)
-    #Varr = 4*np.pi/3 * (rbin[1:]-rbin[:-1])**3 #kpc^3
-    #h,x = np.histogram(dr,bins=rbin)
-    #Marr = h*mpart #Msun
-    #rhoarr = Marr/Varr # Msun/kpc^3
-    #logrhoarr = np.log10(rhoarr)
-    rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart)
-    
-    p0NFW = [.5,10]
-    p0EIN = [.5,10,.18]
-
-    pNFW0,pNFW1,Q2NFW = profilefit.fitNFW(rbin,rhoarr,p0NFW,retQ2=True)
-    pEIN0,pEIN1,pEIN2,Q2EIN = profilefit.fitEIN(rbin,rhoarr,p0EIN,retQ2=True)
-    pNFW = [pNFW0,pNFW1]
-    pEIN = [pEIN0,pEIN1,pEIN2]
-
-    print pNFW,Q2NFW
-    print pEIN,Q2EIN
-    #pNFW = curve_fit(profilefit.logNFWprofile,rmid,logrhoarr,p0=p0NFW)[0]
-    #pEIN = curve_fit(profilefit.logEINprofile,rmid,logrhoarr,p0=p0EIN)[0]
-
-    #print pNFW,pEIN
-    #def Q2(y1,y2):
-    #    assert len(y1)==len(y2)
-    #    Nbin = len(y1)
-    #    return np.sum((y1-y2)**2)/Nbin
-    #print Q2(logrhoarr,profilefit.logNFWprofile(rmid,pNFW[0],pNFW[1]))
-    #print Q2(logrhoarr,profilefit.logEINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]))
-
-    plt.figure()
-    plt.plot(rmid,rmid**2*rhoarr,'sk')
-    plt.plot(rmid,rmid**2*profilefit.NFWprofile(rmid,pNFW[0],pNFW[1]),'b:')
-    plt.plot(rmid,rmid**2*profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]),'r--')
-    plt.loglog()
-    plt.show()
-
 class SubProfileSoftPlugin(ProfilePlugin):
-    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
+    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**1.5):
         self.filename='subprofilesoft.npz'
         self.nr = 50
         self.nrfit = 20
@@ -99,18 +62,33 @@ class SubProfileSoftPlugin(ProfilePlugin):
             dr   *= 1000. #kpc
             rarr *= 1000. #kpc
             allmltrarr[i,:] = mltr
+            Marr = self.mltr_to_Marr(mltr)
             if i_rvmax >= .5:
                 EINmltr,Q2 = self.compute_mltr_soft(dr,i_rvir,i_rvmax,mpart) 
                 if Q2==None: Q2=-1
                 elif Q2 < .1:
                     ii = (rarr < self.rminfit)
                     mltr[ii] = EINmltr(rarr[ii])
+                    iilast = np.max(np.where(ii)[0])
+                    mltrlast = mltr[iilast]
+                    mltr[~ii] = np.cumsum(Marr[~ii])+mltrlast
             else: Q2 = -1
             Q2arr[i] = Q2
             allmltrsoftarr[i,:] = mltr
         np.savez(self.get_outfname(hpath),rsid=idarr,rvir=rvirarr,rvmax=rvmaxarr,
                  mgrav=mgravarr,mltr=allmltrarr,mltrsoft=allmltrsoftarr,Q2=Q2arr)
             
+    def compute_rho_soft(self,dr,rvir,rvmax,mpart):
+        rbin = self.get_fit_rarr(rvmax) #kpc
+        rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart) #Msun/kpc^3
+        try:
+            p0,p1,p2,Q2 = profilefit.fitEIN(rbin,rhoarr,[.5,10,.2],retQ2=True)
+            EINprof = lambda r: profilefit.EINprofile(r,p0,p1,p2)
+        except RuntimeError as e:
+            # if 'maxfev' in error msg
+            EINprof=None; Q1=-1
+            # else raise e
+        return EINprof,Q2
     def compute_mltr_soft(self,dr,rvir,rvmax,mpart):
         rbin = self.get_fit_rarr(rvmax) #kpc
         rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart) #Msun/kpc^3
@@ -144,11 +122,11 @@ class SubProfileSoftPlugin(ProfilePlugin):
         if lx != None:
             color = self.colordict[lx]
         for i in xrange(len(rsid)):
-            if i==5: break
+            if i==10: break
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
-            ax.plot(rarr[i,ii], plotqty[i,ii], '-', color=color, **kwargs)
-            ax.plot(rarr[i,ii], plotqtysoft[i,ii], ':', color=color, **kwargs)
+            ax.plot(rarr[i,ii], plotqty[i,ii], ':', color=color, **kwargs)
+            ax.plot(rarr[i,ii], plotqtysoft[i,ii], '-', color=color, **kwargs)
 
     def get_fit_rarr(self,rvmax):
         rlo = self.rminfit
@@ -161,3 +139,46 @@ class SubProfileSoftPlugin(ProfilePlugin):
         if out.shape[0]==1: return out[0]
         return out
 
+
+class SubVelocityProfileSoftPlugin(SubProfileSoftPlugin):
+    def __init__(self,rmin=10**-1.5,rmax=10**3,vmin=10**0,vmax=10**2.3):
+        super(SubVelocityProfileSoftPlugin,self).__init__()
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = vmin;  self.ymax = vmax
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$v_{circ}\ (km/s)$'
+        self.n_xmin = 10**-3.9; self.n_xmax = 10**0.5
+        self.n_ymin = 10**-2.0; self.n_ymax = 10**0.2
+        self.n_xlabel = r'$r/r_{\rm vir,host}$'
+        self.n_ylabel = r'$v_{\rm circ}/v_{\rm vir,host}$'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'subvcircsoft'
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        d = np.load(thisfilename) #d['rsid']
+        rsid = d['rsid']
+        rarr = self.get_scaled_rarr(d['rvir'])
+        rvir = d['rvir']
+        mltrarr = d['mltr']; mltrsoftarr = d['mltrsoft']
+        vcircarr = np.zeros(mltrarr.shape)
+        vcircsoftarr = np.zeros(mltrsoftarr.shape)
+        for i in range(len(rsid)):
+            vcircarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrarr[i,:])
+            vcircsoftarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrsoftarr[i,:])
+        return rsid,rarr,rvir,vcircarr,vcircsoftarr
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,color='k',**kwargs):
+        rsid,rarr,rvir,vcircarr,vcircsoftarr = data
+        rarr = rarr*1000 #kpc
+        eps = 1000*haloutils.load_soft(hpath)
+        if normtohost:
+            mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+            rarr = rarr/rvir
+            vcircarr = vcircarr/vvir
+            vcircsoftarr = vcircsoftarr/vvir
+            eps = eps/rvir
+        if lx != None:
+            color = self.colordict[lx]
+        for i in xrange(len(rsid)):
+            ii = rarr[i,:] >= eps
+            if np.sum(ii) == 0: continue
+            ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, alpha=alpha, **kwargs)

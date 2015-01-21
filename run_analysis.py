@@ -18,8 +18,13 @@ if __name__=="__main__":
     if len(args) == 0:
         #plug = SubhaloRadialSubmassFracPlugin()
         #convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png',stop_on_error=True)
-        plug = SubProfileSoftPlugin()
-        convergeplot(1,plug,whichlx=[14],figfilename='subprofcorrectionLX14_s1.png',stop_on_error=True,recalc=True)
+        #plug = SubProfileSoftPlugin()
+        #convergeplot(1,plug,whichlx=[14],figfilename='subprofcorrectionLX14_s1.png',stop_on_error=True)
+        plug = TBTFSoftPlugin()
+        #convergeplot(1,plug,whichlx=[14],figfilename='tbtfsoftLX14_s1.png',lw=2,stop_on_error=True)
+        convergeplot(1,plug,whichlx=[13],figfilename='tbtfsoftLX13_s1.png',lw=2,stop_on_error=True)
+        #plug = NvinfallPlugin()
+        #convergeplot(1,plug,whichlx=[13,14],figfilename='NvinfallLX1314_s1.png',stop_on_error=True)
         arg = None
     else:
         assert len(args)==1
