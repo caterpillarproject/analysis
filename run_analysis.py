@@ -50,7 +50,7 @@ if __name__=="__main__":
     if arg == 3:
         Profile    = ProfilePlugin()
         VelProfile = VelocityProfilePlugin()
-        convergeplot(1,Profile,figfilename='rhor2LX_s1'+ext,recalc=myrecalc)
+        convergeplot(1,Profile,figfilename='rhoLX_s1'+ext,recalc=myrecalc)
         convergeplot(1,VelProfile,figfilename='velprofLX_s1'+ext)
         convergeplot(1,VelProfile,figfilename='normvelprofLX_s1'+ext,normtohost=True)
         paper_stackplot(14,VelProfile,figfilename='stackLX14_normvelprof_s1'+ext,normtohost=True)

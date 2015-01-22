@@ -7,6 +7,7 @@ import readsnapshots.readsnapHDF5_greg as rsg
 import haloutils
 import scipy.optimize as optimize
 from scipy import interpolate
+import profilefit
 
 class PluginBase(object):
     """
@@ -511,16 +512,16 @@ class IntegrableSHMFPlugin(SHMFPlugin):
             ax.plot(x,y,**kwargs)
 
 class ProfilePlugin(PluginBase):
-    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
+    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**0.5,ymax=10**10.5):
         super(ProfilePlugin,self).__init__()
         self.filename='rsprofile.dat'
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin;  self.ymax = ymax
-        self.xlabel = r'$r\ (kpc)$' #$h^{-1}$ 
-        self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$\rho(r)\ (M_\odot\ \rm{kpc}^{-3})$'
         self.xlog = True; self.ylog = True
-        self.autofigname = 'rhor2'
+        self.autofigname = 'rho'
     def _analyze(self,hpath):
         snap = 255
         rarr = self.get_rarr()
@@ -533,8 +534,23 @@ class ProfilePlugin(PluginBase):
         header = rsg.snapshot_header(snapfile+'.0')
         rarr,mltrarr,p03rmin,halorvir,r200c,halomass = self.compute_one_profile(rarr,hpath,rscat,zoomid,snap,header) 
 
+        rbin = np.concatenate(([0],rarr))*1000. #kpc
+        rhoarr = self.mltr_to_rho(rarr*1000.,mltrarr) #Msun/kpc^3
+        rs = float(rscat.ix[zoomid]['rs'])
+        try:
+            NFW0,NFW1 = profilefit.fitNFW(rbin,rhoarr,[rs,9],minr=p03rmin,maxr=halorvir)
+        except RuntimeError as e:
+            print e
+            NFW0=None;NFW1=None
+        try:
+            EIN0,EIN1,EIN2 = profilefit.fitEIN(rbin,rhoarr,[rs,6,.3],minr=p03rmin,maxr=halorvir)
+        except RuntimeError as e:
+            print e
+            EIN0=None;EIN1=None;EIN2=None
+
         with open(self.get_outfname(hpath),'w') as f:
-            f.write(str(p03rmin)+" "+str(halorvir)+" "+str(r200c)+" "+str(halomass)+"\n")
+            f.write(" ".join([str(p03rmin),str(halorvir),str(r200c),str(halomass),
+                              str(NFW0),str(NFW1),str(EIN0),str(EIN1),str(EIN2)+"\n"]))
             for r,mltr in zip(rarr,mltrarr):
                 f.write(str(r)+" "+str(mltr)+"\n")
     def get_rarr(self):
@@ -613,14 +629,47 @@ class ProfilePlugin(PluginBase):
         r = data['col1'] #Mpc
         mltr = data['col2'] #Msun
         f = open(thisfilename,'r')
-        p03r,rvir,r200c,halomass = f.readline().split(" ")
+        p03r,rvir,r200c,halomass,NFW0,NFW1,EIN0,EIN1,EIN2 = f.readline().split(" ")
         p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
-        return r,mltr,p03r,rvir,r200c
+        NFW0 = float(NFW0); NFW1 = float(NFW1); EIN0 = float(EIN0); EIN1 = float(EIN1); EIN2 = float(EIN2); 
+        pNFW = [NFW0,NFW1]; pEIN = [EIN0,EIN1,EIN2]
+        return r,mltr,p03r,rvir,r200c,pNFW,pEIN
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,lw=3,**kwargs):
+        if normtohost:
+            raise NotImplementedError
+        r,mltr,p03r,rvir,r200c,pNFW,pEIN = data
+        rho = self.mltr_to_rho(r,mltr)
+        r = r*1000. # kpc
+        rho = rho/1.e9 #Msun/Mpc^3 to Msun/kpc^3
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        ii2 = r >= p03r
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], rho[ii1], color=color, lw=1, **kwargs)
+            ax.plot(r[ii2], rho[ii2], color=color, lw=lw, **kwargs)
+            #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
+            ax.plot(r,profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2]),':',color=color,lw=1,**kwargs)
+        else:
+            ax.plot(r[ii1], rho[ii1], lw=1, **kwargs)
+            ax.plot(r[ii2], rho[ii2], lw=lw, **kwargs)
+            #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
+            ax.plot(r,profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2]),':',lw=1,**kwargs)
+class R2ProfilePlugin(ProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
+        super(ProfilePlugin,self).__init__()
+        self.filename='rsprofile.dat'
 
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = ymin;  self.ymax = ymax
+        self.xlabel = r'$r\ (kpc)$' #$h^{-1}$ 
+        self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'rhor2'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         if normtohost:
             raise NotImplementedError
-        r,mltr,p03r,rvir,r200c = data
+        r,mltr,p03r,rvir,r200c,pNFW,pEIN = data
         rho = self.mltr_to_rho(r,mltr)
         r = r*1000. # kpc
         rho = rho/10**10 #10^10 Msun/Mpc^3
@@ -655,8 +704,10 @@ class VelocityProfilePlugin(ProfilePlugin):
         mltr = data['col2'] #Msun
         vcirc = self.mltr_to_vcirc(r,mltr) #km/s
         f = open(thisfilename,'r')
-        p03r,rvir,r200c,halomass = f.readline().split(" ")
+        p03r,rvir,r200c,halomass,NFW0,NFW1,EIN0,EIN1,EIN2 = f.readline().split(" ")
         p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
+        #NFW0 = float(NFW0); NFW1 = float(NFW1); EIN0 = float(EIN0); EIN1 = float(EIN1); EIN2 = float(EIN2); 
+        #pNFW = [NFW0,NFW1]; pEIN = [EIN0,EIN1,EIN2]
         return r,vcirc,p03r,rvir,r200c
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
@@ -850,13 +901,19 @@ class MassAccrPlugin(PluginBase):
         tab = data
         x = tab['scale']
         y = tab['mvir']
+        lastmm = np.max(tab['scale_of_last_MM'])
         if normtohost:
             ymax = tab['mvir'][-1]
             y = y/ymax
+            ymin = self.n_ymin; ymax = self.n_ymax
+        else:
+            ymin = self.ymin; ymax = self.ymax
         if lx != None:
             ax.plot(x,y,color=self.colordict[lx],**kwargs)
+            ax.plot([lastmm,lastmm],[ymin,ymax],':',color=self.colordict[lx])
         else:
             ax.plot(x,y,**kwargs)
+            ax.plot([lastmm,lastmm],[ymin,ymax],':')
 class LinearMassAccrPlugin(MassAccrPlugin):
     def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
         super(LinearMassAccrPlugin,self).__init__()

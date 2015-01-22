@@ -6,7 +6,6 @@ import haloutils
 import sys
 
 import profilefit
-from scipy.optimize import curve_fit
 
 from caterpillaranalysis import *
 
