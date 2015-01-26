@@ -37,18 +37,45 @@ global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
-hid2name = {1631506: "Mnemosyne",
-            264569:  "Tethys",
-            1725139: "Theia",
-            447649:  "Phoebe",
-            5320:    "Rhea",
-            581141:  "Themis",
-            94687:   "Oceanus",
-            1130025: "Hyperion",
-            1387186: "Coeus",
-            581180:  "Cronus",
-            1725372: "Crius",
-            1354437: "Iapetus"}
+cid2hid = {1:1631506,
+	   2:264569,
+	   3:1725139,
+	   4:447649,
+	   5:5320,
+	   6:581141,
+	   7:94687,
+	   8:1130025,
+	   9:1387186,
+	  10:581180,
+	  11:1725372,
+	  12:1354437}
+
+hid2name = {1631506: 1,
+            264569:  2,
+            1725139: 3,
+            447649:  4,
+            5320:    5,
+            581141:  6,
+            94687:   7,
+            1130025: 8,
+            1387186: 9,
+            581180:  10,
+            1725372: 11,
+            1354437: 12}
+
+#hid2name = {1631506: "Mnemosyne",
+#            264569:  "Tethys",
+#            1725139: "Theia",
+#            447649:  "Phoebe",
+#            5320:    "Rhea",
+#            581141:  "Themis",
+#            94687:   "Oceanus",
+#            1130025: "Hyperion",
+#            1387186: "Coeus",
+#            581180:  "Cronus",
+#            1725372: "Crius",
+#            1354437: "Iapetus"}
+
 hid2sname = {1631506: "Mnemo",
              264569:  "Teths",
              1725139: "Theia",
@@ -114,14 +141,15 @@ def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,che
     return outpath
 def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
     return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=check)
-def get_hpath_lx(hid,lx):
+
+def get_hpath_lx(hid,do_lx):
     lxpaths = get_lxlist(hid,gethpaths=True)
     for hpath in lxpaths:
-        if 'LX'+str(lx) in hpath: return hpath
+        if 'LX'+str(do_lx) in hpath: return hpath
     return None
 
-def get_paper_paths_lx(lx):
-    return [get_hpath_lx(hid,lx) for hid in hid2name.keys()]
+def get_paper_paths_lx(do_lx):
+    return [get_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
 
 def get_paper_paths():
     return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
@@ -172,11 +200,7 @@ def check_last_subfind_exists(outpath):
 
 def check_last_rockstar_exists(outpath,fullbin=True,particles=False):
     numsnaps = get_numsnaps(outpath)
-    lastsnap = numsnaps - 1
-    return check_rockstar_exists(outpath,lastsnap,fullbin=fullbin,particles=particles)
-
-def check_rockstar_exists(outpath,snap,fullbin=True,particles=False):
-    snapstr = str(snap)
+    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
     if fullbin:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.fullbin')
     else:
@@ -339,6 +363,7 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
 def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     row = _load_index_row(hpath,filename=filename)
     return row['zoomid'][0]
+    
 def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     row = _load_index_row(hpath,filename=filename)
     mvir = float(row['mvir']) # physical Msun
@@ -353,20 +378,21 @@ def load_pcatz0(old=False):
         return RDR.RSDataReader(global_prntbase+"/rockstar",127,version=6)
 
 def load_scat(hpath):
-    return RSF.subfind_catalog(hpath+'/outputs',255)
+    if "LX14" in hpath:
+        return RSF.subfind_catalog(hpath+'/outputs',255,double=True)
+    else: 
+        return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_bound_rscat(hpath,snap,verbose=True,halodir='halos'):
-    return load_rscat(hpath,snap,verbose=verbose,halodir=halodir,minboundpart=20)
-def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minboundpart=None):
+def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=0.7):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac)
     except IOError as e:
         print e
         versionlist = [2,3,4,5,6,7]
         testlist = []
         for version in versionlist:
             try:
-                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
                 testlist.append(True)
             except KeyError:
                 testlist.append(False)
@@ -376,22 +402,24 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minbound
             version = np.array(versionlist)[np.array(testlist)][0]
             if verbose:
                 print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac)
     return rcat
-def load_rsboundindex(hpath,snap):
-    return asciitable.read(hpath+'/halos/halos_'+str(snap)+'/iterboundindex.csv',names=['hid','numbound','numtot','loc','numiter'])
 
 def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 def load_zoom_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)
+    
 def load_pmtc(hpath,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
-    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=3,**kwargs)
+    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 
 def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
     #assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
     snapstr = str(snap).zfill(3)
     snappath = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
+#    if "14" in hpath:
+#        return rsg.read_block(snappath,block,parttype=parttype,ids=ids,doubleprec=True)
+#    else:
     return rsg.read_block(snappath,block,parttype=parttype,ids=ids)
 
 def load_soft(hpath):
