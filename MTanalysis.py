@@ -125,6 +125,101 @@ def getSubTree(mtc,rsid, hostrow=0):
     return None
 
 
+
+# for just getting data
+class ExtantDataPlugin(PluginBase):
+    def __init__(self):
+        super(ExtantDataPlugin,self).__init__()
+        self.filename='ExtantDataOnly.dat'
+        self.xmin=0;     self.xmax=256
+        self.ymin=10**8; self.ymax=5*10**11
+        self.xlog= False; self.ylog = True
+        self.xlabel='' ; self.ylabel='' 
+        self.autofigname='MergerHistory'
+        self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
+
+    def _analyze(self,hpath):
+        start=0
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
+        # copy tagExtant code here
+        start_time = time.time()
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0)
+        hostID1 = int(cat['id'][0:1])
+        hostID = haloutils.load_zoomid(hpath)
+        if hostID != hostID1:
+            print 'host IDs do not match!!'
+        hosthalo = cat.ix[hostID]
+        subs = cat.get_subhalos_within_halo(hostID)
+        print np.sum(subs['vmax']>30), 'number of subs with vmax >30 at z=0 in cat'
+        otherdata=[]
+        print 'loading mtc'
+        
+        sys.stdout.flush()
+        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
+        print 'loaded mtc'
+        sys.stdout.flush()
+        host = mtc.Trees[0]
+        host_mb = host.getMainBranch(0)
+        
+        good = 0; start_pos=0; toosmall=0; sub_rank=start-1
+        for subRSID in np.array(subs['id'])[0:250]:
+            sub_rank+=1
+            sub = getSubTree(mtc,subRSID)
+            if sub==None:
+                print sub_rank, 'subhalo not found in MTCatalogue. Mass: %.4e' %cat.ix[subRSID]['mvir'], 'Vmax: %.4e' %cat.ix[subRSID]['vmax'], 'Time = ', (time.time()-start_time)/60., 'minutes'
+                sys.stdout.flush()
+                continue
+            sub_mb = sub.getMainBranch(0)
+            if sub_mb == None:
+                print 'subhalo', sub_rank, 'is bad in MT. Skipping it', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                sys.stdout.flush()
+                continue # skip to next subhalo
+            peakmass = np.max(sub_mb['mvir'])
+            peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+            peakvmax = np.max(sub_mb['vmax'])
+            peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
+
+            #print sub_rank, 'peakvmax', peakvmax, 'vmax', sub_mb['vmax'][0]
+            if peakmass/cat.particle_mass < self.min_particles:
+                print sub_rank, 'subhalo too small', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                sys.stdout.flush()
+                toosmall+=1
+                continue
+            iLoc, iSnap = getInfall(sub_mb, host_mb)
+            if iLoc==None:
+                print 'subhalo', sub_rank, 'infall could not be found', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                continue
+            iMass = sub_mb['mvir'][iLoc]
+            iScale = sub_mb['scale'][iLoc]
+            iRSID = sub_mb['origid'][iLoc]
+                        
+            otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,peakmass,iMass,peakvmax,peakvmax_snap, sub_mb['mvir'][0],sub_mb['vmax'][0],iSnap,peaksnap]
+            #print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
+            sys.stdout.flush()
+            good+=1
+        g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
+        np.array(otherdata).tofile(g)
+        g.close()
+        print good, 'halos good out of', len(subs)
+        print toosmall, 'num halos too small'
+
+    def _read(self,hpath):
+        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
+        dtype = [('sub_rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('mvir',"float64"),('vmax',"float64"), ('isnap',"float64"),('peaksnap',"float64")]
+        holder = np.ndarray( (len(data)/11,), dtype=dtype )
+        data2 = data.reshape(len(data)/11,11)
+        for i in range(data2.shape[0]):
+            holder[i]=data2[i]
+        return holder
+
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        return
+
+
+# for tagging particles
 class TagExtantPlugin(PluginBase):
     def __init__(self):
         super(TagExtantPlugin,self).__init__()
@@ -155,6 +250,7 @@ class TagExtantPlugin(PluginBase):
         allstars=[]
         otherdata=[]
         print 'loading mtc'
+        
         sys.stdout.flush()
         mtc = haloutils.load_mtc(hpath,haloids=[hostID])
         print 'loaded mtc'
@@ -390,6 +486,82 @@ def beta(a):
 def gamma(a):
     return G10 + G11*(1-a)
 
+class SMFPlugin(PluginBase):
+    def __init__(self,Mmin=10**1.0,Mmax=10**8.5,ymin=10**4,ymax=10**13.5):
+        super(SMFPlugin,self).__init__()
+        self.filename='SMF.dat'
+        self.histrange = np.arange(4.0,10.5,0.2)
+
+        self.xmin = Mmin; self.xmax = Mmax
+        self.ymin = ymin;  self.ymax = ymax
+        self.xlabel = r'$M_{\rm sub} (M_\odot)$'
+        self.ylabel = r'$M_{\rm vir} dN/dM_{\rm sub}$'
+        self.n_xmin = Mmin/10**12; self.n_xmax = Mmax/10**12
+        self.n_ymin = ymin;  self.n_ymax = ymax
+        self.n_xlabel = r'$M_{\rm sub}/M_{\rm vir}$'
+        self.n_ylabel = self.ylabel
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'SMF'
+    def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
+        numsnaps = haloutils.get_numsnaps(hpath)
+        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
+        zoomid = haloutils.load_zoomid(hpath)
+        
+        #subs = rscat.get_all_subhalos_within_halo(zoomid)
+    
+        # get stellar mass function
+        TagExtant = TagExtantPlugin()
+        stars, data = TagExtant.read(hpath)
+        fracs = getFraction(data['infall_mass']/rscat.h0, getScale( np.array(data['isnap'],dtype=np.int32)) )
+        starM = data['infall_mass']/rscat.h0*fracs
+        subM = data['mvir']/rscat.h0
+        
+        x,y = self.MassFunc_dNdM(subM,self.histrange)
+        histrange = np.arange(1.0,8.0,0.2)
+        xs,ys = self.MassFunc_dNdM(starM,histrange)
+        #boundM = np.array(subs['mgrav'])/rscat.h0
+        #bx,by = self.MassFunc_dNdM(boundM,self.histrange)
+        print np.min(starM), np.max(starM), 'stars'
+        print np.min(subM), np.max(subM), 'subs'
+
+        with open(self.get_outfname(hpath),'w') as f:
+            for a,b,sa,sb in zip(x,y,xs,ys):
+                f.write(str(a)+' '+str(b)+' '+str(sa)+' '+str(sb)+'\n')
+    def MassFunc_dNdM(self,masses,histrange):
+        """
+        Adapted from Greg's MassFunctions code
+        """
+        numbins = len(histrange) - 1
+        hist, r_array = np.histogram(np.log10(masses), bins=histrange)
+        x_array = self._getMidpoints(r_array)
+        dM = 10.**r_array[1:]-10.**r_array[0:numbins] #Mass size of bins in non-log space
+        dNdM = hist/dM
+        return 10**x_array, dNdM
+    def _getMidpoints(self,bins):
+        spacing = bins[1:]-bins[:-1]
+        return bins[:-1]+spacing/2.0
+
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        data = asciitable.read(thisfilename,delimiter=' ')
+        #don't return mvir, only mgrav
+        return data['col1'],data['col2'],data['col3'],data['col4']
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        x,y,sx,sy = data
+        mvir,rvir,vvir=haloutils.load_haloprops(hpath)
+        y = y*mvir; sy=sy*mvir
+        if normtohost:
+            x = x/mvir; sx=sx/mvir
+        
+        if lx != None:
+            #ax.plot(x,y,color=self.colordict[lx],**kwargs)
+            ax.plot(sx,sy,color=self.colordict[lx],linestyle='-',**kwargs)
+        else:
+            #ax.plot(x,y,**kwargs)
+            ax.plot(sx,sy,linestyle='--',**kwargs)
+
 
 # Code taken from TagFunction
 class TagMass(PluginBase):
@@ -458,15 +630,16 @@ class StellarDensProfile(PluginBase):
     def __init__(self):
         super(StellarDensProfile,self).__init__()
         self.filename='StellarDensityProfile.dat'
-        self.xmin=30;     self.xmax=300
-        self.ymin=10**0; self.ymax=10*5
+        self.xmin=10;     self.xmax=220
+        self.ymin=10**0; self.ymax=10**6
         self.xlog= True; self.ylog = True
         self.xlabel='r [kpc]' ; self.ylabel=r'$\rho \ [M_\odot/ kpc^3]$'
         self.autofigname='Stellar_Dens_Profile'
 
     def _analyze(self,hpath):
-        TagMass = TagMass()
-        idsE, massE, idsD, massD = TagMass.read(hpath)
+        print 'SDP analyze'
+        tm = TagMass()
+        idsE, massE, idsD, massD = tm.read(hpath)
         # combine ids and mass
         ids = np.r_[idsE,idsD]
         mass = np.r_[massE, massD]
@@ -482,8 +655,8 @@ class StellarDensProfile(PluginBase):
         part_pos = haloutils.load_partblock(hpath,snap_z0,"POS ",parttype=1,ids=ids)
         dr = distance(part_pos, hostpos,cat.boxsize)*cat.scale/cat.h0*1000. # in kpc physical
         maxr = float(hosthalo['rvir'])
-        minr = maxr/50.
-        binwidth = 0.03
+        minr = 10  #maxr/50.
+        binwidth = 0.09
         nbins = np.ceil((np.log10(maxr)-np.log10(minr))/binwidth)
         rarr = 10**np.linspace(np.log10(minr), np.log10(minr)+nbins*binwidth,nbins+1)
         # bin and sum the mass
@@ -491,9 +664,10 @@ class StellarDensProfile(PluginBase):
         masks=[(dr>bins[i])*(dr<bins[i+1]) for i in range(len(bins)-1)]
         mper = [np.sum(mass[masks[i]]) for i in range(len(masks))]
         m_lt_r = np.cumsum(mper)
-        tck = interpolate.splrep(rarr,m_lt_r)
+        tck = interpolate.splrep(rarr,m_lt_r,k=1)
         rhoarr = interpolate.splev(rarr,tck,der=1)/(4*np.pi*rarr**2)
-
+#        tck = interpolate.splrep(np.log10(rarr),np.log10(m_lt_r),k=3)
+#        rhoarr = m_lt_r/rarr*interpolate.splev(np.log10(rarr),tck,der=1)/(4*np.pi*rarr**2)
         f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
         rhoarr.tofile(f)
         rarr.tofile(f)
@@ -508,5 +682,32 @@ class StellarDensProfile(PluginBase):
     def _plot(self,hpath,datalist,ax,lx=None,labelon=False,**kwargs):
         rhoarr,rarr = datalist
         ax.plot(rarr, rhoarr)
-        plt.show()
         #ax.xticks([30,50,100,200],[30,50,100,200])
+
+
+
+# gets all stars tagged that are not currently bound to an existing subhalo
+def get_stars_not_in_subs(hpath):
+    tm = TagMass()
+    idsE, massE, idsD, massD = tm.read(hpath)
+    ids = np.r_[idsE,idsD]
+    argsort = np.argsort(ids)
+    mass = np.r_[massE, massD]
+    ids = ids[argsort]
+    mass = mass[argsort]
+
+    snap_z0 = haloutils.get_numsnaps(hpath)-1
+    cat = haloutils.load_rscat(hpath,snap_z0)
+    hostID = haloutils.load_zoomid(hpath)
+    subs = cat.get_all_subhalos_from_halo(hostID)
+    mask = subs['mvir'] > 1e8
+    subids = np.array(subs[mask]['id'])
+
+    ids_bound = []
+    for rsid in subids:
+        ids_bound = np.r_[ids_bound, cat.get_all_particles_from_halo(rsid)]
+
+    insubs = np.in1d(ids, ids_bound)
+    ids = ids[~insubs]
+    mass = mass[~insubs]
+    return ids, mass
