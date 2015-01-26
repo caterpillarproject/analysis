@@ -8,9 +8,9 @@ import ctils
 import asciitable
 
 base_path = "/bigbang/data/AnnaGroup/caterpillar/halos/"
-halo_dirs = glob.glob(base_path+"H*/H*LX14*")
+halo_dirs = glob.glob(base_path+"H*/H*LX12*")
 
-ndim=2048
+ndim=4096
 
 def run_algo(hpath,ndim):
     img_path = "/bigbang/data/AnnaGroup/Dropbox/caterpillar_plots/zoom/density_projections/static/png/"
@@ -26,19 +26,18 @@ def run_algo(hpath,ndim):
     sub.call([cmd_make],shell=True)
 
     snapbase = "/outputs/snapdir_255/"
-    try: 
 
-        hsmlpath = hpath+"/analysis/hsml_ngb4.npy"
-        if not os.path.isfile(hsmlpath) and os.path.isdir(hpath+snapbase): ctils.generate_hsml(hpath)
+    hsmlpath = hpath+"/analysis/hsml_ngb4.npy"
+    if not os.path.isfile(hsmlpath) and os.path.isdir(hpath+snapbase): ctils.generate_hsml(hpath)
 
-        map_path = hpath + "/analysis/projected_xy_density_field.npy"
-        if not os.path.isfile(map_path) and os.path.isfile(hsmlpath): ctils.construct_map(hpath)
+    map_path = hpath + "/analysis/projected_xy_density_field_"+str(ndim)+".npy"
+    if not os.path.isfile(map_path) and os.path.isfile(hsmlpath): ctils.construct_map(hpath)
 
-        image_filename = img_path+"H"+str(parentid)+"_DPROJ_LX"+str(LX)+"_DIM"+str(ndim)+"_NGB4_SNAP"+str(255).zfill(3)+".png"
-        if not os.path.isfile(image_filename) and os.path.isfile(map_path): ctils.generate_img(hpath,image_filename)  
+    image_filename = img_path+"H"+str(parentid)+"_DPROJ_LX"+str(LX)+"_DIM"+str(ndim)+"_NGB4_SNAP"+str(255).zfill(3)+".png"
+    if not os.path.isfile(image_filename) and os.path.isfile(map_path): ctils.generate_img(hpath,image_filename)  
     
-    except ValueError:
-        print "H"+str(parentid)+" not in index!"
+#    except:
+#	print "Either: H"+str(parentid)+" not in index! or you ran out of memory!"
 
 #import multiprocessing as mp
 

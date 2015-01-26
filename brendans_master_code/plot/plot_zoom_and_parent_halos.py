@@ -13,18 +13,14 @@ import readhalos.RSDataReader as RSDataReader
 
 """
 Contact: Brendan Griffen <brendan.f.griffen@gmail.com>
-
 This code will plot 5 rows and 3 columns.
 Each column is a different projections (x-y,x-z,y-z)
-
 Each row is as follows:
 1: Lagrangian volume from parent simulation.
 2: Parent simulation halo location and surroundings.
 3-5: Increasing resolutions for zoomed halos and surroundings (if available).
-
 You need to change the mass cut offs and boxwidths below.
 Also check the file paths as things may have moved
-
 """
 
 datadir = '/bigbang/data/AnnaGroup/caterpillar/halos/'
@@ -297,4 +293,3 @@ for haloi in halo_dirs:
     
     plt.close(f)
         #sys.exit()
-        

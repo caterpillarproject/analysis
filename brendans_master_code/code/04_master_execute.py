@@ -40,7 +40,8 @@ if "antares" not in platform.node():
 	sys.exit()
 
 nrvir = 5
-lx_list = ["1"]  	    # Set which levels, you would like to iterate over (for contamination AND/OR full runs)
+
+lx_list = ["3"]  	    # Set which levels, you would like to iterate over (for contamination AND/OR full runs)
 SUBMIT_GADGET = True 	# Set to false if you don't want to submit Gadget runs (will only copy files if False)
 mass_bin = sys.argv[1]
 
@@ -54,13 +55,9 @@ if not os.path.isdir(base_path):
     sys.exit()
 
 if nrvir == 4:
-    suite_names = ["EX"]
-
-    #["BA","BB","EA","CA","EB","EC"]
+    suite_names = ["EX","BA","BB","EA","CA","EB","EC"]
 if nrvir == 5:
-    suite_names = ["EX"]
-
-    #["EA","CA","BA"]
+    suite_names = ["EX","EA","CA","BA"]
 
 print "+EXECUTING +"
 
@@ -69,10 +66,12 @@ glib.make_destination_folders(base_path,suite_names,lx=11,nrvir=nrvir)
 
 # CREATE SUITE LIST FOR CONTAMINATION STUDY ONLY (e.g. halos/.../H{haloid}/contamination_suite/)
 contamination_paths = glob.glob(base_path + "H*/contamination_suite/*NV"+str(nrvir)+"*")
+
 # Reminder: be sure to set lx_list correctly. "1" for LX11 etc.
 #glib.run_music(contamination_paths,music_path,lagr_path,lx_list)
 
-glib.run_gadget(contamination_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
+#glib.run_gadget(contamination_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
+
 # Subfind: has not been tested yet.
 #glib.run_subfind(contamination_paths,gadget_file_path)
 
@@ -82,17 +81,20 @@ halo_geometries =  pickle.load( open( base_path+"geometries.p", "rb" ) )
 #glib.run_music_higher_levels(halo_geometries,base_path,music_path,lagr_path,lx_list=lx_list)
 
 # Runs through available halos in dictionary and runs P-Gadget3 on each halo.
-#for halo_name,ic_info in halo_geometries.iteritems():
-#    suite_paths = glob.glob(base_path+halo_name+"/H*")
-#    glib.run_gadget(suite_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
+for halo_name,ic_info in halo_geometries.iteritems():
+    suite_paths = glob.glob(base_path+halo_name+"/H*")
+    glib.run_gadget(suite_paths,gadget_file_path,lx_list,submit=SUBMIT_GADGET)
 
+
+submission_paths = glob.glob(base_path + "H*/contamination_suite/H*NV"+str(nrvir)+"*")
 print
-print "------ CONTAMINATION RUNS ---------"
-print "------   "+mass_bin+"_mass_halos/   -------"
-glib.get_completed_list(contamination_paths)
+print "[ CONTAMINATION RUNS ]"
+print "> "+mass_bin+"_mass_halos/ "
+glib.get_completed_list(submission_paths)
 print 
-print "-------- PRODUTION RUNS -----------"
-suite_paths = glob.glob(base_path + "H*/H*")
-glib.get_completed_list(suite_paths)
+print "[ PRODUTION RUNS AT RESOLUTION ]"
+#suite_paths = glob.glob(base_path + "H*/H*")
+submission_paths = glob.glob(base_path + "H*/H*LX1"+lx_list[0]+"*NV"+str(nrvir)+"*")
+glib.get_completed_list(submission_paths)
 
 print "+ DONE + "
