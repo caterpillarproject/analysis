@@ -137,6 +137,7 @@ class ExtantDataPlugin(PluginBase):
         self.xlabel='' ; self.ylabel='' 
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
+        self.min_mass = 10**7.776
 
     def _analyze(self,hpath):
         start=0
@@ -182,7 +183,7 @@ class ExtantDataPlugin(PluginBase):
             peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
 
             #print sub_rank, 'peakvmax', peakvmax, 'vmax', sub_mb['vmax'][0]
-            if peakmass/cat.particle_mass < self.min_particles:
+            if peakmass/cat.h0 < self.min_mass:  #/cat.particle_mass < self.min_particles:
                 print sub_rank, 'subhalo too small', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
                 sys.stdout.flush()
                 toosmall+=1
@@ -230,6 +231,7 @@ class TagExtantPlugin(PluginBase):
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
+        self.min_mass = 10**7.776
 
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
@@ -277,7 +279,7 @@ class TagExtantPlugin(PluginBase):
             peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
 
             print sub_rank, 'peakmass', peakmass
-            if peakmass/cat.particle_mass < self.min_particles:
+            if peakmass/cat.h0 < self.min_mass: # /cat.particle_mass < self.min_particles:
                 #print sub_rank, 'subhalo too small'
                 sys.stdout.flush()
                 toosmall+=1
@@ -335,6 +337,7 @@ class TagDestroyedPlugin(PluginBase):
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging.
+        self.min_mass = 10**7.776
         # corresponds to 10**7.776 Msun
 
     def _analyze(self,hpath):
@@ -375,7 +378,7 @@ class TagDestroyedPlugin(PluginBase):
                 peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
                 peakvmax = np.max(sub_mb['vmax'])
                 peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
-                if peakmass/cat.particle_mass < self.min_particles:
+                if peakmass/cat.h0 < self.min_mass: #/cat.particle_mass < self.min_particles:
                     sys.stdout.flush()
                     continue
                 iLoc, iSnap = getInfall(sub_mb,host_mb)
@@ -420,8 +423,9 @@ class TagDestroyedPlugin(PluginBase):
             while os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedData_'+str(i)+'.dat'):
                 tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedData_'+str(i)+'.dat')              
                 data = np.r_[data,tmp]
-                dtype = [('rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('isnap',"float64"),('peaksnap',"float64"),('backsnap',"float64")]
                 i+=1
+            dtype = [('rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('start_pos',"float64"),('nstars',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('isnap',"float64"),('peaksnap',"float64"),('backsnap',"float64")]
+            
             holder = np.ndarray( (len(data)/12,), dtype=dtype )
             data2 = data.reshape(len(data)/12,12)
             for j in range(data2.shape[0]):
@@ -437,7 +441,7 @@ class TagDestroyedPlugin(PluginBase):
                 tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/DestroyedPIDs_'+str(i)+'.dat')
                 ids = np.r_[ids,tmp]
                 i+=1
-                print ids[-1], 'shold not be 0'
+            print ids[-1], 'shold not be 0'
             print len(ids), 'length of ids'
             f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'DestroyedPIDs.dat', 'wb')
             np.array(ids, dtype=np.int64).tofile(f)
