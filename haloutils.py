@@ -198,11 +198,13 @@ def check_last_subfind_exists(outpath):
     subhalo_tab = os.path.exists(outpath+'/outputs/groups_'+snapstr+'/subhalo_tab_'+snapstr+'.0')
     return group_tab and subhalo_tab
 
-def check_last_rockstar_exists(outpath,fullbin=True,particles=False):
+def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=False):
     numsnaps = get_numsnaps(outpath)
     lastsnap = numsnaps - 1; snapstr = str(lastsnap)
     if fullbin:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.fullbin')
+    elif boundbin:
+        halo_exists = os.path.exists(outpath+'/halos_bound/halos_'+snapstr+'/halos_'+snapstr+'.0.boundbin')
     else:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.bin')
     if not particles:
@@ -271,7 +273,7 @@ def restrict_halopaths(halopathlist,
     if require_rockstar:
         newhalopathlist = []
         for outpath in halopathlist:
-            if check_last_rockstar_exists(outpath):
+            if check_last_rockstar_exists(outpath,boundbin=True):
                 newhalopathlist.append(outpath) 
         halopathlist = newhalopathlist
     if require_subfind:
