@@ -198,17 +198,23 @@ def check_last_subfind_exists(outpath):
     subhalo_tab = os.path.exists(outpath+'/outputs/groups_'+snapstr+'/subhalo_tab_'+snapstr+'.0')
     return group_tab and subhalo_tab
 
-def check_last_rockstar_exists(outpath,fullbin=True,particles=False):
-    numsnaps = get_numsnaps(outpath)
-    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+def check_rockstar_exists(outpath,snap,boundbin=True,fullbin=False,particles=False):
+    snapstr = str(snap)
     if fullbin:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.fullbin')
+    elif boundbin:
+        halo_exists = os.path.exists(outpath+'/halos_bound/halos_'+snapstr+'/halos_'+snapstr+'.0.boundbin')
     else:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.bin')
     if not particles:
         return halo_exists
     part_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.particles')
     return halo_exists and part_exists
+
+def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=False):
+    numsnaps = get_numsnaps(outpath)
+    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+    return check_rockstar_exists(outpath,lastsnap)
 
 def check_mergertree_exists(outpath,autoconvert=False):
     ascii_exists = os.path.exists(outpath+'/halos/trees/tree_0_0_0.dat')
@@ -271,7 +277,7 @@ def restrict_halopaths(halopathlist,
     if require_rockstar:
         newhalopathlist = []
         for outpath in halopathlist:
-            if check_last_rockstar_exists(outpath):
+            if check_last_rockstar_exists(outpath,boundbin=True):
                 newhalopathlist.append(outpath) 
         halopathlist = newhalopathlist
     if require_subfind:
@@ -383,15 +389,12 @@ def load_scat(hpath):
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_bound_rscat(hpath,snap,verbose=True,halodir='halos'):
-    return load_rscat(hpath,snap,verbose=verbose,halodir=halodir,minboundpart=20)
-
-def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minboundpart=None):
+def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     except IOError as e:
         print e
-        versionlist = [2,3,4,5,6,7]
+        versionlist = [2,3,4,5,6,7,8,9]
         testlist = []
         for version in versionlist:
             try:
