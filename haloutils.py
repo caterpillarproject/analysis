@@ -198,9 +198,8 @@ def check_last_subfind_exists(outpath):
     subhalo_tab = os.path.exists(outpath+'/outputs/groups_'+snapstr+'/subhalo_tab_'+snapstr+'.0')
     return group_tab and subhalo_tab
 
-def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=False):
-    numsnaps = get_numsnaps(outpath)
-    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+def check_rockstar_exists(outpath,snap,boundbin=True,fullbin=False,particles=False):
+    snapstr = str(snap)
     if fullbin:
         halo_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.fullbin')
     elif boundbin:
@@ -211,6 +210,11 @@ def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=Fal
         return halo_exists
     part_exists = os.path.exists(outpath+'/halos/halos_'+snapstr+'/halos_'+snapstr+'.0.particles')
     return halo_exists and part_exists
+
+def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=False):
+    numsnaps = get_numsnaps(outpath)
+    lastsnap = numsnaps - 1; snapstr = str(lastsnap)
+    return check_rockstar_exists(outpath,lastsnap)
 
 def check_mergertree_exists(outpath,autoconvert=False):
     ascii_exists = os.path.exists(outpath+'/halos/trees/tree_0_0_0.dat')
