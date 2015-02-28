@@ -506,7 +506,7 @@ class SMFPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_rscat(hpath,numsnaps-1)
         zoomid = haloutils.load_zoomid(hpath)
         
         #subs = rscat.get_all_subhalos_within_halo(zoomid)

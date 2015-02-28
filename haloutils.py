@@ -389,15 +389,12 @@ def load_scat(hpath):
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_bound_rscat(hpath,snap,verbose=True,halodir='halos'):
-    return load_rscat(hpath,snap,verbose=verbose,halodir=halodir,minboundpart=20)
-
-def load_rscat(hpath,snap,verbose=True,halodir='halos',unboundfrac=None,minboundpart=None):
+def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None):
     try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=8,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     except IOError as e:
         print e
-        versionlist = [2,3,4,5,6,7]
+        versionlist = [2,3,4,5,6,7,8,9]
         testlist = []
         for version in versionlist:
             try:
