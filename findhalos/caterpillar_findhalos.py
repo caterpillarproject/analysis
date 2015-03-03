@@ -12,8 +12,8 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
                 hubble = 0.6711,
                 nofix=False,verbose=False,retflag=False):
     hosts = hcat.get_hosts()
-    mostpartid = hosts.index[np.array(hosts['total_npart']).argmax()]
-    mostpart = np.max(hosts['total_npart'])
+    mostpartid = hosts.index[np.array(hosts['num_cp']).argmax()]
+    mostpart = np.max(hosts['num_cp'])
     mostpos = hosts.ix[mostpartid][['posX','posY','posZ']]
     badsubfflag = False
 
@@ -46,7 +46,7 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
     print "     fixing %i... mostpart (id %i): %i ratiodiff %3.2f, parentmass %3.2e" % (parenthid,mostpartid,mostpart,np.abs(zoommass/parentmass - 1),parentmass/hcat.h0)
     idlist = []; npartlist = []
     while len(idlist) <= 0:
-        largestids = hosts.index[np.argsort(np.array(hosts['total_npart']))[-checknum:]] #sorts ascending
+        largestids = hosts.index[np.argsort(np.array(hosts['num_cp']))[-checknum:]] #sorts ascending
         for thisid in largestids:
             thisratio = np.abs(hosts.ix[thisid]['mvir']/parentmass-1)
             #print "         %i %3.2f" % (thisid,thisratio)
@@ -122,6 +122,7 @@ if __name__=="__main__":
     for hpath in hlist:
         parenthid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
+
         if not options.force: #skip if already in index
             key = haloutils.hidstr(parenthid)+'_'+ictype+'_'+str(lx)+'_'+str(nv)
             if key in existinglines:

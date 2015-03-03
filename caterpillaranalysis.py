@@ -516,6 +516,8 @@ class ProfilePlugin(PluginBase):
         self.xlog = True; self.ylog = True
         self.autofigname = 'rhor2'
     def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
         snap = 255
         rarr = self.get_rarr()
         rscat = haloutils.load_rscat(hpath,snap)
@@ -676,6 +678,8 @@ class SubProfilePlugin(ProfilePlugin):
         if out.shape[0]==1: return out[0]
         return out
     def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
         zoomid = haloutils.load_zoomid(hpath)
         rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         subs = rscat.get_subhalos_within_halo(zoomid) #no subsubhalos

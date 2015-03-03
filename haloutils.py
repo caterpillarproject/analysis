@@ -37,65 +37,42 @@ global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
+
 cid2hid = {1:1631506,
-	   2:264569,
-	   3:1725139,
-	   4:447649,
-	   5:5320,
-	   6:581141,
-	   7:94687,
-	   8:1130025,
-	   9:1387186,
-	  10:581180,
-	  11:1725372,
-	  12:1354437}
+           2:264569,
+           3:1725139,
+           4:447649,
+           5:5320,
+           6:581141,
+           7:94687,
+           8:1130025,
+           9:1387186,
+           10:581180,
+           11:1725372,
+           12:1354437,
+           13:1599988,
+           14:796175,
+           15:388476,
+           16:918636,
+           17:1079897,
+           18:1327666,
+           19:94638,
+           20:1725272,
+           21:1195448,
+           22:95289,
+           23:1232164,
+           24:1422331,
+           25:196589,
+           26:1268839}
 
-hid2name = {1631506: 1,
-            264569:  2,
-            1725139: 3,
-            447649:  4,
-            5320:    5,
-            581141:  6,
-            94687:   7,
-            1130025: 8,
-            1387186: 9,
-            581180:  10,
-            1725372: 11,
-            1354437: 12}
+hid2name = {}
+for k,v in cid2hid.items():
+    hid2name[k] = str(v)
 
-#hid2name = {1631506: "Mnemosyne",
-#            264569:  "Tethys",
-#            1725139: "Theia",
-#            447649:  "Phoebe",
-#            5320:    "Rhea",
-#            581141:  "Themis",
-#            94687:   "Oceanus",
-#            1130025: "Hyperion",
-#            1387186: "Coeus",
-#            581180:  "Cronus",
-#            1725372: "Crius",
-#            1354437: "Iapetus"}
-
-hid2sname = {1631506: "Mnemo",
-             264569:  "Teths",
-             1725139: "Theia",
-             447649:  "Phoeb",
-             5320:    "Rhea",
-             581141:  "Thems",
-             94687:   "Ocean",
-             1130025: "Hyper",
-             1387186: "Coeus",
-             581180:  "Crons",
-             1725372: "Crius",
-             1354437: "Iapet"}
 def hid_name(hid):
     return hid2name[hidint(hid)]
-def hid_sname(hid):
-    return hid2sname[hidint(hid)]
 def hpath_name(hpath):
     return hid_name(get_parent_hid(hpath))
-def hpath_sname(hpath):
-    return hid_sname(get_parent_hid(hpath))
 
 def hidint(hid):
     """ converts halo ID to int """
@@ -216,13 +193,15 @@ def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=Fal
     lastsnap = numsnaps - 1; snapstr = str(lastsnap)
     return check_rockstar_exists(outpath,lastsnap)
 
-def check_mergertree_exists(outpath,autoconvert=False):
-    ascii_exists = os.path.exists(outpath+'/halos/trees/tree_0_0_0.dat')
-    binary_exists = os.path.exists(outpath+'/halos/trees/tree.bin')
+def check_mergertree_exists(outpath,autoconvert=False,boundbin=True):
+    if boundbin: halodir = 'halos_bound'
+    else: halodir = 'halos'
+    ascii_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree_0_0_0.dat')
+    binary_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree.bin')
     if autoconvert and ascii_exists and not binary_exists:
         print "---check_mergertree_exists: Automatically converting ascii to binary"
-        MTC.convertmt(outpath+'/halos/trees',version=4)
-        binary_exists = os.path.exists(outpath+'/halos/trees/tree.bin')
+        MTC.convertmt(outpath+'/'+halodir+'/trees',version=4)
+        binary_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree.bin')
     return ascii_exists and binary_exists
 
 def check_is_sorted(outpath,snap=0,hdf5=True):
@@ -414,9 +393,9 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
 def load_rsboundindex(hpath,snap):
     return RDR.load_rsboundindex(hpath,snap)
 
-def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
+def load_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
-def load_zoom_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
+def load_zoom_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)
     
 def load_pmtc(hpath,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
