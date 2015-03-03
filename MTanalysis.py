@@ -17,7 +17,6 @@ import os, subprocess
 # put old functions in bottom of pile.
 # currently used functions on top, with big space.
 
-
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
     tmp = dist > boxsize/2.0
@@ -121,7 +120,6 @@ def getSubTree(mtc,rsid, hostrow=0):
 
 
 
-
 # for tagging particles
 class TagExtantPlugin(PluginBase):
     def __init__(self):
@@ -134,6 +132,7 @@ class TagExtantPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
         self.min_mass = 10**7.776
+        self.OUTPUTFOLDERNAME=analysisTag
 
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
@@ -242,6 +241,7 @@ class TagDestroyedPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging.
         self.min_mass = 10**7.776
+        self.OUTPUTFOLDERNAME=analysisTag
         # corresponds to 10**7.776 Msun
 
     def _analyze(self,hpath):
@@ -410,6 +410,7 @@ class SMFPlugin(PluginBase):
         self.n_ylabel = self.ylabel
         self.xlog = True; self.ylog = True
         self.autofigname = 'SMF'
+        self.OUTPUTFOLDERNAME=analysisTag
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
@@ -481,6 +482,7 @@ class TagMass(PluginBase):
         self.xlog= True; self.ylog = True
         self.xlabel='' ; self.ylabel=r''
         self.autofigname=''
+        self.OUTPUTFOLDERNAME=analysisTag
 
     def _analyze(self,hpath):
         # RetagExtant
@@ -543,6 +545,7 @@ class StellarDensProfile(PluginBase):
         self.xlog= True; self.ylog = True
         self.xlabel='r [kpc]' ; self.ylabel=r'$\rho \ [M_\odot/ kpc^3]$'
         self.autofigname='Stellar_Dens_Profile'
+        self.OUTPUTFOLDERNAME=analysisTag
 
     def _analyze(self,hpath):
         print 'SDP analyze'
@@ -649,6 +652,7 @@ class ExtantDataPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
         self.min_mass = 10**7.776
+        self.OUTPUTFOLDERNAME=analysisTag
 
     def _analyze(self,hpath):
         start=0
