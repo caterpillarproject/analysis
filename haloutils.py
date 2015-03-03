@@ -414,7 +414,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
 def load_rsboundindex(hpath,snap):
     return RDR.load_rsboundindex(hpath,snap)
 
-def load_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
+def load_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 def load_zoom_mtc(hpath,verbose=True,halodir='halos',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)

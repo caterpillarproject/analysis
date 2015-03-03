@@ -13,14 +13,9 @@ import os, subprocess
 # '/bigbang/data/AnnaGroup/caterpillar/halos/H1130025/H1130025_EB_Z127_P7_LN7_LX14_O4_NV4/halos'
 #then the data is stored in path/analysis/self.filename  where self.filename is specified in the __init__ function of the plugin.
 
-
-# problems - automatic analysis failed...
-# I should not get this error! 
-
-# its in the read function
-# autocalc is set to true.
-# fails on self._read(hpath) in function read.
-# this is becauses its trying to read lx=11,12,13 also.
+# re-do tagging based on Alex's new rockstar.
+# put old functions in bottom of pile.
+# currently used functions on top, with big space.
 
 
 def distance(posA, posB,boxsize=100.):
@@ -126,99 +121,6 @@ def getSubTree(mtc,rsid, hostrow=0):
 
 
 
-# for just getting data
-class ExtantDataPlugin(PluginBase):
-    def __init__(self):
-        super(ExtantDataPlugin,self).__init__()
-        self.filename='ExtantDataOnly.dat'
-        self.xmin=0;     self.xmax=256
-        self.ymin=10**8; self.ymax=5*10**11
-        self.xlog= False; self.ylog = True
-        self.xlabel='' ; self.ylabel='' 
-        self.autofigname='MergerHistory'
-        self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
-        self.min_mass = 10**7.776
-
-    def _analyze(self,hpath):
-        start=0
-        if not haloutils.check_last_rockstar_exists(hpath):
-            raise IOError("No rockstar")
-        # copy tagExtant code here
-        start_time = time.time()
-        snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
-        hostID1 = int(cat['id'][0:1])
-        hostID = haloutils.load_zoomid(hpath)
-        if hostID != hostID1:
-            print 'host IDs do not match!!'
-        hosthalo = cat.ix[hostID]
-        subs = cat.get_subhalos_within_halo(hostID)
-        print np.sum(subs['vmax']>30), 'number of subs with vmax >30 at z=0 in cat'
-        otherdata=[]
-        print 'loading mtc'
-        
-        sys.stdout.flush()
-        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
-        print 'loaded mtc'
-        sys.stdout.flush()
-        host = mtc.Trees[0]
-        host_mb = host.getMainBranch(0)
-        
-        good = 0; start_pos=0; toosmall=0; sub_rank=start-1
-        for subRSID in np.array(subs['id'])[0:250]:
-            sub_rank+=1
-            sub = getSubTree(mtc,subRSID)
-            if sub==None:
-                print sub_rank, 'subhalo not found in MTCatalogue. Mass: %.4e' %cat.ix[subRSID]['mvir'], 'Vmax: %.4e' %cat.ix[subRSID]['vmax'], 'Time = ', (time.time()-start_time)/60., 'minutes'
-                sys.stdout.flush()
-                continue
-            sub_mb = sub.getMainBranch(0)
-            if sub_mb == None:
-                print 'subhalo', sub_rank, 'is bad in MT. Skipping it', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
-                sys.stdout.flush()
-                continue # skip to next subhalo
-            peakmass = np.max(sub_mb['mvir'])
-            peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
-            peakvmax = np.max(sub_mb['vmax'])
-            peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
-
-            #print sub_rank, 'peakvmax', peakvmax, 'vmax', sub_mb['vmax'][0]
-            if peakmass/cat.h0 < self.min_mass:  #/cat.particle_mass < self.min_particles:
-                print sub_rank, 'subhalo too small', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
-                sys.stdout.flush()
-                toosmall+=1
-                continue
-            iLoc, iSnap = getInfall(sub_mb, host_mb)
-            if iLoc==None:
-                print 'subhalo', sub_rank, 'infall could not be found', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
-                continue
-            iMass = sub_mb['mvir'][iLoc]
-            iScale = sub_mb['scale'][iLoc]
-            iRSID = sub_mb['origid'][iLoc]
-                        
-            otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,peakmass,iMass,peakvmax,peakvmax_snap, sub_mb['mvir'][0],sub_mb['vmax'][0],iSnap,peaksnap]
-            #print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
-            sys.stdout.flush()
-            good+=1
-        g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
-        np.array(otherdata).tofile(g)
-        g.close()
-        print good, 'halos good out of', len(subs)
-        print toosmall, 'num halos too small'
-
-    def _read(self,hpath):
-        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        dtype = [('sub_rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('mvir',"float64"),('vmax',"float64"), ('isnap',"float64"),('peaksnap',"float64")]
-        holder = np.ndarray( (len(data)/11,), dtype=dtype )
-        data2 = data.reshape(len(data)/11,11)
-        for i in range(data2.shape[0]):
-            holder[i]=data2[i]
-        return holder
-
-
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
-        return
-
 
 # for tagging particles
 class TagExtantPlugin(PluginBase):
@@ -293,8 +195,10 @@ class TagExtantPlugin(PluginBase):
             iRSID = sub_mb['origid'][iLoc]
             iSub = iCat.ix[iRSID] 
             iPids = iCat.get_all_particles_from_halo(iRSID)
-            iPids = np.sort(iPids)
-            star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
+            # iPids here are in bounded order
+            #iPids = np.sort(iPids)
+            #star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
+            star_pids = iPids[0:int(np.round(len(iPids)*.1))]
             print sub_rank, len(star_pids), 'num stars tagged'
             allstars=np.r_[allstars,star_pids]
             otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,start_pos,len(star_pids),peakmass,iMass,peakvmax,peakvmax_snap, sub_mb['mvir'][0],sub_mb['vmax'][0],iSnap,peaksnap]
@@ -393,9 +297,9 @@ class TagDestroyedPlugin(PluginBase):
                 iRSID = sub_mb['origid'][iLoc]
                 iSub = iCat.ix[iRSID]
                 iPids = iCat.get_all_particles_from_halo(iRSID)
-                iPids = np.sort(iPids)
-            
-                star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
+                #iPids = np.sort(iPids)
+                #star_pids = TagParticles(iSub,iSnap,iPids,iCat,iScale,iMass,snap_z0,hpath)
+                star_pids = iPids[0:int(np.round(len(iPids)*.1))]
                 allstars=np.r_[allstars,star_pids]
                 otherdata=np.r_[otherdata,j,sub_mb['origid'][0],iRSID,start_pos,len(star_pids),peakmass,iMass,peakvmax,peakvmax_snap,iSnap,peaksnap,i]
                 start_pos+=len(star_pids)
@@ -715,3 +619,113 @@ def get_stars_not_in_subs(hpath):
     ids = ids[~insubs]
     mass = mass[~insubs]
     return ids, mass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# for just getting data
+class ExtantDataPlugin(PluginBase):
+    def __init__(self):
+        super(ExtantDataPlugin,self).__init__()
+        self.filename='ExtantDataOnly.dat'
+        self.xmin=0;     self.xmax=256
+        self.ymin=10**8; self.ymax=5*10**11
+        self.xlog= False; self.ylog = True
+        self.xlabel='' ; self.ylabel='' 
+        self.autofigname='MergerHistory'
+        self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
+        self.min_mass = 10**7.776
+
+    def _analyze(self,hpath):
+        start=0
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
+        # copy tagExtant code here
+        start_time = time.time()
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0)
+        hostID1 = int(cat['id'][0:1])
+        hostID = haloutils.load_zoomid(hpath)
+        if hostID != hostID1:
+            print 'host IDs do not match!!'
+        hosthalo = cat.ix[hostID]
+        subs = cat.get_subhalos_within_halo(hostID)
+        print np.sum(subs['vmax']>30), 'number of subs with vmax >30 at z=0 in cat'
+        otherdata=[]
+        print 'loading mtc'
+        
+        sys.stdout.flush()
+        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
+        print 'loaded mtc'
+        sys.stdout.flush()
+        host = mtc.Trees[0]
+        host_mb = host.getMainBranch(0)
+        
+        good = 0; start_pos=0; toosmall=0; sub_rank=start-1
+        for subRSID in np.array(subs['id'])[0:250]:
+            sub_rank+=1
+            sub = getSubTree(mtc,subRSID)
+            if sub==None:
+                print sub_rank, 'subhalo not found in MTCatalogue. Mass: %.4e' %cat.ix[subRSID]['mvir'], 'Vmax: %.4e' %cat.ix[subRSID]['vmax'], 'Time = ', (time.time()-start_time)/60., 'minutes'
+                sys.stdout.flush()
+                continue
+            sub_mb = sub.getMainBranch(0)
+            if sub_mb == None:
+                print 'subhalo', sub_rank, 'is bad in MT. Skipping it', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                sys.stdout.flush()
+                continue # skip to next subhalo
+            peakmass = np.max(sub_mb['mvir'])
+            peaksnap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+            peakvmax = np.max(sub_mb['vmax'])
+            peakvmax_snap = sub_mb[np.argmax(sub_mb['vmax'])]['snap']
+
+            #print sub_rank, 'peakvmax', peakvmax, 'vmax', sub_mb['vmax'][0]
+            if peakmass/cat.h0 < self.min_mass:  #/cat.particle_mass < self.min_particles:
+                print sub_rank, 'subhalo too small', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                sys.stdout.flush()
+                toosmall+=1
+                continue
+            iLoc, iSnap = getInfall(sub_mb, host_mb)
+            if iLoc==None:
+                print 'subhalo', sub_rank, 'infall could not be found', 'Vmax: %.4e' %cat.ix[subRSID]['vmax']
+                continue
+            iMass = sub_mb['mvir'][iLoc]
+            iScale = sub_mb['scale'][iLoc]
+            iRSID = sub_mb['origid'][iLoc]
+                        
+            otherdata=np.r_[otherdata,sub_rank,subRSID,iRSID,peakmass,iMass,peakvmax,peakvmax_snap, sub_mb['mvir'][0],sub_mb['vmax'][0],iSnap,peaksnap]
+            #print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
+            sys.stdout.flush()
+            good+=1
+        g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
+        np.array(otherdata).tofile(g)
+        g.close()
+        print good, 'halos good out of', len(subs)
+        print toosmall, 'num halos too small'
+
+    def _read(self,hpath):
+        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
+        dtype = [('sub_rank',"float64"),('rsid',"float64"),('iRsid',"float64"),('peakmass',"float64"),('infall_mass',"float64"),('vpeak',"float64"),('vpeak_snap',"float64"),('mvir',"float64"),('vmax',"float64"), ('isnap',"float64"),('peaksnap',"float64")]
+        holder = np.ndarray( (len(data)/11,), dtype=dtype )
+        data2 = data.reshape(len(data)/11,11)
+        for i in range(data2.shape[0]):
+            holder[i]=data2[i]
+        return holder
+
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        return
