@@ -47,7 +47,8 @@ class PluginBase(object):
         self.autofigname=None
     def get_outfname(self,hpath):
         """ Use this function in _analysis to generate the data filename """
-        subprocess.call("mkdir -p "+hpath+'/'+self.OUTPUTFOLDERNAME,shell=True)
+        analysispath = hpath+'/'+self.OUTPUTFOLDERNAME
+        subprocess.call("mkdir -p "+analysispath+"; chgrp annaproj "+analysispath,shell=True)
         return hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename
     def get_filename(self,hpath):
         """ Use this function in _read to obtain the data filename """
