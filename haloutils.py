@@ -336,7 +336,7 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     nvmask = htable['NV']==nv
     maskall = idmask & icmask & lxmask & nvmask
     if np.sum(maskall) == 0:
-        raise ValueError("no such halo in index")
+        raise ValueError("no such halo in index for %s" % (hpath))
     if np.sum(maskall) > 1:
         print "FATAL ERROR: duplicate row in index"
         exit()
