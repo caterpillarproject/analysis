@@ -97,7 +97,8 @@ if __name__=="__main__":
         hlist = haloutils.find_halo_paths(basepath=contampath,
                                           require_rockstar=True,require_subfind=True,
                                           contamsuite=True,onlychecklastsnap=True,
-                                          nrvirlist=nrvirlist,levellist=levellist)
+                                          nrvirlist=nrvirlist,levellist=levellist,
+                                          use_fullbin_rockstar=True)
         outname = contampath+"/contam_zoom_index.txt"
     else:
         hlist = haloutils.find_halo_paths(require_rockstar=True,require_subfind=False,
@@ -131,7 +132,10 @@ if __name__=="__main__":
                 continue
 
         lastsnap = haloutils.get_numsnaps(hpath) - 1
-        hcat = haloutils.load_rscat(hpath,lastsnap)
+        try:
+            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8)
+        except:
+            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=7)
         try:
             scat = haloutils.load_scat(hpath)
         except IOError:

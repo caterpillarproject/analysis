@@ -191,7 +191,7 @@ def check_rockstar_exists(outpath,snap,boundbin=True,fullbin=False,particles=Fal
 def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=False):
     numsnaps = get_numsnaps(outpath)
     lastsnap = numsnaps - 1; snapstr = str(lastsnap)
-    return check_rockstar_exists(outpath,lastsnap)
+    return check_rockstar_exists(outpath,lastsnap,boundbin=boundbin,fullbin=fullbin,particles=particles)
 
 def check_mergertree_exists(outpath,autoconvert=False,boundbin=True):
     if boundbin: halodir = 'halos_bound'
@@ -252,12 +252,17 @@ def restrict_halopaths(halopathlist,
                        require_subfind=False,
                        require_sorted=False,
                        require_mergertree=False,
-                       autoconvert_mergertree=False):
+                       autoconvert_mergertree=False,
+                       use_fullbin_rockstar=False):
     if require_rockstar:
         newhalopathlist = []
         for outpath in halopathlist:
-            if check_last_rockstar_exists(outpath,boundbin=True):
-                newhalopathlist.append(outpath) 
+            if use_fullbin_rockstar:
+                if check_last_rockstar_exists(outpath,fullbin=True,boundbin=False):
+                    newhalopathlist.append(outpath) 
+            else:
+                if check_last_rockstar_exists(outpath,boundbin=True):
+                    newhalopathlist.append(outpath) 
         halopathlist = newhalopathlist
     if require_subfind:
         newhalopathlist = []
@@ -287,7 +292,8 @@ def find_halo_paths(basepath=global_halobase,
                     require_mergertree=False,autoconvert_mergertree=False,
                     require_sorted=False,
                     checkallblocks=False,
-                    onlychecklastsnap=False,verbose=False,hdf5=True):
+                    onlychecklastsnap=False,verbose=False,hdf5=True,
+                    use_fullbin_rockstar=False):
     """ Returns a list of paths to halos that have gadget completed/rsynced
         with the specified nrvirlist/levellist/ictype """
     if verbose:
@@ -321,7 +327,8 @@ def find_halo_paths(basepath=global_halobase,
                                       require_subfind=require_subfind,
                                       require_sorted=require_sorted,
                                       require_mergertree=require_mergertree,
-                                      autoconvert_mergertree=autoconvert_mergertree)
+                                      autoconvert_mergertree=autoconvert_mergertree,
+                                      use_fullbin_rockstar=use_fullbin_rockstar)
     return halopathlist
 
 def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
@@ -368,7 +375,11 @@ def load_scat(hpath):
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None):
+def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None):
+    if version != None:
+        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        return rcat
+
     try:
         rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
     except IOError as e:
@@ -380,6 +391,8 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
                 rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
                 testlist.append(True)
             except KeyError:
+                testlist.append(False)
+            except IOError:
                 testlist.append(False)
         if sum(testlist) != 1:
             raise RuntimeError("Can't determine what version to use")
