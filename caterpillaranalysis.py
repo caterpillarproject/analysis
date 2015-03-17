@@ -106,7 +106,11 @@ class PluginBase(object):
             recalc = (thishid in recalcids)
 
         if not recalc and self.file_exists(hpath):
-            return self._read(hpath)
+            try:
+                return self._read(hpath)
+            except:
+                print "READ ERROR: {0}".format(hpath)
+                return None
         elif autocalc:
             start = time.time()
             print "Automatically analyzing "+haloutils.get_foldername(hpath)+"..."+self.filename
@@ -120,7 +124,7 @@ class PluginBase(object):
                     print sys.exc_info()
                     return None
             print "Done! %.1f sec" % (time.time()-start)
-            return self._read(hpath)
+            return self._read(hpath) # if it crashes here, you have an error in your plugin code
         else:
             return None
 
@@ -141,7 +145,7 @@ class PluginBase(object):
         @param usehaloname: if true, label with the halo's name instead of ID number
         @param **kwargs: keyword arguments (intended for plotting parameters)
         """
-        if usehaloname: label='gods'
+        if usehaloname: label='catnum'
         else: label=None
         if formatonly: #TODO this isn't very elegant
             self.format_plot(ax,normtohost=normtohost)
@@ -189,8 +193,8 @@ class PluginBase(object):
     def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
         if label==None: 
             label = r'$\rm{'+haloutils.hidstr(haloutils.get_parent_hid(hpath))+r'}$'
-        elif label=='gods':
-            label = haloutils.hpath_sname(hpath)
+        elif label=='catnum':
+            label = r'$\rm{'+haloutils.hpath_name(hpath)+r'}$'
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
         if xlog: 
             logxoff = np.log10(xmax/xmin)*dx

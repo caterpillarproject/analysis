@@ -5,28 +5,24 @@ import seaborn.apionly as sns
 
 def get_haloidlist(sheet):
     if sheet==1:
-        haloidlist = [1631506,264569,  1725139,
-                      447649, 5320,    581141,
-                      94687,  1130025, 1387186,
-                      581180, 1725372, 1354437]
+        start = 1; stop = 13
+        #haloidlist = [1631506,264569,  1725139,
+        #              447649, 5320,    581141,
+        #              94687,  1130025, 1387186,
+        #              581180, 1725372, 1354437]
     elif sheet==2:
-        haloidlist = [1599988,796175,  388476,
-                      918636, 1079897, 1327666,
-                      94638,  1725272, 1195448,
-                      95289,  1232164, 1422331]
-    elif sheet==3:
-        haloidlist = [196589,  1268839, 1268839,
-                      1268839, 1268839, 1268839,
-                      1268839, 1268839, 1268839,
-                      1268839, 1268839, 1268839]
-        
-    #elif sheet==2:
-    #    haloidlist = [1599902, 1195448, 95289, 
-    #                  1232164, 1422331, 768257, 
-    #                  649861, 1725272, 196589,
-    #                  1268839. 1268839, 1268839]
+        start = 13; stop = 25
+        #haloidlist = [1725272, 1195448, 1599988,
+        #              796175,  388476,  1079897, 
+        #              94638,   95289,   1232164,
+        #              1422331, 196589,  1268839]
     else:
-        exit("Invalid sheet number")
+        raise ValueError("Sheet = {0} not valid".format(sheet))
+        
+    haloidlist = []
+    for i in range(start,stop):
+        haloidlist.append(haloutils.cid2hid[i])
+
     assert len(haloidlist) == 12
     return haloidlist
 
