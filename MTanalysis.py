@@ -132,7 +132,6 @@ class TagExtantPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
         self.min_mass = 10**7.776
-        self.OUTPUTFOLDERNAME='analysisTag'
 
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
@@ -142,7 +141,7 @@ class TagExtantPlugin(PluginBase):
 
         start_time = time.time()
         snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
         hostID1 = int(cat['id'][0:1])
         hostID = haloutils.load_zoomid(hpath)
         if hostID != hostID1:
@@ -189,7 +188,7 @@ class TagExtantPlugin(PluginBase):
             if iLoc==None:
                 continue
             iMass = sub_mb['mvir'][iLoc]
-            iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None)
+            iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None,rmaxcut=False)
             iScale = sub_mb['scale'][iLoc]
             iRSID = sub_mb['origid'][iLoc]
             iSub = iCat.ix[iRSID] 
@@ -241,7 +240,6 @@ class TagDestroyedPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging.
         self.min_mass = 10**7.776
-        self.OUTPUTFOLDERNAME='analysisTag'
         # corresponds to 10**7.776 Msun
 
     def _analyze(self,hpath):
@@ -251,7 +249,7 @@ class TagDestroyedPlugin(PluginBase):
         start = 0
         start_time = time.time()
         snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
         hostID1 = int(cat['id'][0:1])
         hostID = haloutils.load_zoomid(hpath)
         if hostID != hostID1:
@@ -292,7 +290,7 @@ class TagDestroyedPlugin(PluginBase):
                     continue
                 
                 iMass = sub_mb['mvir'][iLoc]
-                iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None)
+                iCat = haloutils.load_rscat(hpath,iSnap,unboundfrac=None,rmaxcut=False)
                 iScale = iCat.scale
                 iRSID = sub_mb['origid'][iLoc]
                 iSub = iCat.ix[iRSID]
@@ -410,12 +408,12 @@ class SMFPlugin(PluginBase):
         self.n_ylabel = self.ylabel
         self.xlog = True; self.ylog = True
         self.autofigname = 'SMF'
-        self.OUTPUTFOLDERNAME='analysisTag'
+    
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_rscat(hpath,numsnaps-1,rmaxcut=False)
         zoomid = haloutils.load_zoomid(hpath)
         
         #subs = rscat.get_all_subhalos_within_halo(zoomid)
@@ -482,12 +480,11 @@ class TagMass(PluginBase):
         self.xlog= True; self.ylog = True
         self.xlabel='' ; self.ylabel=r''
         self.autofigname=''
-        self.OUTPUTFOLDERNAME='analysisTag'
 
     def _analyze(self,hpath):
         # RetagExtant
         snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
         TagExtant = TagExtantPlugin()
         stars, data = TagExtant.read(hpath)     
         fracs = getFraction(data['infall_mass']/cat.h0, getScale( np.array(data['isnap'],dtype=np.int32)) )
@@ -545,7 +542,6 @@ class StellarDensProfile(PluginBase):
         self.xlog= True; self.ylog = True
         self.xlabel='r [kpc]' ; self.ylabel=r'$\rho \ [M_\odot/ kpc^3]$'
         self.autofigname='Stellar_Dens_Profile'
-        self.OUTPUTFOLDERNAME='analysisTag'
 
     def _analyze(self,hpath):
         print 'SDP analyze'
@@ -559,7 +555,7 @@ class StellarDensProfile(PluginBase):
         mass = mass[argsort]
         
         snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
         hostID = haloutils.load_zoomid(hpath)
         hosthalo = cat.ix[hostID]
         hostpos = np.array(hosthalo[['posX','posY','posZ']])
@@ -608,7 +604,7 @@ def get_stars_not_in_subs(hpath):
     mass = mass[argsort]
 
     snap_z0 = haloutils.get_numsnaps(hpath)-1
-    cat = haloutils.load_rscat(hpath,snap_z0)
+    cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
     hostID = haloutils.load_zoomid(hpath)
     subs = cat.get_all_subhalos_from_halo(hostID)
     mask = subs['mvir'] > 1e8
@@ -628,18 +624,6 @@ def get_stars_not_in_subs(hpath):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # for just getting data
 class ExtantDataPlugin(PluginBase):
     def __init__(self):
@@ -652,7 +636,6 @@ class ExtantDataPlugin(PluginBase):
         self.autofigname='MergerHistory'
         self.min_particles = 2000 #minimum particles per halo at peak for tagging. Correspons to mvir = 7.776 Msun.
         self.min_mass = 10**7.776
-        self.OUTPUTFOLDERNAME='analysisTag'
 
     def _analyze(self,hpath):
         start=0
@@ -661,7 +644,7 @@ class ExtantDataPlugin(PluginBase):
         # copy tagExtant code here
         start_time = time.time()
         snap_z0 = haloutils.get_numsnaps(hpath)-1
-        cat = haloutils.load_rscat(hpath,snap_z0)
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
         hostID1 = int(cat['id'][0:1])
         hostID = haloutils.load_zoomid(hpath)
         if hostID != hostID1:
