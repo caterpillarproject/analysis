@@ -6,6 +6,7 @@ if 'compute-0-' in platform.node():
 import numpy as np
 import asciitable
 import pickle
+import pandas as pd
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
@@ -357,7 +358,21 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
             print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
     return row
 def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
-    row = _load_index_row(hpath,filename=filename)
+    try:
+        row = _load_index_row(hpath,filename=filename)
+    except ValueError:
+        if check_last_rockstar_exists(hpath):
+            print "WARNING: halo is not in index, using halo with most particles (npart)"
+            rscat = load_rscat(hpath,get_numsnaps(hpath),rmaxcut=False)
+            # For pandas < 0.13.0, np.argmax returns the array index rather than the pandas index
+            pdversion = tuple([int(x) for x in pd.version.version.split('.')])
+            badversion = (0,13,0)
+            bestid = np.argmax(rscat['npart'])
+            if pdversion < badversion:
+                bestid = rscat.data.index[bestid]
+            return bestid
+        else:
+            raise ValueError("No rockstar catalogue for {0}!".format(get_foldername(hpath)))
     return row['zoomid'][0]
     
 def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
@@ -379,33 +394,48 @@ def load_scat(hpath):
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',255)
 
-def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None):
+def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None,rmaxcut=True):
     if version != None:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
-        return rcat
+        rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+    else:
+        try:
+            rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        except IOError as e: #try to identify a unique valid rockstar version
+            print e
+            versionlist = [2,3,4,5,6,7,8,9]
+            testlist = []
+            for version in versionlist:
+                try:
+                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+                    testlist.append(True)
+                except KeyError:
+                    testlist.append(False)
+                except IOError:
+                    testlist.append(False)
+            if sum(testlist) != 1:
+                raise RuntimeError("Can't determine what version to use")
+            else:
+                version = np.array(versionlist)[np.array(testlist)][0]
+                if verbose:
+                    print "Using version "+str(version)+" for "+get_foldername(hpath)
+                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
 
-    try:
-        rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
-    except IOError as e:
-        print e
-        versionlist = [2,3,4,5,6,7,8,9]
-        testlist = []
-        for version in versionlist:
-            try:
-                rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
-                testlist.append(True)
-            except KeyError:
-                testlist.append(False)
-            except IOError:
-                testlist.append(False)
-        if sum(testlist) != 1:
-            raise RuntimeError("Can't determine what version to use")
-        else:
-            version = np.array(versionlist)[np.array(testlist)][0]
-            if verbose:
-                print "Using version "+str(version)+" for "+get_foldername(hpath)
-            rcat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
-    return rcat
+    if rmaxcut:
+        zoomid = load_zoomid(hpath)
+        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+        spos = rscat[['posX','posY','posZ']]
+        dr = np.sqrt(np.sum((spos-hpos)**2,1))
+        rscat['dr'] = dr*1000.
+        badii = rscat['dr']<rscat['rvmax']
+        badii[zoomid] = False
+        goodii = ~badii
+        rscat.badhalos = rscat.data.ix[badii]
+        rscat.numbad = len(rscat.badhalos)
+        rscat.data = rscat.data.ix[goodii]
+        rscat.ix = rscat.data.ix
+        rscat.index = rscat.data.index
+        rscat.num_halos = len(rscat.data)
+    return rscat
 
 def load_rsboundindex(hpath,snap):
     return RDR.load_rsboundindex(hpath,snap)
