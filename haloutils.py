@@ -413,7 +413,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
                 except IOError:
                     testlist.append(False)
             if sum(testlist) != 1:
-                raise RuntimeError("Can't determine what version to use")
+                raise RuntimeError("Can't determine what version to use {0}".format(get_foldername(hpath)))
             else:
                 version = np.array(versionlist)[np.array(testlist)][0]
                 if verbose:

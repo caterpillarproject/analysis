@@ -132,10 +132,14 @@ if __name__=="__main__":
                 continue
 
         lastsnap = haloutils.get_numsnaps(hpath) - 1
-        try:
-            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8)
-        except:
-            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=7)
+        if options.contam != 0:
+            try:
+                hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8,rmaxcut=False)
+            except:
+                hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=7,rmaxcut=False)
+        else:
+            hcat = haloutils.load_rscat(hpath,lastsnap,rmaxcut=False)
+
         try:
             scat = haloutils.load_scat(hpath)
         except IOError:
