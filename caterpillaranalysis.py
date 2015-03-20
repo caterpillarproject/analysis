@@ -48,7 +48,8 @@ class PluginBase(object):
         self.autofigname=None
     def get_outfname(self,hpath):
         """ Use this function in _analysis to generate the data filename """
-        subprocess.call("mkdir -p "+hpath+'/'+self.OUTPUTFOLDERNAME,shell=True)
+        analysispath = hpath+'/'+self.OUTPUTFOLDERNAME
+        subprocess.call("mkdir -p "+analysispath+"; chgrp annaproj "+analysispath,shell=True)
         return hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename
     def get_filename(self,hpath):
         """ Use this function in _read to obtain the data filename """
@@ -106,7 +107,11 @@ class PluginBase(object):
             recalc = (thishid in recalcids)
 
         if not recalc and self.file_exists(hpath):
-            return self._read(hpath)
+            try:
+                return self._read(hpath)
+            except:
+                print "READ ERROR: {0}".format(hpath)
+                return None
         elif autocalc:
             start = time.time()
             print "Automatically analyzing "+haloutils.get_foldername(hpath)+"..."+self.filename
@@ -120,7 +125,7 @@ class PluginBase(object):
                     print sys.exc_info()
                     return None
             print "Done! %.1f sec" % (time.time()-start)
-            return self._read(hpath)
+            return self._read(hpath) # if it crashes here, you have an error in your plugin code
         else:
             return None
 
@@ -141,7 +146,7 @@ class PluginBase(object):
         @param usehaloname: if true, label with the halo's name instead of ID number
         @param **kwargs: keyword arguments (intended for plotting parameters)
         """
-        if usehaloname: label='gods'
+        if usehaloname: label='catnum'
         else: label=None
         if formatonly: #TODO this isn't very elegant
             self.format_plot(ax,normtohost=normtohost)
@@ -189,8 +194,8 @@ class PluginBase(object):
     def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
         if label==None: 
             label = r'$\rm{'+haloutils.hidstr(haloutils.get_parent_hid(hpath))+r'}$'
-        elif label=='gods':
-            label = haloutils.hpath_sname(hpath)
+        elif label=='catnum':
+            label = r'$\rm{'+haloutils.hpath_name(hpath)+r'}$'
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
         if xlog: 
             logxoff = np.log10(xmax/xmin)*dx
@@ -207,12 +212,6 @@ class PluginBase(object):
         ax.text(xlabel,ylabel,label,color='black',fontsize='medium')
 
     ### Helper methods for analysis
-    def load_bound_rscat_if_exists(self,hpath,snap):
-        try:
-            return haloutils.load_bound_rscat(hpath,snap,**kwargs)
-        except IOError:
-            print "ERROR: %s has no bound calculation" % (haloutils.get_foldername(hpath))
-            return haloutils.load_rscat(hpath,snap,**kwargs)
     def get_rssubs(self,rscat,zoomid):
         if self.allhalos:
             return rscat.get_all_subhalos_within_halo(zoomid,radius=self.radius)
@@ -367,7 +366,7 @@ class NvmaxPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_rscat(hpath,numsnaps-1)
         zoomid = haloutils.load_zoomid(hpath)
         eps = 1000*haloutils.load_soft(hpath)
         
@@ -440,7 +439,7 @@ class SHMFPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         numsnaps = haloutils.get_numsnaps(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,numsnaps-1)
+        rscat = haloutils.load_rscat(hpath,numsnaps-1)
         zoomid = haloutils.load_zoomid(hpath)
         
         subs = self.get_rssubs(rscat,zoomid)
@@ -523,9 +522,11 @@ class ProfilePlugin(PluginBase):
         self.xlog = True; self.ylog = True
         self.autofigname = 'rho'
     def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
         snap = 255
         rarr = self.get_rarr()
-        rscat = haloutils.load_bound_rscat(hpath,snap)
+        rscat = haloutils.load_rscat(hpath,snap)
         haloid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
         zoomid = haloutils.load_zoomid(hpath)
@@ -748,8 +749,10 @@ class SubProfilePlugin(ProfilePlugin):
         if out.shape[0]==1: return out[0]
         return out
     def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         subs = rscat.get_subhalos_within_halo(zoomid) #no subsubhalos
         subs = subs[subs['mgrav']/rscat.h0 > self.mmin]
         subids = np.array(subs['id'])
@@ -847,6 +850,7 @@ class SubVelocityProfilePlugin(SubProfilePlugin):
             ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
 
 class MassAccrPlugin(PluginBase):
+    ## Important note: the results of this are used in load_zoomid for snaps < 255
     def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
         super(MassAccrPlugin,self).__init__()
         self.filename='massaccr.dat'
@@ -865,7 +869,7 @@ class MassAccrPlugin(PluginBase):
         if not haloutils.check_mergertree_exists(hpath,autoconvert=True):
             raise IOError("No Merger Tree")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         mtc = haloutils.load_mtc(hpath,haloids=[zoomid])
         mt = mtc[0]
         mb = mt.getMainBranch()
@@ -882,17 +886,18 @@ class MassAccrPlugin(PluginBase):
         z = mb['posZ'][::-1]
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
+        origid = mb['origid'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
                           'mvir':mvir,'sam_mvir':sammvir,
                           'vmax':vmax,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
                           'spin':spin,'spin_bullock':spinbullock,
-                          'phantom':phantom},
+                          'phantom':phantom,'origid':origid},
                          self.get_outfname(hpath),
                          names=['scale','snap','mvir','sam_mvir','vmax',
                                 'T/|U|','scale_of_last_MM','x','y','z',
-                                'spin','spin_bullock','phantom'])
+                                'spin','spin_bullock','phantom','origid'])
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
@@ -941,7 +946,7 @@ class SubPhaseContourPlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No Rockstar")
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
         hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
         G = 1.326*10**11 # in km^3/s^2/Msun
