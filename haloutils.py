@@ -377,8 +377,8 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     
 def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     row = _load_index_row(hpath,filename=filename)
-    mvir = float(row['mvir']) # physical Msun
-    rvir = float(row['rvir']) # physical kpc
+    mvir = float(row['mgrav']) # physical Msun
+    rvir = float(row['rvir'])  # physical kpc
     vvir = np.sqrt(4.34e-6 * mvir/rvir) # physical km/s
     return mvir,rvir,vvir
 
