@@ -7,6 +7,7 @@ import numpy as np
 import asciitable
 import pickle
 import pandas as pd
+import warnings
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
@@ -100,7 +101,7 @@ def get_numsnaps(outpath):
     if os.path.exists(outpath+'/ExpansionList'):
         return sum(1 for line in open(outpath+'/ExpansionList'))
     else:
-        print "WARNING: "+outpath+"/ExpansionList not found, using default (256)"
+        warnings.warn(outpath+"/ExpansionList not found, using default (256)")
         return 256
 def get_foldername(outpath):
     return os.path.basename(os.path.normpath(outpath))
@@ -357,23 +358,33 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
         if (lx != 14) or (lx==14 and row['badflag']>0):
             print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
     return row
-def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
-    try:
-        row = _load_index_row(hpath,filename=filename)
-    except ValueError:
-        if check_last_rockstar_exists(hpath):
-            print "WARNING: halo is not in index, using halo with most particles (npart)"
-            rscat = load_rscat(hpath,get_numsnaps(hpath),rmaxcut=False)
+def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=255):
+    if snap==(get_numsnaps(hpath)-1):
+        try:
+            row = _load_index_row(hpath,filename=filename)
+        except ValueError:
+            if check_last_rockstar_exists(hpath):
+                print "WARNING: halo is not in index, using halo with most particles (npart)"
+                rscat = load_rscat(hpath,get_numsnaps(hpath),rmaxcut=False)
             # For pandas < 0.13.0, np.argmax returns the array index rather than the pandas index
-            pdversion = tuple([int(x) for x in pd.version.version.split('.')])
-            badversion = (0,13,0)
-            bestid = np.argmax(rscat['npart'])
-            if pdversion < badversion:
-                bestid = rscat.data.index[bestid]
-            return bestid
-        else:
-            raise ValueError("No rockstar catalogue for {0}!".format(get_foldername(hpath)))
-    return row['zoomid'][0]
+                pdversion = tuple([int(x) for x in pd.version.version.split('.')])
+                badversion = (0,13,0)
+                bestid = np.argmax(rscat['npart'])
+                if pdversion < badversion:
+                    bestid = rscat.data.index[bestid]
+                return bestid
+            else:
+                raise ValueError("No rockstar catalogue for {0}!".format(get_foldername(hpath)))
+        return row['zoomid'][0]
+    else:
+        from caterpillaranalysis import MassAccrPlugin
+        plug = MassAccrPlugin()
+        tab = plug.read(hpath)
+        snaplist = tab['snap']
+        ii = snaplist == snap
+        if np.sum(ii) != 1: 
+            raise ValueError("{0} snap {1} does not have a valid main branch rsid ({2} indices match snap)".format(get_foldername(hpath),snap,np.sum(ii)))
+        return tab['origid'][ii][0]
     
 def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
     row = _load_index_row(hpath,filename=filename)
@@ -421,7 +432,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
                     rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
 
     if rmaxcut:
-        zoomid = load_zoomid(hpath)
+        zoomid = load_zoomid(hpath,snap=snap)
         hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
         spos = rscat[['posX','posY','posZ']]
         dr = np.sqrt(np.sum((spos-hpos)**2,1))
