@@ -36,8 +36,8 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
     elif scat == None:
         badsubfflag=True
 
-    parentmass = pcat.ix[parenthid]['mvir']
-    zoommass = hosts.ix[mostpartid]['mvir']
+    parentmass = pcat.ix[parenthid]['mgrav']
+    zoommass = hosts.ix[mostpartid]['mgrav']
     if (np.abs(zoommass/parentmass - 1) <= cutoffratio) or nofix:
         if retflag: return mostpartid,False,badsubfflag
         return mostpartid #this one is probably the right one
@@ -48,7 +48,7 @@ def get_zoom_id(parenthid,hcat,scat,pcat,
     while len(idlist) <= 0:
         largestids = hosts.index[np.argsort(np.array(hosts['num_cp']))[-checknum:]] #sorts ascending
         for thisid in largestids:
-            thisratio = np.abs(hosts.ix[thisid]['mvir']/parentmass-1)
+            thisratio = np.abs(hosts.ix[thisid]['mgrav']/parentmass-1)
             #print "         %i %3.2f" % (thisid,thisratio)
             if thisratio <= cutoffratio:
                 thispart = hcat.get_all_num_particles_from_halo(thisid) #np.array(hosts.ix[thisid]['npart'])
@@ -132,16 +132,20 @@ if __name__=="__main__":
                 continue
 
         lastsnap = haloutils.get_numsnaps(hpath) - 1
-        try:
-            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8)
-        except:
-            hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=7)
+        if options.contam != 0:
+            try:
+                hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8,rmaxcut=False)
+            except:
+                hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=7,rmaxcut=False)
+        else:
+            hcat = haloutils.load_rscat(hpath,lastsnap,rmaxcut=False)
+
         try:
             scat = haloutils.load_scat(hpath)
         except IOError:
             scat = None
         zoomid,badhaloflag,badsubfflag = get_zoom_id(parenthid,hcat,scat,pcat,verbose=True,retflag=True,nofix=options.nofix)
-        zoommass = hcat.ix[zoomid]['mvir']/hcat.h0
+        zoommass = hcat.ix[zoomid]['mgrav']/hcat.h0
         zoomrvir = hcat.ix[zoomid]['rvir']/hcat.h0
         zoomx,zoomy,zoomz = hcat.ix[zoomid][['posX','posY','posZ']]
         hpos = np.array([zoomx,zoomy,zoomz])
@@ -179,15 +183,15 @@ if __name__=="__main__":
                              Writer=asciitable.FixedWidth,
                              names=['parentid','ictype','LX','NV','zoomid',
                                     'icsize','min2','min3','min4','min5',
-                                    'x','y','z','mvir','rvir','badflag','badsubf'],
+                                    'x','y','z','mgrav','rvir','badflag','badsubf'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                      'mvir':'%4.3e','rvir': '%0.1f',
+                                      'mgrav':'%4.3e','rvir': '%0.1f',
                                       'min2':'%0.6f','min3':'%0.6f','min4':'%0.6f','min5':'%0.6f',})
         else:
             asciitable.write(hindex,outname,
                              Writer=asciitable.FixedWidth,
                              names=['parentid','ictype','LX','NV','zoomid','min2',
-                                    'x','y','z','mvir','rvir',
+                                    'x','y','z','mgrav','rvir',
                                     'badflag','badsubf','allsnaps'],
                              formats={'x': '%0.3f','y': '%0.3f','z': '%0.3f',
-                                      'mvir':'%4.3e','rvir': '%0.1f','min2':'%0.6f'})
+                                      'mgrav':'%4.3e','rvir': '%0.1f','min2':'%0.6f'})

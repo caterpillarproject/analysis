@@ -784,6 +784,7 @@ class SubVelocityProfilePlugin(SubProfilePlugin):
             ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, lw=2, alpha=alpha, **kwargs)
 
 class MassAccrPlugin(PluginBase):
+    ## Important note: the results of this are used in load_zoomid for snaps < 255
     def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
         super(MassAccrPlugin,self).__init__()
         self.filename='massaccr.dat'
@@ -819,17 +820,18 @@ class MassAccrPlugin(PluginBase):
         z = mb['posZ'][::-1]
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
+        origid = mb['origid'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
                           'mvir':mvir,'sam_mvir':sammvir,
                           'vmax':vmax,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
                           'spin':spin,'spin_bullock':spinbullock,
-                          'phantom':phantom},
+                          'phantom':phantom,'origid':origid},
                          self.get_outfname(hpath),
                          names=['scale','snap','mvir','sam_mvir','vmax',
                                 'T/|U|','scale_of_last_MM','x','y','z',
-                                'spin','spin_bullock','phantom'])
+                                'spin','spin_bullock','phantom','origid'])
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)

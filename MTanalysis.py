@@ -409,7 +409,7 @@ class SMFPlugin(PluginBase):
         self.n_ylabel = self.ylabel
         self.xlog = True; self.ylog = True
         self.autofigname = 'SMF'
-    
+
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
