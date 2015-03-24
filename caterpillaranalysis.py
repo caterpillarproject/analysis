@@ -557,11 +557,8 @@ class ProfilePlugin(PluginBase):
     def get_rarr(self):
         return np.logspace(-5,0,50)
     def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,
-                            calcp03r=True,calcr200=True,retdr=False,usebound=False):
-        if usebound:
-            haloparts = rscat.get_bound_particles_from_halo(rsid)
-        else:
-            haloparts = rscat.get_all_particles_from_halo(rsid)
+                            calcp03r=True,calcr200=True,retdr=False):
+        haloparts = rscat.get_all_particles_from_halo(rsid)
         halopos = np.array(rscat.ix[rsid][['posX','posY','posZ']])
         halorvir = float(rscat.ix[rsid]['rvir']) / header.hubble #kpc
         halomass = rscat.ix[rsid]['mvir']/header.hubble

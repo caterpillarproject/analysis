@@ -19,15 +19,6 @@ if __name__=="__main__":
     firsttwelve = get_haloidlist(1)
     ### Use this section for quick testing scripts 
     if len(args) == 0:
-        #plug = SubhaloRadialSubmassFracPlugin()
-        #convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png',stop_on_error=True)
-        #plug = SubProfileSoftPlugin()
-        #convergeplot(1,plug,whichlx=[14],figfilename='subprofcorrectionLX14_s1.png',stop_on_error=True)
-        plug = TBTFSoftPlugin()
-        #convergeplot(1,plug,whichlx=[14],figfilename='tbtfsoftLX14_s1.png',lw=2,stop_on_error=True)
-        convergeplot(1,plug,whichlx=[13],figfilename='tbtfsoftLX13_s1.png',lw=2,stop_on_error=True)
-        #plug = NvinfallPlugin()
-        #convergeplot(1,plug,whichlx=[13,14],figfilename='NvinfallLX1314_s1.png',stop_on_error=True)
         arg = None
     else:
         assert len(args)==1
@@ -56,8 +47,10 @@ if __name__=="__main__":
         paper_stackplot(14,SHMF,figfilename='stackLX14_normSHMF'+ext,lw=2,normtohost=True)
     if arg == 3:
         Profile    = ProfilePlugin()
+        R2Profile  = R2ProfilePlugin()
         VelProfile = VelocityProfilePlugin()
-        convergeplot(sheet,Profile,figfilename='rhor2LX'+ext,usehaloname=usehaloname,**recalckwargs)
+        convergeplot(sheet,Profile,figfilename='rhoLX'+ext,usehaloname=usehaloname,**recalckwargs)
+        convergeplot(sheet,R2Profile,figfilename='rhor2LX'+ext,usehaloname=usehaloname)
         convergeplot(sheet,VelProfile,figfilename='velprofLX'+ext,usehaloname=usehaloname)
         convergeplot(sheet,VelProfile,figfilename='normvelprofLX'+ext,normtohost=True,usehaloname=usehaloname)
         paper_stackplot(14,VelProfile,figfilename='stackLX14_normvelprof'+ext,normtohost=True)
