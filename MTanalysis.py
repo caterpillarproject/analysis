@@ -506,6 +506,7 @@ class TagMass(PluginBase):
         g.close()
 
         # Now retag destroyed data
+        # THERE IS AN ERROR IN THIS! start_pos not correct after combining files
         TagDestroyed = TagDestroyedPlugin()
         stars, data = TagDestroyed.read(hpath)
         newstars=[];  mper_arr=[]
