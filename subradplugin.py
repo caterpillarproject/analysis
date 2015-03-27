@@ -240,7 +240,8 @@ class SubhaloRadialMassPlugin(ProfilePlugin):
         except IndexError as e:
             print e
             raise RuntimeError("Contamination in halo")
-        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,partpos,header,subparts,halopos,
+        dr = np.sort(self.distance(partpos,halopos))/header.hubble #Mpc
+        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,dr,header,subparts,
                                                      calcp03r=calcp03r,calcr200=calcr200)
         return rarr,mltrarr,subparts #all in physical units
     def _read(self,hpath):

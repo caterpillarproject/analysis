@@ -3,6 +3,7 @@ from caterpillaranalysis import *
 from subradplugin import *
 from caterpillarplot import *
 from tbtfplugin import *
+from subprofileplugin import *
 import pylab as plt
 from optparse import OptionParser
 
@@ -18,8 +19,6 @@ if __name__=="__main__":
     firsttwelve = get_haloidlist(1)
     ### Use this section for quick testing scripts 
     if len(args) == 0:
-        #plug = SubhaloRadialSubmassFracPlugin()
-        #convergeplot(1,plug,figfilename='subradsubmassfracLX_s1.png',stop_on_error=True)
         arg = None
     else:
         assert len(args)==1
@@ -48,8 +47,16 @@ if __name__=="__main__":
         paper_stackplot(14,SHMF,figfilename='stackLX14_normSHMF'+ext,lw=2,normtohost=True)
     if arg == 3:
         Profile    = ProfilePlugin()
+        BProfile   = BoundProfilePlugin()
+        R2Profile  = R2ProfilePlugin()
+        BR2Profile   = BoundR2ProfilePlugin()
         VelProfile = VelocityProfilePlugin()
-        convergeplot(sheet,Profile,figfilename='rhor2LX'+ext,usehaloname=usehaloname,**recalckwargs)
+        convergeplot(sheet,Profile,figfilename='rhoLX'+ext,usehaloname=usehaloname,**recalckwargs)
+        convergeplot(sheet,BProfile,figfilename='brhoLX'+ext,usehaloname=usehaloname)
+        convergeplot(sheet,R2Profile,figfilename='rhor2LX'+ext,usehaloname=usehaloname)
+        convergeplot(sheet,R2Profile,whichlx=[14],figfilename='rhor2LX14'+ext,plotEIN=True,usehaloname=usehaloname)
+        convergeplot(sheet,BR2Profile,figfilename='brhor2LX'+ext,usehaloname=usehaloname)
+        convergeplot(sheet,BR2Profile,whichlx=[14],figfilename='brhor2LX14'+ext,plotEIN=True,usehaloname=usehaloname)
         convergeplot(sheet,VelProfile,figfilename='velprofLX'+ext,usehaloname=usehaloname)
         convergeplot(sheet,VelProfile,figfilename='normvelprofLX'+ext,normtohost=True,usehaloname=usehaloname)
         paper_stackplot(14,VelProfile,figfilename='stackLX14_normvelprof'+ext,normtohost=True)
