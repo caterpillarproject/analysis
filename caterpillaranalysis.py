@@ -514,6 +514,7 @@ class ProfilePlugin(PluginBase):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**0.5,ymax=10**10.5):
         super(ProfilePlugin,self).__init__()
         self.filename='rsprofile.dat'
+        self.useallpart=True
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin;  self.ymax = ymax
@@ -525,7 +526,6 @@ class ProfilePlugin(PluginBase):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         snap = 255
-        rarr = self.get_rarr()
         rscat = haloutils.load_rscat(hpath,snap)
         haloid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
@@ -533,7 +533,9 @@ class ProfilePlugin(PluginBase):
         snapstr = str(snap).zfill(3)
         snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
         header = rsg.snapshot_header(snapfile+'.0')
-        rarr,mltrarr,p03rmin,halorvir,r200c,halomass = self.compute_one_profile(rarr,hpath,rscat,zoomid,snap,header) 
+        rvir = (rscat.ix[zoomid]['rvir'])/header.hubble
+        rarr = self.get_rarr(rvir)
+        rarr,mltrarr,p03rmin,halorvir,r200c,halomass = self.compute_one_profile(rarr,hpath,rscat,zoomid,snap,header,useallpart=self.useallpart) 
 
         rbin = np.concatenate(([0],rarr))*1000. #kpc
         rhoarr = self.mltr_to_rho(rarr*1000.,mltrarr) #Msun/kpc^3
@@ -544,7 +546,7 @@ class ProfilePlugin(PluginBase):
             print e
             NFW0=None;NFW1=None
         try:
-            EIN0,EIN1,EIN2 = profilefit.fitEIN(rbin,rhoarr,[rs,6,.3],minr=p03rmin,maxr=halorvir)
+            EIN0,EIN1,EIN2 = profilefit.fitEIN(rbin,rhoarr,[rs,6,.2],minr=p03rmin,maxr=halorvir)
         except RuntimeError as e:
             print e
             EIN0=None;EIN1=None;EIN2=None
@@ -554,23 +556,47 @@ class ProfilePlugin(PluginBase):
                               str(NFW0),str(NFW1),str(EIN0),str(EIN1),str(EIN2)+"\n"]))
             for r,mltr in zip(rarr,mltrarr):
                 f.write(str(r)+" "+str(mltr)+"\n")
-    def get_rarr(self):
-        return np.logspace(-5,0,50)
+    def get_rarr(self,rvir): #rvir in kpc
+        return (rvir/1000.)*np.logspace(np.log10(1.5e-4),np.log10(3),50)
+        #return np.logspace(-5,0,50)
     def compute_one_profile(self,rarr,hpath,rscat,rsid,snap,header,
-                            calcp03r=True,calcr200=True,retdr=False):
-        haloparts = rscat.get_all_particles_from_halo(rsid)
+                            calcp03r=True,calcr200=True,retdr=False,useallpart=False):
         halopos = np.array(rscat.ix[rsid][['posX','posY','posZ']])
         halorvir = float(rscat.ix[rsid]['rvir']) / header.hubble #kpc
         halomass = rscat.ix[rsid]['mvir']/header.hubble
-        try:
-            haloparts = np.sort(haloparts)
-            partpos = haloutils.load_partblock(hpath,snap,"POS ",parttype=1,ids=haloparts)
-        except IndexError as e:
-            print e
-            raise RuntimeError("Contamination in halo")
-        dr = np.sort(self.distance(partpos,halopos))/header.hubble #Mpc
-        mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,dr,header,haloparts,
-                                                     calcp03r=calcp03r,calcr200=calcr200)
+        if useallpart: #use all particles within 3x rvir
+            rbins = np.concatenate(([0],rarr))
+            all_h_r = np.zeros(len(rarr))
+            all_m_r = np.zeros(len(rarr))
+            for parttype in range(1,5+1):
+                partpos = haloutils.load_partblock(hpath,snap,"POS ",parttype=parttype)
+                dr = self.distance(partpos,halopos)/header.hubble #Mpc
+                ii = dr*1000. < 3*halorvir
+                if parttype==5:
+                    if np.sum(ii) > 0:
+                        raise RuntimeError("Forced to use parttype 5 particles, this halo may be bad (stopping)!")
+                    break
+                if np.sum(ii) == 0: continue
+                dr = dr[ii]
+                mpart = header.massarr[parttype]*10**10/header.hubble
+                h_r, x_r = np.histogram(dr,bins=rbins)
+                all_h_r += h_r
+                all_m_r += mpart*h_r
+            N_lt_r = np.cumsum(all_h_r)
+            mltrarr = np.cumsum(all_m_r)
+            p03rmin,r200c = self.calc_extra_radii(header,N_lt_r,mltrarr,rarr,calcp03r=calcp03r,calcr200=calcr200)
+        else: #use only bound particles
+            haloparts = rscat.get_all_particles_from_halo(rsid)
+            try:
+                haloparts = np.sort(haloparts)
+                partpos = haloutils.load_partblock(hpath,snap,"POS ",parttype=1,ids=haloparts)
+            except IndexError as e:
+                print e
+                raise RuntimeError("Contamination in halo")
+            dr = self.distance(partpos,halopos)/header.hubble #Mpc
+            mltrarr,p03rmin,r200c = self.calc_mltr_radii(rarr,dr,header,haloparts,
+                                                         calcp03r=calcp03r,calcr200=calcr200)
+
         if retdr: return rarr,mltrarr,p03rmin,halorvir,r200c,halomass,dr #all in physical units
         return rarr,mltrarr,p03rmin,halorvir,r200c,halomass #all in physical units
     def calc_mltr_radii(self,rarr,dr,header,haloparts,calcp03r=True,calcr200=True,verbose=False):
@@ -587,14 +613,16 @@ class ProfilePlugin(PluginBase):
         N_lt_r = np.cumsum(h_r)
         #m_of_r = h_r*mpart
         m_lt_r = N_lt_r*mpart #Msun
-
+        p03rmin,r200c = self.calc_extra_radii(header,N_lt_r,m_lt_r,rarr,calcp03r=calcp03r,calcr200=calcr200)
+        return m_lt_r,p03rmin,r200c
+    def calc_extra_radii(self,header,N_lt_r,m_lt_r,rarr,calcp03r=True,calcr200=True):
         if calcp03r or calcr200:
             rhocrit = 2.776e11 * (header.hubble)**2 #Msun/Mpc^3
             rhobar = m_lt_r/(4*np.pi/3 * rarr**3) #Msun/Mpc^3
         if calcp03r:
             try:
                 p03 = np.sqrt(200)/8.0 * N_lt_r/np.log(N_lt_r) / np.sqrt(rhobar/rhocrit)
-                p03rmin = rarr[np.min(np.where(np.logical_and(p03>=1,np.isfinite(p03)))[0])] #Mpc
+                p03rmin = rarr[np.min(np.where(np.logical_and(p03>=1,np.isfinite(p03)))[0])]*1000 #kpc
             except ValueError:
                 p03rmin = None
         else: p03rmin = None
@@ -604,7 +632,7 @@ class ProfilePlugin(PluginBase):
                 return interpolate.splev(r,tck) - 200*rhocrit
             r200c = optimize.fsolve(func,.02)[0]*1000 #kpc
         else: r200c = None
-        return m_lt_r,p03rmin,r200c
+        return p03rmin,r200c
     def mltr_to_rho(self,rarr,mltr):
         """ rarr in Mpc (including h), mltr in Msun (including h), return Msun/Mpc^3 """
         #tck = interpolate.splrep(rarr,mltr)
@@ -628,7 +656,7 @@ class ProfilePlugin(PluginBase):
         mltr = data['col2'] #Msun
         f = open(thisfilename,'r')
         p03r,rvir,r200c,halomass,NFW0,NFW1,EIN0,EIN1,EIN2 = f.readline().split(" ")
-        p03r = 1000.*float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
+        p03r = float(p03r); rvir = float(rvir); r200c = float(r200c) #all in kpc
         NFW0 = float(NFW0); NFW1 = float(NFW1); EIN0 = float(EIN0); EIN1 = float(EIN1); EIN2 = float(EIN2); 
         pNFW = [NFW0,NFW1]; pEIN = [EIN0,EIN1,EIN2]
         return r,mltr,p03r,rvir,r200c,pNFW,pEIN
@@ -642,21 +670,24 @@ class ProfilePlugin(PluginBase):
         eps = 1000*haloutils.load_soft(hpath)
         ii1 = r >= eps
         ii2 = r >= p03r
+        rbin=np.concatenate(([0],r))
+        rmid = 10**((np.log10(rbin[1:])+np.log10(rbin[:-1]))/2.)
         if lx != None:
             color = self.colordict[lx]
             ax.plot(r[ii1], rho[ii1], color=color, lw=1, **kwargs)
             ax.plot(r[ii2], rho[ii2], color=color, lw=lw, **kwargs)
             #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
-            ax.plot(r,profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2]),':',color=color,lw=1,**kwargs)
+            ax.plot(rmid,profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]),':',color=color,lw=1,**kwargs)
         else:
             ax.plot(r[ii1], rho[ii1], lw=1, **kwargs)
             ax.plot(r[ii2], rho[ii2], lw=lw, **kwargs)
             #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
-            ax.plot(r,profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2]),':',lw=1,**kwargs)
+            ax.plot(rmid,profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]),':',lw=1,**kwargs)
 class R2ProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
         super(ProfilePlugin,self).__init__()
         self.filename='rsprofile.dat'
+        self.useallpart=True
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin;  self.ymax = ymax
@@ -664,7 +695,7 @@ class R2ProfilePlugin(ProfilePlugin):
         self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'rhor2'
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,plotEIN=False,**kwargs):
         if normtohost:
             raise NotImplementedError
         r,mltr,p03r,rvir,r200c,pNFW,pEIN = data
@@ -674,13 +705,65 @@ class R2ProfilePlugin(ProfilePlugin):
         eps = 1000*haloutils.load_soft(hpath)
         ii1 = r >= eps
         ii2 = r >= p03r
+        r2,rho2,alpha = pEIN
         if lx != None:
             color = self.colordict[lx]
             ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
+            if plotEIN:
+                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
         else:
             ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
+            if plotEIN:
+                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
+class BoundProfilePlugin(ProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**0.5,ymax=10**10.5):
+        super(BoundProfilePlugin,self).__init__()
+        self.filename='brsprofile.dat'
+        self.useallpart=False
+
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = ymin;  self.ymax = ymax
+        self.xlabel = r'$r\ (kpc)$'
+        self.ylabel = r'$\rho(r)\ (M_\odot\ \rm{kpc}^{-3})$'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'brho'
+class BoundR2ProfilePlugin(BoundProfilePlugin):
+    def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**2.5):
+        super(BoundR2ProfilePlugin,self).__init__()
+        self.filename='brsprofile.dat'
+        self.useallpart=False
+
+        self.xmin = rmin; self.xmax = rmax
+        self.ymin = ymin;  self.ymax = ymax
+        self.xlabel = r'$r\ (kpc)$' #$h^{-1}$ 
+        self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
+        self.xlog = True; self.ylog = True
+        self.autofigname = 'brhor2'
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,plotEIN=False,**kwargs):
+        if normtohost:
+            raise NotImplementedError
+        r,mltr,p03r,rvir,r200c,pNFW,pEIN = data
+        rho = self.mltr_to_rho(r,mltr)
+        r = r*1000. # kpc
+        rho = rho/10**10 #10^10 Msun/Mpc^3
+        eps = 1000*haloutils.load_soft(hpath)
+        ii1 = r >= eps
+        ii2 = r >= p03r
+
+        r2,rho2,alpha = pEIN
+        if lx != None:
+            color = self.colordict[lx]
+            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
+            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
+            if plotEIN:
+                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
+        else:
+            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
+            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
+            if plotEIN:
+                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
 
 class VelocityProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):

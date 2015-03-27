@@ -68,6 +68,10 @@ def fitM99(rarr,rhoarr,p0,verbose=False,retQ2=False,minr=None,maxr=None):
     assert len(rmid) == len(rhoarr)
     logrho = np.log10(rhoarr)
     ii = np.isfinite(logrho); rmid = rmid[ii]; logrho = logrho[ii]
+    if minr != None:
+        ii = rmid >= minr; rmid = rmid[ii]; logrho = logrho[ii]
+    if maxr != None:
+        ii = rmid <= maxr; rmid = rmid[ii]; logrho = logrho[ii]
     pM99 = curve_fit(logM99profile,rmid,logrho,p0=p0)[0]
     Q2 = _Q2(logrho,logM99profile(rmid,pM99[0],pM99[1]))
     if verbose: print "M99 Fit value:",pM99,Q2
@@ -78,7 +82,12 @@ def fitEIN(rarr,rhoarr,p0,verbose=False,retQ2=False,minr=None,maxr=None):
     assert len(rmid) == len(rhoarr)
     logrho = np.log10(rhoarr)
     ii = np.isfinite(logrho); rmid = rmid[ii]; logrho = logrho[ii]
-    pEIN = curve_fit(logEINprofile,rmid,logrho,p0=p0,maxfev=1000000)[0]
+    if minr != None:
+        ii = rmid >= minr; rmid = rmid[ii]; logrho = logrho[ii]
+    if maxr != None:
+        ii = rmid <= maxr; rmid = rmid[ii]; logrho = logrho[ii]
+    pEIN = curve_fit(logEINprofile,rmid,logrho,p0=p0,maxfev=1000000)
+    pEIN = pEIN[0]
     Q2 = _Q2(logrho,logEINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]))
     if verbose: print "EIN Fit value:",pEIN,Q2
     if retQ2: return pEIN[0],10**pEIN[1],pEIN[2],Q2
