@@ -546,7 +546,7 @@ class ProfilePlugin(PluginBase):
             print e
             NFW0=None;NFW1=None
         try:
-            EIN0,EIN1,EIN2 = profilefit.fitEIN(rbin,rhoarr,[rs,6,.2],minr=p03rmin,maxr=halorvir)
+            EIN0,EIN1,EIN2 = profilefit.fitEIN(rbin,rhoarr,[rs,6.5,.17],minr=p03rmin,maxr=halorvir)
         except RuntimeError as e:
             print e
             EIN0=None;EIN1=None;EIN2=None
@@ -695,7 +695,7 @@ class R2ProfilePlugin(ProfilePlugin):
         self.ylabel = r'$r^2 \rho(r)\ (10^{10}\ M_\odot\ Mpc^{-1})$'
         self.xlog = True; self.ylog = True
         self.autofigname = 'rhor2'
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,plotEIN=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,plotEIN=False,labelalpha=False,**kwargs):
         if normtohost:
             raise NotImplementedError
         r,mltr,p03r,rvir,r200c,pNFW,pEIN = data
@@ -712,11 +712,21 @@ class R2ProfilePlugin(ProfilePlugin):
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
             if plotEIN:
                 ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
+                if labelalpha: self._label_alpha(ax,pEIN,normtohost)
         else:
             ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
             ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
             if plotEIN:
                 ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
+                if labelalpha: self._label_alpha(ax,pEIN,normtohost)
+    def _label_alpha(self,ax,pEIN,normtohost):
+        xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
+        logxoff = np.log10(xmax/xmin)*.05
+        xlabel  = xmax * 10**(-logxoff)
+        logyoff = np.log10(ymax/ymin)*.1
+        ylabel  = ymin * 10**(logyoff)
+        ax.text(xlabel,ylabel,"{0:.3f}".format(pEIN[2]),ha='right')
+        
 class BoundProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**0.5,ymax=10**10.5):
         super(BoundProfilePlugin,self).__init__()

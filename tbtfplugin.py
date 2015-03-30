@@ -38,6 +38,7 @@ class TBTFPlugin(SubVelocityProfilePlugin):
         rsid,rarr,rvir,vcircarr = data
         iicut = np.in1d(rsid,keeprsids,assume_unique=True)
         rsid = rsid[iicut]
+        rarr = rarr[iicut,:]
         rvir = rvir[iicut]
         vcircarr = vcircarr[iicut,:]
 
@@ -156,6 +157,7 @@ class TBTFSoftPlugin(SubVelocityProfileSoftPlugin,TBTFPlugin):
         #rsid,rarr,rvir,vcircarr = data
         iicut = np.in1d(rsid,keeprsids,assume_unique=True)
         rsid = rsid[iicut]
+        rarr = rarr[iicut,:]
         rvir = rvir[iicut]
         vpeak = np.array(vpeak.ix[rsid])
         nbound = len(rsid)

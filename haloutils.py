@@ -1,4 +1,5 @@
 import os,sys,platform
+# Allow plot creation on antares
 if 'compute-0-' in platform.node():
     import matplotlib
     matplotlib.use('Agg')
