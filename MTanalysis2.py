@@ -7,6 +7,7 @@ import time
 from scipy import interpolate
 from scipy.integrate import quad
 import os, subprocess
+import pandas
 
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
@@ -133,7 +134,6 @@ class ExtantDataFirstPass(PluginBase):
             peak_snap = sub_mb[peak_loc]['snap']
             peak_rsid = sub_mb[peak_loc]['origid']
             peak_mvir = sub_mb[peak_loc]['mvir']
-            #peak_mgrav = peak_sub['mgrav']
             peak_posx = sub_mb[peak_loc]['posX']
             peak_posy = sub_mb[peak_loc]['posY']
             peak_posz = sub_mb[peak_loc]['posZ']
@@ -141,20 +141,22 @@ class ExtantDataFirstPass(PluginBase):
             peak_pecvy = sub_mb[peak_loc]['pecVY']
             peak_pecvz = sub_mb[peak_loc]['pecVZ']
             peak_virialratio = sub_mb[peak_loc]['T/|U|']
-            #peak_rvmax = peak_sub['rvmax']
-            #peak_hostid_RS = peak_sub['hostID']  # rockstar ID of host, one level up
             peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
             peak_rvir = sub_mb[peak_loc]['rvir']
             peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
+            peak_rs = sub_mb[peak_loc]['rs']
+            peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
+            peak_Jx = sub_mb[peak_loc]['Jx']
+            peak_Jy = sub_mb[peak_loc]['Jy']
+            peak_Jz = sub_mb[peak_loc]['Jz']
+            peak_xoff = sub_mb[peak_loc]['xoff']
             
             # Get infall parameters
             infall_snap = sub_mb[iLoc]['snap']
-            infall_scale = sub_mb[iLoc]['scale']
+            #infall_scale = sub_mb[iLoc]['scale']
             infall_rsid = sub_mb[iLoc]['origid']
-
             infall_vmax = sub_mb[iLoc]['vmax']
             infall_mvir = sub_mb[iLoc]['mvir']
-            #infall_mgrav = infall_sub['mgrav']
             infall_posx = sub_mb[iLoc]['posX']
             infall_posy = sub_mb[iLoc]['posY']
             infall_posz = sub_mb[iLoc]['posZ']
@@ -162,13 +164,17 @@ class ExtantDataFirstPass(PluginBase):
             infall_pecvy = sub_mb[iLoc]['pecVY']
             infall_pecvz = sub_mb[iLoc]['pecVZ']
             infall_virialratio = sub_mb[iLoc]['T/|U|']
-            #infall_rvmax = infall_sub['rvmax']
-            #infall_hostid_RS = infall_sub['hostID']
             infall_hostid_MT = sub_mb[iLoc]['pid']
             infall_rvir = sub_mb[iLoc]['rvir']
-            infall_spinbullock = sub_mb[iLoc]['spin_bullock']            
+            infall_spinbullock = sub_mb[iLoc]['spin_bullock']
+            infall_rs = sub_mb[iLoc]['rs']
+            infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
+            infall_Jx = sub_mb[iLoc]['Jx']
+            infall_Jy = sub_mb[iLoc]['Jy']
+            infall_Jz = sub_mb[iLoc]['Jz']
+            infall_xoff = sub_mb[iLoc]['xoff']
 
-            otherdata=np.r_[otherdata,sub_rank,subRSID,max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock]
+            otherdata=np.r_[otherdata,sub_rank,subRSID,max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
             if sub_rank%100==0:
                 print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
             sys.stdout.flush()
@@ -183,24 +189,93 @@ class ExtantDataFirstPass(PluginBase):
 
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        dt = "float64"
-        dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt)]
-        n = len(dtype)
-        holder = np.ndarray( (len(data)/n,), dtype=dtype )
-        data2 = data.reshape(len(data)/n,n)
-        for i in range(data2.shape[0]):
-            holder[i]=data2[i]
-        return holder
+        #dt = "float64"
+        #dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt)]
+        #n = len(dtype)
+        #holder = np.ndarray( (len(data)/n,n), dtype=dtype )
+        #data2 = data.reshape(len(data)/n,n)
+        #for i in range(data2.shape[0]):
+        #    holder[i]=data2[i]
+        #return holder
+        pdtype = ['sub_rank','rsid','max_mass','max_mass_snap','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
+        n = len(pdtype)
+        import pandas
+        return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
+
+
+
+class AllExtantData(PluginBase):
+    def __init__(self):
+        super(AllExtantData,self).__init__()
+        self.filename='AllExtantData.dat'
+        self.xmin=0;     self.xmax=256
+        self.ymin=10**8; self.ymax=5*10**11
+        self.xlog= False; self.ylog = True
+        self.xlabel='' ; self.ylabel=''  # want these to be adjustable
+        self.autofigname=''
+        self.min_mass = 10**6.0
+
+    def _analyze(self,hpath):
+        ED = ExtantDataFirstPass()
+        dataE = ED.read(hpath)
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz']
+        data_newE = pandas.DataFrame(np.zeros((len(dataE),len(dtype)))-1,columns=dtype)
+        peak_dataE = {}
+        for peaksnap,line in zip(dataE['peak_snap'],dataE.index):
+            peak_dataE.setdefault(peaksnap, []).append(line)
+
+        infall_dataE = {}
+        for infallsnap,line in zip(dataE['infall_snap'],dataE.index):
+            infall_dataE.setdefault(infallsnap, []).append(line)       
+            
+        for snap in range(haloutils.get_numsnaps(hpath)):
+            print snap, 'snap in get extra parameters Extant'
+            sys.stdout.flush()
+            if peak_dataE.has_key(snap) or infall_dataE.has_key(snap):
+                cat=haloutils.load_rscat(hpath,snap,rmaxcut=False)
+
+                if peak_dataE.has_key(snap):
+                    for line in peak_dataE[snap]:
+                        peak_rsid = int(dataE.ix[line]['peak_rsid'])
+                        data_newE.ix[line]['peak_mgrav'] = cat.ix[peak_rsid]['mgrav']
+                        data_newE.ix[line]['peak_hostid_RS'] = cat.ix[peak_rsid]['hostID']
+                        data_newE.ix[line]['peak_rvmax'] = cat.ix[peak_rsid]['rvmax']
+                        data_newE.ix[line]['peak_corevelx'] = cat.ix[peak_rsid]['corevelx']
+                        data_newE.ix[line]['peak_corevely'] = cat.ix[peak_rsid]['corevely']
+                        data_newE.ix[line]['peak_corevelz'] = cat.ix[peak_rsid]['corevelz']
+                        
+                if infall_dataE.has_key(snap):
+                    for line in infall_dataE[snap]:
+                        infall_rsid = int(dataE.ix[line]['infall_rsid'])
+                        data_newE.ix[line]['infall_mgrav'] = cat.ix[infall_rsid]['mgrav']
+                        data_newE.ix[line]['infall_hostid_RS'] = cat.ix[infall_rsid]['hostID']
+                        data_newE.ix[line]['infall_rvmax'] = cat.ix[infall_rsid]['rvmax']
+                        data_newE.ix[line]['infall_corevelx'] = cat.ix[infall_rsid]['corevelx']
+                        data_newE.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
+                        data_newE.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
+                
+        fulldataE = pandas.concat((dataE,data_newE),axis=1)
+        fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+
+    def _read(self,hpath):
+        return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        return
+
+
+
 
 
 ## need to change most everything to match the above line
 class DestroyedDataFirstPass(PluginBase):
     def __init__(self):
         super(DestroyedDataFirstPass,self).__init__()
-        self.filename='DestroyedDataFirstPass'
+        self.filename='DestroyedDataFirstPass.dat'
+        self.filestring='DestroyedDataFirstPass'
         self.xmin=0;     self.xmax=256
         self.ymin=10**8; self.ymax=5*10**11
         self.xlog= False; self.ylog = True
@@ -208,7 +283,7 @@ class DestroyedDataFirstPass(PluginBase):
         self.autofigname='MergerHistory'
         self.min_mass = 10**6.0
         # corresponds to 10**7.776 Msun
-
+       
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
@@ -266,9 +341,7 @@ class DestroyedDataFirstPass(PluginBase):
                 peak_vmax = sub_mb[peak_loc]['vmax']
                 peak_snap = sub_mb[peak_loc]['snap']
                 peak_rsid = sub_mb[peak_loc]['origid']
-
                 peak_mvir = sub_mb[peak_loc]['mvir']
-                #peak_mgrav = peak_sub['mgrav']
                 peak_posx = sub_mb[peak_loc]['posX']
                 peak_posy = sub_mb[peak_loc]['posY']
                 peak_posz = sub_mb[peak_loc]['posZ']
@@ -276,20 +349,22 @@ class DestroyedDataFirstPass(PluginBase):
                 peak_pecvy = sub_mb[peak_loc]['pecVY']
                 peak_pecvz = sub_mb[peak_loc]['pecVZ']
                 peak_virialratio = sub_mb[peak_loc]['T/|U|']
-                #peak_rvmax = sub_mb[peak_loc]['rvmax']
-                #peak_hostid_RS = sub_mb[peak_loc]['hostID']  # rockstar ID of host, one level up
                 peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
                 peak_rvir = sub_mb[peak_loc]['rvir']
                 peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
+                peak_rs = sub_mb[peak_loc]['rs']
+                peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
+                peak_Jx = sub_mb[peak_loc]['Jx']
+                peak_Jy = sub_mb[peak_loc]['Jy']
+                peak_Jz = sub_mb[peak_loc]['Jz']
+                peak_xoff = sub_mb[peak_loc]['xoff']
 
                 # Get infall parameters
                 infall_snap = sub_mb[iLoc]['snap']
-                infall_scale = sub_mb[iLoc]['scale']
+                #infall_scale = sub_mb[iLoc]['scale']
                 infall_rsid = sub_mb[iLoc]['origid']
-    
                 infall_vmax = sub_mb[iLoc]['vmax']
                 infall_mvir = sub_mb[iLoc]['mvir']
-                #infall_mgrav = infall_sub['mgrav']
                 infall_posx = sub_mb[iLoc]['posX']
                 infall_posy = sub_mb[iLoc]['posY']
                 infall_posz = sub_mb[iLoc]['posZ']
@@ -297,13 +372,18 @@ class DestroyedDataFirstPass(PluginBase):
                 infall_pecvy = sub_mb[iLoc]['pecVY']
                 infall_pecvz = sub_mb[iLoc]['pecVZ']
                 infall_virialratio = sub_mb[iLoc]['T/|U|']
-                #infall_rvmax = infall_sub['rvmax']
-                #infall_hostid_RS = infall_sub['hostID']
                 infall_hostid_MT = sub_mb[iLoc]['pid']
                 infall_rvir = sub_mb[iLoc]['rvir']
-                infall_spinbullock = sub_mb[iLoc]['spin_bullock']            
+                infall_spinbullock = sub_mb[iLoc]['spin_bullock']
+                infall_rs = sub_mb[iLoc]['rs']
+                infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
+                infall_Jx = sub_mb[iLoc]['Jx']
+                infall_Jy = sub_mb[iLoc]['Jy']
+                infall_Jz = sub_mb[iLoc]['Jz']
+                infall_xoff = sub_mb[iLoc]['xoff']
 
-                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,i]
+
+                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,i]
                 #print j, 'halo in host level', i
                 good+=1
                 sys.stdout.flush()
@@ -312,42 +392,112 @@ class DestroyedDataFirstPass(PluginBase):
             sys.stdout.flush()
             if not os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed'):
                 subprocess.call("mkdir -p "+hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed',shell=True)
-            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filename+'_'+str(i)+'.dat','wb')
+            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filestring+'_'+str(i)+'.dat','wb')
             np.array(otherdata).tofile(g)
             g.close()    
             cur_host_line = host.getMMP(cur_host_line)
             i+=1
         print 'wrote final set of data'
+        self.combinefiles(hpath)
+        print 'combined files'
 
 ## convert all data into one file
     def combinefiles(self,hpath):
             i = 0; data=[]
-            while os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filename+'_'+str(i)+'.dat'):
-                tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filename+'_'+str(i)+'.dat')              
+            while os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filestring+'_'+str(i)+'.dat'):
+                tmp = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed/'+self.filestring+'_'+str(i)+'.dat')
                 data = np.r_[data,tmp]
                 i+=1
             dt = "float64"
-            dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('backsnap',dt)]
+            dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('peak_rs',dt),('peak_scale_of_last_MM',dt),('peak_Jx',dt),('peak_Jy',dt),('peak_Jz',dt),('peak_xoff',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('infall_rs',dt),('infall_scale_of_last_MM',dt),('infall_Jx',dt),('infall_Jy',dt),('infall_Jz',dt),('infall_xoff',dt),('backsnap',dt)]
             n = len(dtype)
             holder = np.ndarray( (len(data)/n,), dtype=dtype )
             data2 = data.reshape(len(data)/n,n)
             for j in range(data2.shape[0]):
                 holder[j]=data2[j]
-            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+self.filename+'.dat','wb')
+            g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
             np.array(holder).tofile(g)
             g.close()    
 
             #np.array(bound,dtype=np.float32)
+   
     def _read(self,hpath):
-        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename+'.dat')
+        data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
+        pdtype = ['sub_rank','rsid','max_mass','max_mass_snap','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff','backsnap']
+        n = len(pdtype)
+        import pandas
+        return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
+    
+        """
         dt = "float64"
         dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('backsnap',dt)]
         n = len(dtype)
-        holder = np.ndarray( (len(data)/n,), dtype=dtype )
+        holder = np.ndarray( (len(data)/n,n), dtype=dtype )
         data2 = data.reshape(len(data)/n,n)
         for i in range(data2.shape[0]):
             holder[i]=data2[i]
-        return np.array(ids,dtype=np.int64), holder
+        return holder
+        """
+   
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
+        return
+
+
+class AllDestroyedData(PluginBase):
+    def __init__(self):
+        super(AllDestroyedData,self).__init__()
+        self.filename='AllDestroyedData.dat'
+        self.xmin=0;     self.xmax=256
+        self.ymin=10**8; self.ymax=5*10**11
+        self.xlog= False; self.ylog = True
+        self.xlabel='' ; self.ylabel=''  # want these to be adjustable
+        self.autofigname=''
+        self.min_mass = 10**6.0
+
+    def _analyze(self,hpath):
+        DD = DestroyedDataFirstPass()
+        dataD = DD.read(hpath)
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz']
+        data_newD = pandas.DataFrame(np.zeros((len(dataD),len(dtype)))-1,columns=dtype)
+        peak_dataD = {}
+        for peaksnap,line in zip(dataD['peak_snap'],dataD.index):
+            peak_dataD.setdefault(peaksnap, []).append(line)
+
+        infall_dataD = {}
+        for infallsnap,line in zip(dataD['infall_snap'],dataD.index):
+            infall_dataD.setdefault(infallsnap, []).append(line)       
+            
+        for snap in range(haloutils.get_numsnaps(hpath)):
+            print snap, 'snap in get extra parameters Destroyed'
+            sys.stdout.flush()
+            if peak_dataD.has_key(snap) or infall_dataD.has_key(snap):
+                cat=haloutils.load_rscat(hpath,snap,rmaxcut=False)
+
+                if peak_dataD.has_key(snap):
+                    for line in peak_dataD[snap]:
+                        peak_rsid = int(dataD.ix[line]['peak_rsid'])
+                        data_newD.ix[line]['peak_mgrav'] = cat.ix[peak_rsid]['mgrav']
+                        data_newD.ix[line]['peak_hostid_RS'] = cat.ix[peak_rsid]['hostID']
+                        data_newD.ix[line]['peak_rvmax'] = cat.ix[peak_rsid]['rvmax']
+                        data_newD.ix[line]['peak_corevelx'] = cat.ix[peak_rsid]['corevelx']
+                        data_newD.ix[line]['peak_corevely'] = cat.ix[peak_rsid]['corevely']
+                        data_newD.ix[line]['peak_corevelz'] = cat.ix[peak_rsid]['corevelz']
+                        
+                if infall_dataD.has_key(snap):
+                    for line in infall_dataD[snap]:
+                        infall_rsid = int(dataD.ix[line]['infall_rsid'])
+                        data_newD.ix[line]['infall_mgrav'] = cat.ix[infall_rsid]['mgrav']
+                        data_newD.ix[line]['infall_hostid_RS'] = cat.ix[infall_rsid]['hostID']
+                        data_newD.ix[line]['infall_rvmax'] = cat.ix[infall_rsid]['rvmax']
+                        data_newD.ix[line]['infall_corevelx'] = cat.ix[infall_rsid]['corevelx']
+                        data_newD.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
+                        data_newD.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
+                
+        fulldataD = pandas.concat((dataD,data_newD),axis=1)
+        fulldataD.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+
+    def _read(self,hpath):
+        return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
