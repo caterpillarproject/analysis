@@ -4,6 +4,7 @@ from subradplugin import *
 from caterpillarplot import *
 from tbtfplugin import *
 from subprofileplugin import *
+from phasespace import *
 import pylab as plt
 from optparse import OptionParser
 
@@ -97,6 +98,10 @@ if __name__=="__main__":
         SubRadSubmassFrac = SubhaloRadialSubmassFracPlugin()
         convergeplot(sheet,SubRadSubmassFrac,figfilename='subradsubmassfracLX'+ext,usehaloname=usehaloname,**recalckwargs)
         paper_stackplot(14,SubRadSubmassFrac,figfilename='stackLX14_subradsubmassfrac'+ext)
+
+    if arg == 8:
+        PhaseRadial = SubPhaseRadialPlugin()
+        convergeplot(sheet,PhaseRadial,whichlx=[14],figfilename='subphaseradLX'+ext,usehaloname=usehaloname,**recalckwargs)
 
     #testhid = firsttwelve[2]
     #haloplot(testhid,12,pluglist=[Nvmax,SHMF,Profile,MassAccr],**recalckwargs)
