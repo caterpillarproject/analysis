@@ -525,7 +525,7 @@ class ProfilePlugin(PluginBase):
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
-        snap = 255
+        snap = haloutils.get_numsnaps(hpath)-1
         rscat = haloutils.load_rscat(hpath,snap)
         haloid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
@@ -853,7 +853,7 @@ class SubProfilePlugin(ProfilePlugin):
         mgravarr = np.zeros(nsubs)
         allmltrarr  = np.zeros((nsubs,nr))
 
-        snap = 255
+        snap = haloutils.get_numsnaps(hpath)-1
         snapstr = str(snap).zfill(3)
         snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
         header = rsg.snapshot_header(snapfile+'.0')

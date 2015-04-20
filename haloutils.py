@@ -17,7 +17,6 @@ import mergertrees.MTCatalogue as MTC
 import glob
 
 
-
 def determinebasepath(node):
     if node == "csr-dyn-150.mit.edu":
         basepath = '/Users/griffen/Desktop/'
@@ -99,6 +98,9 @@ def hidstr(hid):
 def get_parent_zoom_index(filename=global_halobase+"/parent_zoom_index.txt"):
     return asciitable.read(filename, Reader=asciitable.FixedWidth)
 def get_numsnaps(outpath):
+    """
+    Uses hpath/ExpansionList to get the number of snaps in this halo
+    """
     if os.path.exists(outpath+'/ExpansionList'):
         return sum(1 for line in open(outpath+'/ExpansionList'))
     else:
@@ -360,6 +362,13 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
             print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
     return row
 def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=255):
+    """
+    @param hpath: halo path to load zoom id
+    @param snap: default 255 (need to set this explicitly for hires)
+    @return: rockstar id of host halo associated with hpath and snap
+
+    IMPORTANT: Uses MassAccrPlugin to get main branch MT for snap != last snap.
+    """
     if snap==(get_numsnaps(hpath)-1):
         try:
             row = _load_index_row(hpath,filename=filename)
@@ -367,7 +376,7 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=255
             if check_last_rockstar_exists(hpath):
                 print "WARNING: halo is not in index, using halo with most particles (npart)"
                 rscat = load_rscat(hpath,get_numsnaps(hpath),rmaxcut=False)
-            # For pandas < 0.13.0, np.argmax returns the array index rather than the pandas index
+                # For pandas < 0.13.0, np.argmax returns the array index rather than the pandas index
                 pdversion = tuple([int(x) for x in pd.version.version.split('.')])
                 badversion = (0,13,0)
                 bestid = np.argmax(rscat['npart'])

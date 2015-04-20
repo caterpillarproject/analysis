@@ -1,6 +1,6 @@
 #!/bin/bash
 
-scriptpath=/spacebase/data/alexji/analysis/findhalos/caterpillar_findhalos.py
+scriptpath=~/analysis/findhalos/caterpillar_findhalos.py
 halobase=/bigbang/data/AnnaGroup/caterpillar/halos
 flags="-w" #"-f
 

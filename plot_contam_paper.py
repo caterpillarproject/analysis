@@ -17,7 +17,8 @@ def plot_contam_dist(whichfolderlist,haloidlist):
                 'EA4':0,'EA5':1,'EX4':2,'EX5':3,'EB':4,'EC':5,
                 'BA4':(maxE+1),'BA5':(maxE+2),'BB':(maxE+3),'BC':(maxE+4),'BD':(maxE+5)}
 
-    fig,axarr = plt.subplots(2,1,figsize=(6,10))
+    #fig,axarr = plt.subplots(2,1,figsize=(6,10))
+    fig,axarr = plt.subplots(1,2,figsize=(12,6))
     ax1 = axarr[0]; ax2 = axarr[1]
     
     colors = sns.color_palette('Set3',n_colors=len(whichfolderlist))
@@ -42,7 +43,7 @@ def plot_contam_dist(whichfolderlist,haloidlist):
         ax1.plot(contamx,mindist,'o-',label=haloutils.hid_name(hid),color=color)
         filesizes = np.array(thisdat['icsize'])[iisort]
         ax2.plot(contamx,filesizes,'o-',label=haloutils.hidstr(hid),color=color)
-        ax1.legend(loc='upper center',bbox_to_anchor=(.5,1.05),ncol=3,fancybox=True,fontsize='small')
+        #ax1.legend(loc='upper center',bbox_to_anchor=(.5,1.05),ncol=3,fancybox=True,fontsize='small')
     minx = np.min(labelmap.values()); maxx = np.max(labelmap.values())
 
     ax1.plot([minx-0.5,maxx+0.5],[1.0/.6711,1.0/.6711],'k:')
@@ -54,9 +55,15 @@ def plot_contam_dist(whichfolderlist,haloidlist):
     for ax in [ax1,ax2]:
         ax.set_xlim([minx-0.5,maxx+0.5])
         ax.set_xticks(np.sort(labelmap.values()))
-    ax1.set_xticklabels(['' for i in range(len(['CA4','CA5','EA4','EA5','EX4','EX5','EB','EC','BA4','BA5','BB','BC','BD']))])
-    ax2.set_xticklabels(['CA4','CA5','EA4','EA5','EX4','EX5','EB','EC','BA4','BA5','BB','BC','BD'])
-    fig.subplots_adjust(hspace=.05)
+    #ax1.set_xticklabels(['' for i in range(len(['CA4','CA5','EA4','EA5','EX4','EX5','EB','EC','BA4','BA5','BB','BC','BD']))])
+    #ax2.set_xticklabels(['CA4','CA5','EA4','EA5','EX4','EX5','EB','EC','BA4','BA5','BB','BC','BD'])
+    my_labels = ['Convex 4 Rvir','Convex 5 Rvir','EllipsoidA 4 Rvir','EllipsoidA 5 Rvir','EllipsoidX 4 Rvir','EllipsoidX 5 Rvir','EllipsoidB 4 Rvir','EllipsoidC 4 Rvir','BoxA 4 Rvir','BoxA 5 Rvir','BoxB 4 Rvir','BoxC 4 Rvir','BoxD 4 Rvir']
+
+    ax1.set_xticklabels(my_labels)
+    ax2.set_xticklabels(my_labels)
+    plt.setp( ax1.xaxis.get_majorticklabels(), rotation=90 )
+    plt.setp( ax2.xaxis.get_majorticklabels(), rotation=90 )
+    #fig.subplots_adjust(hspace=.05)
     return fig
 
 if __name__=="__main__":
