@@ -175,7 +175,7 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
             raise NotImplementedError
         alldata = datalist[0]
         subdata = datalist[1]
-        r,mltr,p03r,rvir,r200c = alldata        
+        r,mltr,p03r,rvir,r200c,pNFW,pEIN = alldata        
         rbin = np.concatenate(([0],r))
         subid,dist,submass,submgrav,subrvir = subdata
         ii = submgrav/submass > 0.9
