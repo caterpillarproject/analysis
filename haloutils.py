@@ -9,6 +9,7 @@ import asciitable
 import pickle
 import pandas as pd
 import warnings
+from multiprocessing import Pool
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
@@ -561,3 +562,50 @@ def get_colors_for_halos(nhalos=len(hid2name)):
 
     return index
 
+def tabulate(tabfn,lx=14,hids=None,savefile=None,numprocs=1):
+    """
+    @param tabfn: a function whose only argument is hpath. If successful, returns data,names,formats; data is a tuple of the values to go into the array, names is a list/tuple of the column names, formats is the data types (used for np.dtype). All three variables should be of the same length. If unsuccessful, tabfn should return None (e.g., in cases of no rockstar data), then tabulate() will make the DataFrame row be marked with missing data. TODO can I make this happen with exceptions in a nice way? Raising exceptions is better than returning None.
+    @param lx: which LX to tabulate (default 14)
+    @param hids: list of hids to tabulate (default, everything in cid2hid)
+    @return tab: pandas DataFrame, indexed by hid
+    """
+    if hids==None: hids = cid2hid.values()
+
+    if numprocs==1:
+        datalist = map(tabfn,[get_hpath_lx(hid,lx) for hid in hids])
+    else:
+        pool = Pool(numprocs)
+        datalist = pool.map(tabfn,[get_hpath_lx(hid,lx) for hid in hids])
+        pool.close()
+
+    for item in datalist:
+        if item != None:
+            data,names,formats = item
+            first_dtype = np.dtype({'names':names,'formats':formats})
+            break
+    rows = []
+    invalid = [False for item in datalist]
+    dtype = first_dtype
+    for i,item in enumerate(datalist):
+        if item == None:
+            data = tuple([0 for x in dtype.names])
+            invalid[i] = True
+        else:
+            assert len(item)==3,"tabfn must return data,colnames,types"
+            data,names,formats = item
+            assert len(data)==len(names) and len(data)==len(formats),"data,names,formats must be same length"
+            data = tuple(data)
+            dtype = np.dtype({'names':names,'formats':formats})
+            assert dtype==first_dtype,"Not all dtypes the same"
+        rows.append(data)
+
+    dataarr = np.array(rows,dtype=dtype)
+
+    df = pd.DataFrame(dataarr,index=hids)
+    for i,hid in enumerate(df.index):
+        if invalid[i]: df.iloc[i] = None
+
+    if savefile != None:
+        df.to_csv(path_or_buf=savefile)
+
+    return df
