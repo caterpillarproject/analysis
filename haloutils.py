@@ -142,6 +142,17 @@ def get_paper_paths_lx(do_lx):
 def get_paper_paths():
     return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
 
+def get_scale_snap(hpath,snap):
+    assert snap == int(snap); snap = int(snap)
+    numsnaps = get_numsnaps(hpath)
+    if snap+1 > numsnaps or snap<0: raise ValueError("snap {0} not valid".format(snap))
+    with open(hpath+'/ExpansionList','r') as f:
+        lines = f.readlines()
+    assert(len(lines))==numsnaps
+    return float(lines[snap].split()[0])
+def get_z_snap(hpath,snap):
+    scale = get_scale_snap(hpath,snap)
+    return (1./scale) - 1.0
 
 def get_available_hpaths(hid,contam=False,
                          checkgadget=True,
