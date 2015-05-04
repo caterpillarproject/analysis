@@ -967,27 +967,47 @@ class MassAccrPlugin(PluginBase):
         snap = mb['snap'][::-1]
         phantom = mb['phantom'][::-1]
         mvir = mb['mvir'][::-1]/rscat.h0
+        rvir = mb['rvir'][::-1]/rscat.h0
         sammvir = mb['sam_mvir'][::-1]/rscat.h0
         vmax = mb['vmax'][::-1]
+        vrms = mb['vrms'][::-1]
         TU = mb['T/|U|'][::-1]
         scaleMM = mb['scale_of_last_MM'][::-1]
         x = mb['posX'][::-1]
         y = mb['posY'][::-1]
         z = mb['posZ'][::-1]
+        vx = mb['pecVX'][::-1]
+        vy = mb['pecVY'][::-1]
+        vz = mb['pecVZ'][::-1]
+        Jx = mb['Jx'][::-1]
+        Jy = mb['Jy'][::-1]
+        Jz = mb['Jz'][::-1]
         spin = mb['spin'][::-1]
         spinbullock = mb['spin_bullock'][::-1]
         origid = mb['origid'][::-1]
+        b_to_a = mb['b_to_a(500c)'][::-1]
+        c_to_a = mb['c_to_a(500c)'][::-1]
+        Ax = mb['A[x](500c)'][::-1]
+        Ay = mb['A[y](500c)'][::-1]
+        Az = mb['A[z](500c)'][::-1]
         asciitable.write({'scale':scale,'snap':snap,
                           'mvir':mvir,'sam_mvir':sammvir,
-                          'vmax':vmax,'T/|U|':TU,
+                          'vmax':vmax,'vrms':vrms,
+                          'rvir':rvir,'T/|U|':TU,
                           'scale_of_last_MM':scaleMM,
                           'x':x,'y':y,'z':z,
+                          'vx':vx,'vy':vy,'vz':vz,
+                          'Jx':Jx,'Jy':Jy,'Jz':Jz,
                           'spin':spin,'spin_bullock':spinbullock,
-                          'phantom':phantom,'origid':origid},
+                          'phantom':phantom,'origid':origid,
+                          'b_to_a':b_to_a,'c_to_a':c_to_a,
+                          'A[x]':Ax,'A[y]':Ay,'A[z]':Az},
                          self.get_outfname(hpath),
-                         names=['scale','snap','mvir','sam_mvir','vmax',
-                                'T/|U|','scale_of_last_MM','x','y','z',
-                                'spin','spin_bullock','phantom','origid'])
+                         names=['scale','snap','mvir','sam_mvir','vmax','vrms',
+                                'rvir','T/|U|','scale_of_last_MM','x','y','z',
+                                'vx','vy','vz','Jx','Jy','Jz',
+                                'spin','spin_bullock','phantom','origid',
+                                'b_to_a','c_to_a','A[x]','A[y]','A[z]'])
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
