@@ -37,3 +37,25 @@ def rotate_to_y(vec):
     Rx = rotmat_x(-np.pi/2.)
     return np.dot(Rx,R2z)
 
+def normalize_phi(phi):
+    allgood = False
+    while not allgood:
+        ii1 = phi>2*np.pi
+        ii2 = phi<0
+        if np.sum(ii1) > 0:
+            phi[ii1] = phi[ii1]-2*np.pi
+        elif np.sum(ii2) > 0:
+            phi[ii2] = phi[ii2]-2*np.pi
+        else:
+            allgood=True
+    return phi
+def xyz2thetaphi(pos):
+    r = np.sqrt(np.sum(pos**2,1))
+    x = pos[:,0]; y = pos[:,1]; z = pos[:,2]
+    rxy = np.sqrt(x**2 + y**2)
+    theta = np.arccos(z/r)
+    phi = np.arccos(x/rxy)
+    phi[y<0] = 2*np.pi - phi[y<0]
+    phi = normalize_phi(phi)
+    return theta,phi
+
