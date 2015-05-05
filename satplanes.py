@@ -314,10 +314,10 @@ def tab_rotation(hpath):
     formats = [np.int for i in range(len(sats))]
     return data,names,formats
 
-def plot_ang_mom():
+def plot_ang_mom(Ldisk = [0,0,1]):
     plug = SatellitePlanes()
     hids = haloutils.cid2hid.values()
-    Ldisk = np.array([0,0,1]) #arbitrary for now
+    Ldisk = np.array(Ldisk) #arbitrary for now
     rotmat = rotations.rotate_to_z(Ldisk)
     output = []
     for hid in hids:
@@ -352,12 +352,30 @@ def plot_ang_mom():
     with open('Lmom.p','w') as f:
         pickle.dump(output,f)
 
-
+def plot_mollweide(sats,host,ax=None,useA=False):
+    if ax==None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111,projection='mollweide')
+    if useA:
+        halo_z = np.array(host[['A2[x]','A2[y]','A2[z]']])
+    else:
+        halo_z = np.array(host[['Jx','Jy','Jz']])
+    rotmat = rotations.rotate_to_z(halo_z)
+    satsL   = np.array(sats[['Lx','Ly','Lz']])
+    r_satsL = rotmat.dot(satsL.T).T
+    sats_theta,sats_phi = rotations.xyz2thetaphi(r_satsL)
+    sats_theta -= np.pi/2; sats_phi -= np.pi
+    halo_theta,halo_phi = rotations.xyz2thetaphi(halo_z[np.newaxis,:])
+    halo_theta -= np.pi/2; halo_phi -= np.pi
+    ax.plot(halo_phi,halo_theta,'o',color='red',ec=None,markersize=64)
+    ax.plot(sats_phi,sats_theta,'o',color='blue',ec=None,markersize=9)
+    return ax
 
 if __name__=="__main__":
     #plot_isotropy()
-    plot_isotropic_Nsats()
+    #plot_isotropic_Nsats()
     #plot_ang_mom()
+    pass
 
 def simple_plots():
     plug = SatellitePlanes()
