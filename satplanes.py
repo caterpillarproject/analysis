@@ -352,10 +352,13 @@ def plot_ang_mom(Ldisk = [0,0,1]):
     with open('Lmom.p','w') as f:
         pickle.dump(output,f)
 
-def plot_mollweide(sats,host,ax=None,useA=False):
-    if ax==None:
+def plot_mollweide(sats,host,fig=None,subplots=None,useA=False):
+    if fig==None:
         fig = plt.figure()
         ax = fig.add_subplot(111,projection='mollweide')
+    else:
+        ax = fig.add_subplot(subplots,projection='mollweide')
+
     if useA:
         halo_z = np.array(host[['A2[x]','A2[y]','A2[z]']])
     else:
@@ -367,8 +370,8 @@ def plot_mollweide(sats,host,ax=None,useA=False):
     sats_theta -= np.pi/2; sats_phi -= np.pi
     halo_theta,halo_phi = rotations.xyz2thetaphi(halo_z[np.newaxis,:])
     halo_theta -= np.pi/2; halo_phi -= np.pi
-    ax.plot(halo_phi,halo_theta,'o',color='red',ec=None,markersize=64)
-    ax.plot(sats_phi,sats_theta,'o',color='blue',ec=None,markersize=9)
+    ax.plot(halo_phi,halo_theta,'o',color='red',mec=None,markersize=36)
+    ax.plot(sats_phi,sats_theta,'o',color='blue',mec=None,markersize=9)
     return ax
 
 if __name__=="__main__":
