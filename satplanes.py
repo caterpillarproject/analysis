@@ -352,7 +352,7 @@ def plot_ang_mom(Ldisk = [0,0,1]):
     with open('Lmom.p','w') as f:
         pickle.dump(output,f)
 
-def plot_mollweide(sats,host,fig=None,subplots=None,useA=False):
+def plot_mollweide(sats,host,fig=None,subplots=111,useA=False):
     if fig==None:
         fig = plt.figure()
         ax = fig.add_subplot(111,projection='mollweide')
@@ -365,20 +365,42 @@ def plot_mollweide(sats,host,fig=None,subplots=None,useA=False):
         halo_z = np.array(host[['Jx','Jy','Jz']])
     rotmat = rotations.rotate_to_z(halo_z)
     satsL   = np.array(sats[['Lx','Ly','Lz']])
+
     r_satsL = rotmat.dot(satsL.T).T
     sats_theta,sats_phi = rotations.xyz2thetaphi(r_satsL)
     sats_theta -= np.pi/2; sats_phi -= np.pi
-    halo_theta,halo_phi = rotations.xyz2thetaphi(halo_z[np.newaxis,:])
-    halo_theta -= np.pi/2; halo_phi -= np.pi
-    ax.plot(halo_phi,halo_theta,'o',color='red',mec=None,markersize=36)
-    ax.plot(sats_phi,sats_theta,'o',color='blue',mec=None,markersize=9)
+
+    #halo_z = rotmat.dot(halo_z)
+    #halo_theta,halo_phi = rotations.xyz2thetaphi(halo_z[np.newaxis,:])
+    #halo_theta -= np.pi/2; halo_phi -= np.pi
+
+    #ax.plot(halo_phi,halo_theta,'o',color='red',mec=None,markersize=16)
+    ax.plot(sats_phi,sats_theta,'o',color='blue',mec=None,markersize=16)
     return ax
 
 if __name__=="__main__":
     #plot_isotropy()
     #plot_isotropic_Nsats()
     #plot_ang_mom()
-    pass
+    hids = haloutils.cid2hid.values()
+    plug = SatellitePlanes()
+    for hid in hids:
+        print haloutils.hidstr(hid)
+        hpath = haloutils.get_hpath_lx(hid,14)
+        if hpath==None: continue
+        out = plug.read(hpath)
+        if out==None: continue
+        sats,evals,evecs = out
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        zoomid= haloutils.load_zoomid(hpath)
+        host = rscat.ix[zoomid]
+        fig = plt.figure()
+        plot_mollweide(sats,host,fig=fig,useA=False)
+        fig.savefig('5-5/mollweide/LrotJ_'+haloutils.hidstr(hid)+'.png')
+        fig = plt.figure()
+        plot_mollweide(sats,host,fig=fig,useA=True)
+        fig.savefig('5-5/mollweide/LrotA_'+haloutils.hidstr(hid)+'.png')
+        plt.close('all')
 
 def simple_plots():
     plug = SatellitePlanes()

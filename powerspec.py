@@ -4,6 +4,7 @@ import pylab as plt
 import os,subprocess,sys,time
 import cPickle as pickle
 import pandas as pd
+import glob
 
 import haloutils
 from rotations import xyz2thetaphi
@@ -49,10 +50,30 @@ def filter_points(hpos,hvel,rvir,ppos,pvel,rmin=1.0,rmax=1.2):
 
     return ii_distcut & ii_infall
 
+minsize=200
+maxsize=500
+
+cmap = plt.get_cmap('cubehelix')
+fig,ax = plt.subplots(figsize=(8,8))
 hids = haloutils.cid2hid.values()
 for hid in hids:
     print haloutils.hidstr(hid)
     hpath = haloutils.get_hpath_lx(hid,12)
+    icsize = 0
+    for icpath in glob.glob(hpath+'/ics.*'):
+        icsize += os.path.getsize(icpath)
+    icsize /= 1.e6 #in MB
+    normicsize = (icsize-minsize)/(maxsize-minsize)
+    with open('5-5/'+haloutils.hidstr(hid)+'_Clarr.p','r') as f:
+        Cl_arr,mb = pickle.load(f)
+    times = haloutils.get_t_snap(hpath,mb['snap'])
+    ratio_2_1 = Cl_arr[2,mb['snap']]/Cl_arr[1,mb['snap']]
+    ratio_2_1[ratio_2_1==0] = 10**-10
+    ax.plot(times,ratio_2_1,color=cmap(normicsize),label=haloutils.hidstr(hid))
+ax.set_yscale('log')
+plt.show()
+
+def old():
     Cl_arr = np.zeros((lmax-lmin+1,256),dtype=complex)
     mtplug = MassAccrPlugin()
     mb = mtplug.read(hpath)
