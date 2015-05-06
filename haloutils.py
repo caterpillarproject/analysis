@@ -582,14 +582,24 @@ def get_colors_for_halos(nhalos=len(hid2name)):
 
     return index
 
-def tabulate(tabfn,lx=14,hids=None,savefile=None,numprocs=1):
+def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1):
     """
     @param tabfn: a function whose only argument is hpath. If successful, returns data,names,formats; data is a tuple of the values to go into the array, names is a list/tuple of the column names, formats is the data types (used for np.dtype). All three variables should be of the same length. If unsuccessful, tabfn should return None (e.g., in cases of no rockstar data), then tabulate() will make the DataFrame row be marked with missing data. TODO can I make this happen with exceptions in a nice way? Raising exceptions is better than returning None.
     @param lx: which LX to tabulate (default 14)
     @param hids: list of hids to tabulate (default, everything in cid2hid)
+    @param exclude_hids: list of hids to exclude
+    @param savefile: name of file to save df as a csv to
+    @param numprocs: if larger than 1, uses multiprocessing.Pool.map() to tabulate
     @return tab: pandas DataFrame, indexed by hid
     """
     if hids==None: hids = cid2hid.values()
+    if exclude_hids != None:
+        for ex_hid in exclude_hids:
+            ex_hid = hidint(ex_hid)
+            if ex_hid in hids: 
+                hids.remove(ex_hid)
+            else:
+                print "WARNING: H{0} not in hids, not removing"
 
     if numprocs==1:
         datalist = map(tabfn,[get_hpath_lx(hid,lx) for hid in hids])
