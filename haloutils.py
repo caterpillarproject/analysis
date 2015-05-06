@@ -9,14 +9,14 @@ import asciitable
 import pickle
 import pandas as pd
 import warnings
+import glob
 from multiprocessing import Pool
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
-import glob
-
+import brendanlib.conversions as bconversions
 
 def determinebasepath(node):
     if node == "csr-dyn-150.mit.edu":
@@ -138,21 +138,30 @@ def get_hpath_lx(hid,do_lx):
 
 def get_paper_paths_lx(do_lx):
     return [get_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
-
 def get_paper_paths():
     return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
+def get_good_paper_paths():
+    hpaths = [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
+    hpaths.remove(global_halobase+"/H95289")
+    return hpaths
 
-def get_scale_snap(hpath,snap):
-    assert snap == int(snap); snap = int(snap)
+def get_scale_snap(hpath,snaps):
+    snaps = np.ravel(snaps)
+    assert np.all(snaps==snaps.astype(int)); snaps = snaps.astype(int)
     numsnaps = get_numsnaps(hpath)
-    if snap+1 > numsnaps or snap<0: raise ValueError("snap {0} not valid".format(snap))
+    assert np.all(snaps < numsnaps) and np.all(snaps >= 0), "Snaps must be between 0 and {0}".format(numsnaps)
     with open(hpath+'/ExpansionList','r') as f:
         lines = f.readlines()
     assert(len(lines))==numsnaps
-    return float(lines[snap].split()[0])
+    def _get_scale_snap(snap):
+        return float(lines[snap].split()[0])
+    return np.array(map(_get_scale_snap,snaps))
 def get_z_snap(hpath,snap):
     scale = get_scale_snap(hpath,snap)
     return (1./scale) - 1.0
+def get_t_snap(hpath,snap,OmegaM=.3175,OmegaL=.6825,h=.6711):
+    scale = get_scale_snap(hpath,snap)
+    return bconversions.GetTime(scale,OmegaM=OmegaM,OmegaL=OmegaL,h=h)
 
 def get_available_hpaths(hid,contam=False,
                          checkgadget=True,
