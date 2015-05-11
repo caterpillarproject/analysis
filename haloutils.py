@@ -488,8 +488,8 @@ def load_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
 def load_zoom_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)
     
-def load_pmtc(hpath,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
-    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
+def load_pmtc(hpath=global_prntbase,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
+    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=3,**kwargs)
 
 def load_partblock(hpath,snap,block,parttype=-1,ids=-1,hdf5=True):
     #assert check_is_sorted(hpath,snap=snap,hdf5=hdf5),"snap is sorted"
