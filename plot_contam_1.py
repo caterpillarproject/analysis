@@ -27,8 +27,8 @@ def plot_contam_dist(whichfolder,haloidlist=None):
         data = asciitable.read('/bigbang/data/AnnaGroup/caterpillar/halos/low_mass_halos/contam_zoom_index.txt',Reader=asciitable.FixedWidth)
     elif 'middle' in whichfolder:
         if 'middle' != whichfolder:
-            whichmiddle=int(whichfolder[-1])
-            assert whichmiddle >=1 and whichmiddle <= 8
+            whichmiddle=int(whichfolder[6:])
+            assert whichmiddle >=1 and whichmiddle <= 12,whichmiddle
         data = asciitable.read('/bigbang/data/AnnaGroup/caterpillar/halos/middle_mass_halos/contam_zoom_index.txt',Reader=asciitable.FixedWidth)
     elif whichfolder=='high':
         data = asciitable.read('/bigbang/data/AnnaGroup/caterpillar/halos/high_mass_halos/contam_zoom_index.txt',Reader=asciitable.FixedWidth)
@@ -94,9 +94,15 @@ if __name__=="__main__":
                   [ 861036,  861617,  918636,  1079897, 1130025, 1232127], 
                   [ 1232164, 1268839, 1292085, 1327666, 1354437, 1386703], 
                   [ 1387186, 1422331, 1452004, 1599902, 1599988, 1631506], 
-                  [ 1697496, 1725139, 1725272, 1725372, 1818295]]
+                  [ 1697496, 1725139, 1725272, 1725372, 1818295],
+    ## Alex added new ID lists on May 11th, 2015
+                  [328299, 831231, 196078, 1232313, 1080116, 94629],
+                  [1327555, 1354579, 1232423, 986237, 1269057, 616647],
+                  [1666288, 264007, 65777, 1507525, 1848643, 1422429],
+                  [831159, 795802, 1507355, 1161351, 1161558, 767929],
+                  [1631582, 1327311, 231050, 1195075, 1104552]]
 
-    midlist = ['middle'+str(i) for i in [1,2,3,4,5,6,7,8]]
+    midlist = ['middle'+str(i) for i in [1,2,3,4,5,6,7,8,9,10,11,12]]
     idlists = [None,None,None]+mididlists
 
     for whichfolder,idlist in zip(['low','high','middle']+midlist,idlists):

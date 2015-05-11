@@ -123,6 +123,8 @@ if __name__=="__main__":
     for hpath in hlist:
         parenthid = haloutils.get_parent_hid(hpath)
         ictype,lx,nv = haloutils.get_zoom_params(hpath)
+        numsnaps = haloutils.get_numsnaps(hpath)
+        lastsnap = haloutils.get_numsnaps(hpath) - 1
 
         if not options.force: #skip if already in index
             key = haloutils.hidstr(parenthid)+'_'+ictype+'_'+str(lx)+'_'+str(nv)
@@ -131,7 +133,6 @@ if __name__=="__main__":
                 print "Already in index: "+hpath
                 continue
 
-        lastsnap = haloutils.get_numsnaps(hpath) - 1
         if options.contam != 0:
             try:
                 hcat = haloutils.load_rscat(hpath,lastsnap,halodir='halos',version=8,rmaxcut=False)
@@ -156,7 +157,7 @@ if __name__=="__main__":
             #hpos = np.array([zoomx,zoomy,zoomz])#np.array(hcat.ix[zoomid][['posX','posY','posZ']])
             drarr = []
             for parttype in [2,3,4,5]:
-                ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=parttype)
+                ppos = haloutils.load_partblock(hpath,lastsnap,"POS ",parttype=parttype)
                 drarr.append(np.min(np.sqrt(np.sum((ppos-hpos)**2,1))))
             hindex.append([parenthid,ictype,lx,nv,zoomid,
                            icsize,drarr[0],drarr[1],drarr[2],drarr[3],
@@ -164,13 +165,13 @@ if __name__=="__main__":
                            int(badhaloflag),int(badsubfflag)])
         else:
             allsnapsthere = True
-            for snap in xrange(256):
+            for snap in xrange(numsnaps):
                 snapstr = str(snap).zfill(3)
                 snappath = hpath+"/outputs/snapdir_"+snapstr+"/snap_"+snapstr+".0.hdf5"
                 if (not os.path.exists(snappath)):
                     allsnapsthere = False
                     break
-            ppos = haloutils.load_partblock(hpath,255,"POS ",parttype=2)
+            ppos = haloutils.load_partblock(hpath,lastsnap,"POS ",parttype=2)
             min2 = np.min(np.sqrt(np.sum((ppos-hpos)**2,1)))
             hindex.append([parenthid,ictype,lx,nv,zoomid,min2,
                            zoomx,zoomy,zoomz,zoommass,zoomrvir,
