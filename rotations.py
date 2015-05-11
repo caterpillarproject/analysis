@@ -49,13 +49,25 @@ def normalize_phi(phi):
         else:
             allgood=True
     return phi
-def xyz2thetaphi(pos):
-    r = np.sqrt(np.sum(pos**2,1))
+def xyz2thetaphi(pos,rotate_for_mollweide=False):
+    """
+    Puts [0,0,1] as pole by default.
+    If rotate_for_mollweide, puts [1,0,0] at (theta,phi)=0,0 and [0,0,1] as pole
+    """
     x = pos[:,0]; y = pos[:,1]; z = pos[:,2]
     rxy = np.sqrt(x**2 + y**2)
-    theta = np.arccos(z/r)
     phi = np.arccos(x/rxy)
+    phi[np.isnan(phi)] = 0
     phi[y<0] = 2*np.pi - phi[y<0]
     phi = normalize_phi(phi)
+    r = np.sqrt(np.sum(pos**2,1))
+    theta = np.arccos(z/r)
+    if rotate_for_mollweide:
+        phi[phi > np.pi] = phi[phi > np.pi]-2*np.pi
+        theta = np.pi/2. - theta
+        #rxz = np.sqrt(x**2 + z**2)
+        #theta = np.arccos(np.abs(x)/rxz)
+        #theta[rxz==0] = 0
+        #theta[z<0] = -theta[z<0]
     return theta,phi
 

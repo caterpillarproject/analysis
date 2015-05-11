@@ -11,11 +11,15 @@ from MTanalysis2 import ExtantDataFirstPass
 
 import numpy.random as random
 from scipy import linalg, stats, integrate, interpolate, optimize
+from scipy.spatial.distance import pdist
 import functools,itertools
 from multiprocessing import Pool
 import rotations
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+
+from seaborn.apionly import cubehelix_palette
+chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
 
 def angular_dists(pos):
     """
@@ -32,11 +36,16 @@ def angular_dists(pos):
             count += 1
     return angdists
 def angular_correlation(pos,nbins=20):
-    dists = angular_dists(pos)
-    cosd = np.cos(dists)
+    numpoints = len(pos)
+    #dists = angular_dists(pos)
+    #cosd = np.cos(dists)
+    cosd = 1-pdist(pos,'cosine')
     bins = np.linspace(-1,1,nbins+1)
-    h,x = np.histogram(cosd,bins=bins)
-    return h,x
+    dd,x = np.histogram(cosd,bins=bins)
+    x = (x[:-1]+x[1:])/2.
+    rr = float(numpoints)/len(dd) #uniform in cos(theta)
+    w = dd/rr - 1
+    return w
 
 class DefaultRadialDistn(stats.rv_continuous):
     """
@@ -80,6 +89,17 @@ class IsotropicSatellites(object):
             self.distn = DefaultRadialDistn()
         else:
             self.distn = distn
+
+    def create_cosangle_distr(self,N):
+        """Create array of cos(theta) from isotropic angular distr"""
+        isopos = self.uniform_sphere_points(N)
+        cosdist = pdist(isopos,'cosine')
+        return 1-cosdist #cos angle
+    def create_angles_distr(self,N):
+        """Create array of angular distances from isotropic angular distr (in radians)"""
+        cosines = self.create_cosangle_distr(N)
+        angles = np.arccos(cosines)
+        return angles 
 
     def create_random_sats(self,Nsats,N):
         return map(self.draw_random_points,itertools.repeat(Nsats,N))
@@ -314,43 +334,115 @@ def tab_rotation(hpath):
     formats = [np.int for i in range(len(sats))]
     return data,names,formats
 
-def plot_ang_mom(Ldisk = [0,0,1]):
-    plug = SatellitePlanes()
+if __name__=="__main__":
+    lx = 14; Ldisk = [0,0,1]
+#def plot_ang_mom(lx=14,Ldisk = [0,0,1]):
+    #plug = SatellitePlanes()
+    extplug = ExtantDataFirstPass()
     hids = haloutils.cid2hid.values()
-    Ldisk = np.array(Ldisk) #arbitrary for now
-    rotmat = rotations.rotate_to_z(Ldisk)
     output = []
     for hid in hids:
-        hpath = haloutils.get_hpath_lx(hid,14)
+        hpath = haloutils.get_hpath_lx(hid,lx)
         if hpath==None: continue
-        out = plug.read(hpath)
-        if out == None: continue
-        print haloutils.hidstr(hid)
-        sats,evallist,eveclist = out
-        spos = np.array(sats[['dx','dy','dz']])
-        svel = np.array(sats[['dvx','dvy','dvz']])
-        Lsat = np.array(sats[['Lx','Ly','Lz']])
-        Ltot = np.linalg.norm(Lsat,axis=1)
-        #r_spos = rotmat.dot(spos.T).T
-        #r_svel = rotmat.dot(svel.T).T
-        r_Lsat = rotmat.dot(Lsat.T).T
-        rLx = r_Lsat[:,0]; rLy = r_Lsat[:,1]; rLz = r_Lsat[:,2]
-        theta = np.arccos(rLz/Ltot)
-        phi = np.arccos(rLx/np.sqrt(rLx**2 + rLy**2))
-        phi[rLy < 0] = 2*np.pi - phi[rLy < 0]
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        zoomid= haloutils.load_zoomid(hpath)
+        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+        hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
+        hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
+        hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
 
-        theta = theta - np.pi/2.
-        phi = phi-np.pi
+        #Ldisk = np.array(Ldisk); tag='Z'
+        #Ldisk = hLmom; tag='J'
+        Ldisk = hA; tag='A'
+        rotmat = rotations.rotate_to_z(Ldisk)
 
-        fig = plt.figure(figsize=(8,8))
+        subs = rscat.get_all_subhalos_within_halo(zoomid)
+        spos = np.array(subs[['posX','posY','posZ']])-hpos
+        svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+        sLmom = np.cross(spos,svel)
+        r_sLmom = rotmat.dot(sLmom.T).T
+
+        subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
+        subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
+        subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
+
+        extdat = extplug.read(hpath)
+        extdat.index = extdat['rsid']
+        infall_labels = ['rsid','snap','vmax','mvir','posx','posy','posz',
+                         'pecvx','pecvy','pecvz','virialratio','hostid_MT',
+                         'rvir','spinbullock','rs','scale_of_last_MM',
+                         'Jx','Jy','Jz','xoff']
+        infall_labels = ['infall_'+l for l in infall_labels]        
+        for col in infall_labels:
+            assert col not in subs.columns
+            subs[col] = extdat.ix[subs.index][col]
+        subs.sort(columns='infall_vmax',ascending=False)
+        infall_scale = haloutils.get_scale_snap(hpath,subs[~np.isnan(subs['infall_snap'])]['infall_snap'])
+        infall_scale = pd.Series(infall_scale,index=subs[~np.isnan(subs['infall_snap'])].index)
+        subs['infall_scale'] = infall_scale
+
+        min_vmax_size=0.
+        max_vmax_size=100.
+        min_vmax=0.
+        max_vmax=100.
+        normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
+        sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
+
+        fig = plt.figure()
         ax = fig.add_subplot(111,projection='mollweide')
-        ax.scatter(phi,theta)
-        fig.savefig('5-1/mollweideL_'+haloutils.hidstr(hid)+'.png',bbox_inches='tight')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        theta,phi = rotations.xyz2thetaphi(sLmom,rotate_for_mollweide=True)
+        ii = np.array(~np.isnan(subs['infall_scale']))
+        theta = theta[ii]; phi = phi[ii]; infall_scale = np.array(subs['infall_scale'])[ii]
+        sizes_vmax = sizes_vmax[ii]
+
+        theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; sizes_vmax = sizes_vmax[::-1]
+        sc = ax.scatter(phi,theta,c=infall_scale,vmin=0,vmax=1,
+                        s=sizes_vmax,linewidth=0,cmap=chcmap)
+        fig.colorbar(sc,orientation='horizontal')
+        #_phigrid = np.linspace(0,2*np.pi)
+        #grid = np.zeros((len(_phigrid),3))
+        #grid[:,1] = np.cos(_phigrid)
+        #grid[:,2] = np.sin(_phigrid)
+        #_theta,_phi = rotations.xyz2thetaphi(grid,rotate_for_mollweide=True)
+        #ax.plot(_phi,_theta,'o')
+        
+        fig.savefig('5-8/mollweideL'+str(tag)+'_'+haloutils.hidstr(hid)+'.png',bbox_inches='tight')
         plt.close('all')
-        h,x = angular_correlation(Lsat)
-        output.append([hid,h,x,r_Lsat])
-    with open('Lmom.p','w') as f:
-        pickle.dump(output,f)
+
+#        out = plug.read(hpath)
+#        if out == None: continue
+#        print haloutils.hidstr(hid)
+#        sats,evallist,eveclist = out
+#        spos = np.array(sats[['dx','dy','dz']])
+#        svel = np.array(sats[['dvx','dvy','dvz']])
+#        Lsat = np.array(sats[['Lx','Ly','Lz']])
+#        Ltot = np.linalg.norm(Lsat,axis=1)
+#        #r_spos = rotmat.dot(spos.T).T
+#        #r_svel = rotmat.dot(svel.T).T
+#        r_Lsat = rotmat.dot(Lsat.T).T
+#        rLx = r_Lsat[:,0]; rLy = r_Lsat[:,1]; rLz = r_Lsat[:,2]
+#        theta = np.arccos(rLz/Ltot)
+#        phi = np.arccos(rLx/np.sqrt(rLx**2 + rLy**2))
+#        phi[rLy < 0] = 2*np.pi - phi[rLy < 0]
+#
+#        theta = theta - np.pi/2.
+#        phi = phi-np.pi
+#
+#        #fig = plt.figure(figsize=(8,8))
+#        #ax = fig.add_subplot(111,projection='mollweide')
+#        #ax.scatter(phi,theta)
+#        #fig.savefig('5-1/mollweideL_'+haloutils.hidstr(hid)+'.png',bbox_inches='tight')
+#        #plt.close('all')
+
+#        w = angular_correlation(Lsat)
+
+        #h,x = angular_correlation(Lsat)
+        #output.append([hid,h,x,r_Lsat])
+#    with open('Lmom.p','w') as f:
+#        pickle.dump(output,f)
 
 def plot_mollweide(sats,host,fig=None,subplots=111,useA=False):
     if fig==None:
@@ -367,7 +459,7 @@ def plot_mollweide(sats,host,fig=None,subplots=111,useA=False):
     satsL   = np.array(sats[['Lx','Ly','Lz']])
 
     r_satsL = rotmat.dot(satsL.T).T
-    sats_theta,sats_phi = rotations.xyz2thetaphi(r_satsL)
+    sats_theta,sats_phi = rotations.xyz2thetaphi(r_satsL,rotate_for_mollweide=True)
     sats_theta -= np.pi/2; sats_phi -= np.pi
 
     #halo_z = rotmat.dot(halo_z)
@@ -378,7 +470,8 @@ def plot_mollweide(sats,host,fig=None,subplots=111,useA=False):
     ax.plot(sats_phi,sats_theta,'o',color='blue',mec=None,markersize=16)
     return ax
 
-if __name__=="__main__":
+#if __name__=="__main__":
+def tmp():
     #plot_isotropy()
     #plot_isotropic_Nsats()
     #plot_ang_mom()
