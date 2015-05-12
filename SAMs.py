@@ -79,7 +79,6 @@ class SimpleSAMsPlugin(PluginBase):
         for finfall_label in finfall_labels:
             subs[finfall_label] = np.zeros(len(subs))+np.nan
         ## setup properties at formation
-        Mform = float(subs['infall_mvir'][subid])/2.
         subs['form_snap'] = np.zeros(len(subs))+np.nan
         base_form_labels = base_reionz_labels
         form_labels = ['form_'+label for label in base_form_labels]
@@ -114,6 +113,7 @@ class SimpleSAMsPlugin(PluginBase):
             for finfall_label,val in zip(finfall_labels,this_data):
                 subs[finfall_label][subid] = val
             ## properties at formation
+            Mform = float(subs['infall_mvir'][subid])/2.
             form_snap = np.min(mb['snap'][mb['mvir']>Mform])
             form_ii = mb['snap']==form_snap
             subs['form_snap'][subid] = form_snap
