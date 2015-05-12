@@ -147,13 +147,22 @@ def get_good_paper_paths():
 
 def get_scale_snap(hpath,snaps):
     snaps = np.ravel(snaps)
-    assert np.all(snaps==snaps.astype(int)); snaps = snaps.astype(int)
+    if type(snaps[0]) == np.float64 or type(snaps[0])==np.float:
+        badii = np.isnan(snaps)
+    else:
+        badii = snaps < 0
+    goodii = ~badii
+    assert np.all(snaps[goodii].astype(int)==snaps[goodii]),'Snaps must be integers'
+    snaps = snaps.astype(int)
+    snaps[badii] = -1
+
     numsnaps = get_numsnaps(hpath)
-    assert np.all(snaps < numsnaps) and np.all(snaps >= 0), "Snaps must be between 0 and {0}".format(numsnaps)
+    assert np.all(snaps[goodii] < numsnaps) and np.all(snaps[goodii] >= 0), "Snaps must be between 0 and {0}".format(numsnaps-1)
     with open(hpath+'/ExpansionList','r') as f:
         lines = f.readlines()
-    assert(len(lines))==numsnaps
+    #assert(len(lines))==numsnaps
     def _get_scale_snap(snap):
+        if snap == -1: return np.nan
         return float(lines[snap].split()[0])
     return np.array(map(_get_scale_snap,snaps))
 def get_z_snap(hpath,snap):
