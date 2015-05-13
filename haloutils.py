@@ -442,7 +442,10 @@ def load_pcatz0(old=False):
 
 def load_scat(hpath):
     if "LX14" in hpath:
-        return RSF.subfind_catalog(hpath+'/outputs',255,double=True)
+        try:
+            return RSF.subfind_catalog(hpath+'/outputs',255,double=True)
+        except ValueError:
+            return RSF.subfind_catalog(hpath+'/outputs',255)
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',255)
 
