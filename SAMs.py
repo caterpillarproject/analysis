@@ -148,9 +148,12 @@ class SimpleSAMBasePlugin(PluginBase):
                 pickle.dump(subs,f)
                 
     def _read(self,hpath):
-        with open(self.get_outfname(hpath),'r') as f:
-            subs = pickle.load(f)
-        return subs
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                subs = pickle.load(f)
+            return subs
+        except IOError:
+            return None
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         subs = data
         raise NotImplementedError

@@ -154,7 +154,11 @@ class PluginBase(object):
             if labelon: self.label_plot(hpath,ax,normtohost=normtohost,label=label)
             return
         data = self.read(hpath,recalc=recalc,stop_on_error=stop_on_error)
-        if data==None:
+        try:
+            baddata = data==None
+        except TypeError:
+            baddata = False
+        if baddata:
             self.format_plot(ax,normtohost=normtohost)
             if labelon: self.label_plot(hpath,ax,normtohost=normtohost,label=label)
             return
