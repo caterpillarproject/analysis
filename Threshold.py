@@ -41,7 +41,9 @@ def get_halos_recurse(halo, pre_value,pre_row,mmp):
                 return # always too small
             elif mmp: 
                 print 'found a halo'
-                firsthalos.append([tree.rockstar_id,pre_row, halo, pre_value, cur_value])
+                # pre_row is the line of the halo that crossed the threshold
+                # to get this halo back out of the MT, load the Tree with "tree.rockstar_id", and go to line "pre_row"
+                firsthalos.append([tree.rockstar_id,pre_row, tree[pre_row]['origid'], tree[pre_row]['snap']]) # pre_value, cur_value
                 return
     mmp = tree.getMMP(halo)
     if mmp!=None:
