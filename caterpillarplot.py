@@ -3,11 +3,11 @@ import numpy as np
 import pylab as plt
 import seaborn.apionly as sns
 
-plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
-plt.rcParams.update({'text.usetex': True,
-                     'font.family': 'lmodern',
-                     'text.latex.unicode': True,
-                     'axes.linewidth': 2})
+#plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+#plt.rcParams.update({'text.usetex': True,
+#                     'font.family': 'lmodern',
+#                     'text.latex.unicode': True,
+#                     'axes.linewidth': 2})
 
 def get_haloidlist(sheet):
     if sheet==1:
