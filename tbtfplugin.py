@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 
 from caterpillaranalysis import *
 from subprofileplugin import SubVelocityProfileSoftPlugin
+#import brendanlib.grifflib as glib
 
 import MTanalysis,MTanalysis2
 
@@ -26,7 +27,6 @@ class TBTFPlugin(SubVelocityProfilePlugin):
         assert lx != None
         color = self.colordict[lx]
 
-        #TODO factor out grabbing vpeak?
         extantplug = MTanalysis.TagExtantPlugin()
         extantdata = extantplug.read(hpath,autocalc=False)
         if extantdata == None:
@@ -142,9 +142,8 @@ class TBTFSoftPlugin(SubVelocityProfileSoftPlugin,TBTFPlugin):
         assert lx != None
         color = self.colordict[lx]
 
-        #TODO factor out grabbing vpeak?
         extantplug = MTanalysis2.ExtantDataFirstPass()
-        extantdata = extantplug.read(hpath)#,autocalc=False)
+        extantdata = extantplug.read(hpath)
         try:
             baddata = extantdata == None
         except TypeError:
@@ -331,3 +330,84 @@ def count_massive_failures(rarr,vcircarr,tbtfplug):
                 
     return massive_failures, strong_massive_failures, matched_to_halos
 
+def tab_massive_failures(hpath):
+    if hpath==None: return None
+    
+    plug = TBTFSoftPlugin()
+    extantplug = MTanalysis2.ExtantDataFirstPass()
+    extantdata = extantplug.read(hpath)
+    try:
+        baddata = extantdata == None
+    except TypeError:
+        baddata = False
+    if baddata:
+        return None
+
+    vpeakarr = extantdata['peak_vmax']
+    keeprsids = (extantdata['rsid'][vpeakarr >= plug.vcut]).astype(int)
+    vpeak = pd.Series(np.array(vpeakarr),index=extantdata['rsid'])
+    
+    data = plug.read(hpath)
+    rsid,rarr,rvir,vcircarr,vcircsoftarr = data
+    vcircarr = vcircsoftarr
+    vmaxarr = np.max(vcircsoftarr,axis=1)
+    iicut = np.in1d(rsid,keeprsids,assume_unique=True)
+    rsid = rsid[iicut]
+    rarr = rarr[iicut,:]
+    vpeak = np.array(vpeak.ix[rsid])
+    vmaxarr = vmaxarr[iicut]
+    vcircarr = vcircarr[iicut,:]
+        
+    iicut2 = vmaxarr <= 60
+    nNotMC = np.sum(iicut2); nMC = len(iicut2)-nNotMC
+
+    rarr = rarr[iicut2,:]
+    vcircarr = vcircarr[iicut2,:]
+    rsid = rsid[iicut2]
+    vpeak = vpeak[iicut2]
+    vmaxarr = vmaxarr[iicut2]
+    
+    rarr = rarr*1000 #kpc
+    massive_failures, strong_massive_failures, matched_to_halos = count_massive_failures(rarr,vcircarr,plug)
+    num_massive_failures = np.sum(massive_failures)
+    num_strong_massive_failures = np.sum(strong_massive_failures)
+    
+    data = (num_strong_massive_failures,num_massive_failures,nNotMC,nNotMC+nMC)
+    names = ['strong_massive_failures','massive_failures','num_not_MC','num_sats']
+    formats = [np.float for i in range(len(names))]
+    return data,names,formats
+
+def plot_tbtf_failures():
+    oldrcParams = plt.rcParams
+    #plt.rcParams.update(glib.fig_for_papers)
+
+    plug = TBTFSoftPlugin()
+
+#    excludeids = [None,[94687,1195448,95289]]
+#    dfarr = [haloutils.tabulate(tab_massive_failures,lx=14,exclude_hids=exclude) for exclude in excludeids]
+#    colors = ['k','r']
+#    labels = ['All halos','Filtered halos']
+
+    df = haloutils.tabulate(tab_massive_failures,lx=14,exclude_hids=[94687])
+    color = 'k'
+
+    fig,ax = plt.subplots(figsize=(8,8))
+    ax.set_xlabel(r'$N_{\rm (strong)\ massive\ failures}$')
+    ax.set_ylabel(r'$\rm{cumulative\ fraction}$')
+#    for df,color,label in zip(dfarr,colors,labels):
+    smf = np.sort(df['strong_massive_failures'])
+    smf = smf[~np.isnan(smf)]
+    mf = np.sort(df['massive_failures'])
+    mf = mf[~np.isnan(mf)]
+    assert len(mf)==len(smf)
+    cumprob = (1.+np.arange(len(smf)))/float(len(smf))
+    mf = np.concatenate([[mf[0]],mf])
+    smf = np.concatenate([[smf[0]],smf])
+    cumprob = np.concatenate([[0],cumprob])
+
+    ax.plot(mf,cumprob,'-',color=color,label='Massive Failures')
+    ax.plot(smf,cumprob,'--',color=color,label='Strong Massive Failures')
+    ax.legend(loc = 'lower right')
+    plt.savefig('tbtfcount.png',bbox_inches='tight')
+
+    plt.rcParams.update(oldrcParams)

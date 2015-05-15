@@ -594,7 +594,7 @@ def get_colors_for_halos(nhalos=len(hid2name)):
 
     return index
 
-def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1):
+def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1,usecid=False):
     """
     @param tabfn: a function whose only argument is hpath. If successful, returns data,names,formats; data is a tuple of the values to go into the array, names is a list/tuple of the column names, formats is the data types (used for np.dtype). All three variables should be of the same length. If unsuccessful, tabfn should return None (e.g., in cases of no rockstar data), then tabulate() will make the DataFrame row be marked with missing data. TODO can I make this happen with exceptions in a nice way? Raising exceptions is better than returning None.
     @param lx: which LX to tabulate (default 14)
@@ -602,7 +602,8 @@ def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1):
     @param exclude_hids: list of hids to exclude
     @param savefile: name of file to save df as a csv to
     @param numprocs: if larger than 1, uses multiprocessing.Pool.map() to tabulate
-    @return tab: pandas DataFrame, indexed by hid
+    @param usecid: DataFrame index is by Cat-ID rather than hid
+    @return tab: pandas DataFrame, indexed by hid (or Cat-ID if usecid)
     """
     if hids==None: hids = cid2hid.values()
     if exclude_hids != None:
@@ -643,7 +644,12 @@ def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1):
 
     dataarr = np.array(rows,dtype=dtype)
 
-    df = pd.DataFrame(dataarr,index=hids)
+    if usecid:
+        myindex = [hid2catnum[hid] for hid in hids]
+    else:
+        myindex = hids
+
+    df = pd.DataFrame(dataarr,index=myindex)
     for i,hid in enumerate(df.index):
         if invalid[i]: df.iloc[i] = None
 

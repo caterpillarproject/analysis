@@ -14,7 +14,9 @@ class SubProfileSoftPlugin(ProfilePlugin):
         self.filename='subprofilesoft.npz'
         self.nr = 50
         self.nrfit = 20
-        self.rminfit = .291  #kpc, Draco rvmax
+        #self.rminfit = .291  #kpc, Draco rvmax
+        self.rminfit = {14:.291,13:.6,12:1.2,11:2.4,
+                        '14':.291,'13':.6,'12':1.2,'11':2.4}
         self.mmin = 10**8
 
         self.xmin = rmin; self.xmax = rmax
@@ -47,6 +49,8 @@ class SubProfileSoftPlugin(ProfilePlugin):
         header = rsg.snapshot_header(snapfile+'.0')
         mpart = header.massarr[1]*1e10/header.hubble
 
+        lx = int(haloutils.get_zoom_params(hpath)[1])
+
         for i,subid in enumerate(subids):
             i_rvir = np.array(subs.ix[subid]['rvir']/rscat.h0) #kpc
             i_rvmax= np.array(subs.ix[subid]['rvmax']/rscat.h0) #kpc
@@ -63,10 +67,10 @@ class SubProfileSoftPlugin(ProfilePlugin):
             allmltrarr[i,:] = mltr
             Marr = self.mltr_to_Marr(mltr)
             if i_rvmax >= .5:
-                EINmltr,Q2 = self.compute_mltr_soft(dr,i_rvir,i_rvmax,mpart) 
+                EINmltr,Q2 = self.compute_mltr_soft(dr,i_rvir,i_rvmax,mpart,lx) 
                 if Q2==None: Q2=-1
                 elif Q2 < .1:
-                    ii = (rarr < self.rminfit)
+                    ii = (rarr < self.rminfit[lx])
                     mltr[ii] = EINmltr(rarr[ii])
                     iilast = np.max(np.where(ii)[0])
                     mltrlast = mltr[iilast]
@@ -77,8 +81,8 @@ class SubProfileSoftPlugin(ProfilePlugin):
         np.savez(self.get_outfname(hpath),rsid=idarr,rvir=rvirarr,rvmax=rvmaxarr,
                  mgrav=mgravarr,mltr=allmltrarr,mltrsoft=allmltrsoftarr,Q2=Q2arr)
             
-    def compute_rho_soft(self,dr,rvir,rvmax,mpart):
-        rbin = self.get_fit_rarr(rvmax) #kpc
+    def compute_rho_soft(self,dr,rvir,rvmax,mpart,lx):
+        rbin = self.get_fit_rarr(rvmax,lx) #kpc
         rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart) #Msun/kpc^3
         try:
             p0,p1,p2,Q2 = profilefit.fitEIN(rbin,rhoarr,[.5,10,.2],retQ2=True)
@@ -88,8 +92,8 @@ class SubProfileSoftPlugin(ProfilePlugin):
             EINprof=None; Q1=-1
             # else raise e
         return EINprof,Q2
-    def compute_mltr_soft(self,dr,rvir,rvmax,mpart):
-        rbin = self.get_fit_rarr(rvmax) #kpc
+    def compute_mltr_soft(self,dr,rvir,rvmax,mpart,lx):
+        rbin = self.get_fit_rarr(rvmax,lx) #kpc
         rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart) #Msun/kpc^3
         try:
             p0,p1,p2,Q2 = profilefit.fitEIN(rbin,rhoarr,[.5,10,.2],retQ2=True)
@@ -105,7 +109,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
         d = np.load(thisfilename) #d['rsid']
         rarr = self.get_scaled_rarr(d['rvir'])
         return rarr,d['rsid'],d['rvir'],d['rvmax'],d['mgrav'],d['mltr'],d['mltrsoft'],d['Q2']
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,numlines=10,**kwargs):
         rarr, rsid, rvir, rvmax, mgrav, mltr, mltrsoft, Q2 = data
         mltr /= 1e10; mltrsoft /= 1e10
         rhoarr = np.zeros(mltr.shape)
@@ -121,14 +125,14 @@ class SubProfileSoftPlugin(ProfilePlugin):
         if lx != None:
             color = self.colordict[lx]
         for i in xrange(len(rsid)):
-            if i==10: break
+            if i==numlines: break
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
             ax.plot(rarr[i,ii], plotqty[i,ii], ':', color=color, **kwargs)
             ax.plot(rarr[i,ii], plotqtysoft[i,ii], '-', color=color, **kwargs)
 
-    def get_fit_rarr(self,rvmax):
-        rlo = self.rminfit
+    def get_fit_rarr(self,rvmax,lx):
+        rlo = self.rminfit[lx]
         rhi = min(3,1.5*rvmax) #kpc
         return np.logspace(np.log10(rlo),np.log10(rhi),self.nrfit)
         
@@ -165,7 +169,7 @@ class SubVelocityProfileSoftPlugin(SubProfileSoftPlugin):
             vcircarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrarr[i,:])
             vcircsoftarr[i,:] = self.mltr_to_vcirc(rarr[i],mltrsoftarr[i,:])
         return rsid,rarr,rvir,vcircarr,vcircsoftarr
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,color='k',**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,alpha=.2,color='k',numlines=10,**kwargs):
         rsid,rarr,rvir,vcircarr,vcircsoftarr = data
         rarr = rarr*1000 #kpc
         eps = 1000*haloutils.load_soft(hpath)
@@ -178,6 +182,8 @@ class SubVelocityProfileSoftPlugin(SubProfileSoftPlugin):
         if lx != None:
             color = self.colordict[lx]
         for i in xrange(len(rsid)):
+            if i==numlines: break
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
-            ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, alpha=alpha, **kwargs)
+            ax.plot(rarr[i,ii], vcircarr[i,ii], ':', color=color, alpha=alpha, **kwargs)
+            ax.plot(rarr[i,ii], vcircsoftarr[i,ii], '-', color=color, alpha=alpha, **kwargs)
