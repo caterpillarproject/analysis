@@ -43,7 +43,7 @@ def angular_correlation(pos,nbins=20):
     bins = np.linspace(-1,1,nbins+1)
     dd,x = np.histogram(cosd,bins=bins)
     x = (x[:-1]+x[1:])/2.
-    rr = float(numpoints)/len(dd) #uniform in cos(theta)
+    rr = float(len(cosd))/len(dd) #uniform in cos(theta)
     w = dd/rr - 1
     return w
 
@@ -363,10 +363,21 @@ if __name__=="__main__":
         sLmom = np.cross(spos,svel)
         r_sLmom = rotmat.dot(sLmom.T).T
 
+        bins = np.linspace(-1,1,21)
+        bins = (bins[1:]+bins[:-1])/2.
+        w = angular_correlation(sLmom)
+        fig,ax = plt.subplots()
+        ax.plot(bins,w)
+        ax.set_xlabel(r'$\cos \theta$')
+        ax.set_ylabel(r'$w(\theta)$')
+        fig.savefig('5-13/angcor_'+haloutils.hidstr(hid)+'.png',bbox_inches='tight')
+        plt.close('all')
+
         subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
         subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
         subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
 
+def plot_mollweide_L():
         extdat = extplug.read(hpath)
         extdat.index = extdat['rsid']
         infall_labels = ['rsid','snap','vmax','mvir','posx','posy','posz',
