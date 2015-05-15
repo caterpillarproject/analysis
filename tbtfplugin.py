@@ -6,11 +6,12 @@ import pynbody as pnb
 import readsnapshots.readsnapHDF5_greg as rsg
 import haloutils
 import pandas as pd
+from scipy.interpolate import interp1d
 
 from caterpillaranalysis import *
 from subprofileplugin import SubVelocityProfileSoftPlugin
 
-import MTanalysis
+import MTanalysis,MTanalysis2
 
 class TBTFPlugin(SubVelocityProfilePlugin):
     def __init__(self,minlum=2.e5):
@@ -142,46 +143,56 @@ class TBTFSoftPlugin(SubVelocityProfileSoftPlugin,TBTFPlugin):
         color = self.colordict[lx]
 
         #TODO factor out grabbing vpeak?
-        extantplug = MTanalysis.TagExtantPlugin()
-        extantdata = extantplug.read(hpath,autocalc=False)
-        if extantdata == None:
+        extantplug = MTanalysis2.ExtantDataFirstPass()
+        extantdata = extantplug.read(hpath)#,autocalc=False)
+        try:
+            baddata = extantdata == None
+        except TypeError:
+            baddata = False
+        if baddata:
             print "ERROR: %s does not have Greg's Extant data (not plotting)" % (haloutils.get_foldername(hpath))
             return
-        extantids,extantdata = extantdata
-        vpeakarr = extantdata['vpeak']
+        vpeakarr = extantdata['peak_vmax']
         keeprsids = (extantdata['rsid'][vpeakarr >= self.vcut]).astype(int)
-        vpeak = pd.Series(vpeakarr,index=extantdata['rsid'])
+        vpeak = pd.Series(np.array(vpeakarr),index=extantdata['rsid'])
 
         rsid,rarr,rvir,vcircarr,vcircsoftarr = data
         vcircarr = vcircsoftarr
+        vmaxarr = np.max(vcircsoftarr,axis=1)
         #rsid,rarr,rvir,vcircarr = data
         iicut = np.in1d(rsid,keeprsids,assume_unique=True)
         rsid = rsid[iicut]
         rarr = rarr[iicut,:]
         rvir = rvir[iicut]
         vpeak = np.array(vpeak.ix[rsid])
-        nbound = len(rsid)
-        nall = len(keeprsids)
+        vmaxarr = vmaxarr[iicut]
+        #nbound = len(rsid)
+        #nall = len(keeprsids)
         vcircarr = vcircarr[iicut,:]
         
-        iicut2 = vpeak <= min(self.vLMC,self.vSMC)
-        nNotMC = np.sum(iicut2)
+        #iicut2 = vpeak <= min(self.vLMC,self.vSMC)
+        iicut2 = vmaxarr <= 60
+        #iicut2 = (vpeak < 60) & (vmaxarr < 40)
+        nNotMC = np.sum(iicut2); nMC = len(iicut2)-nNotMC
 
         mc_rarr = rarr[~iicut2,:]
         mc_vcircarr = vcircarr[~iicut2,:]
         mc_rsid = rsid[~iicut2]
         mc_rvir = rvir[~iicut2]
         mc_vpeak= vpeak[~iicut2]
+        mc_vmaxarr = vmaxarr[~iicut2]
 
         rarr = rarr[iicut2,:]
         vcircarr = vcircarr[iicut2,:]
         rsid = rsid[iicut2]
         rvir = rvir[iicut2]
         vpeak = vpeak[iicut2]
+        vmaxarr = vmaxarr[iicut2]
 
         rarr = rarr*1000 #kpc
         mc_rarr = mc_rarr*1000
         eps = 1000*haloutils.load_soft(hpath)
+        massive_failures, strong_massive_failures, matched_to_halos = count_massive_failures(rarr,vcircarr,self)
         if normtohost:
             mvir,rvir,vvir=haloutils.load_haloprops(hpath)
             rarr = rarr/rvir
@@ -192,17 +203,23 @@ class TBTFSoftPlugin(SubVelocityProfileSoftPlugin,TBTFPlugin):
         for i in xrange(len(rsid)):
             ii = rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
-            ax.plot(rarr[i,ii], vcircarr[i,ii], color=color, alpha=alpha, **kwargs)
+            if massive_failures[i]: linestyle='-'
+            else: linestyle=':'
+            
+            ax.plot(rarr[i,ii], vcircarr[i,ii], linestyle=linestyle, color=color, alpha=alpha, **kwargs)
         for i in xrange(len(mc_rsid)):
             ii = mc_rarr[i,:] >= eps
             if np.sum(ii) == 0: continue
-            ax.plot(mc_rarr[i,ii], mc_vcircarr[i,ii], color=color, linestyle=':', alpha=alpha, **kwargs)
+            ax.plot(mc_rarr[i,ii], mc_vcircarr[i,ii], color=color, linestyle='--', alpha=alpha, **kwargs)
+
+        
+
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
         logxoff = np.log10(xmax/xmin)*.05
         xlabel  = xmax * 10**(-logxoff)
         logyoff = np.log10(ymax/ymin)*.1
         ylabel  = ymax * 10**(-logyoff)
-        ax.text(xlabel,ylabel,r"$%i/%i/%i$" % (nNotMC,nbound,nall),ha='right')
+        ax.text(xlabel,ylabel,r"$%i/%i/%i/%i$" % (np.sum(strong_massive_failures),np.sum(massive_failures),nNotMC,nNotMC+nMC),ha='right')
 
 class NvinfallPlugin(MTanalysis.TagExtantPlugin,NvmaxPlugin):
     def __init__(self):
@@ -236,3 +253,81 @@ class NvinfallPlugin(MTanalysis.TagExtantPlugin,NvmaxPlugin):
             ax.plot(vplot[ii],Nvinfall[ii],color=self.colordict[lx],**kwargs)
         else:
             ax.plot(vplot[ii],Nvinfall[ii],color=self.colordict[lx],**kwargs)
+
+
+## Code for counting massive failures TODO
+def line_intersects_point(x,y,line_x,line_y,yerr1=0,yerr2=0):
+    f = interp1d(line_x,line_y)
+    ymin = y-yerr1
+    ymax = y+yerr2
+    ytest = f(x)
+    return (ytest >= ymin) and (ytest <= ymax)
+
+def line_gtr_than_point(x,y,line_x,line_y,yerr1=0,yerr2=0):
+    f = interp1d(line_x,line_y)
+    ymax = y+yerr2
+    ytest = f(x)
+    return ytest >= ymax
+
+def line_less_than_point(x,y,line_x,line_y,yerr1=0,yerr2=0):
+    f = interp1d(line_x,line_y)
+    ymin = y-yerr1
+    ytest = f(x)
+    return ytest <= ymin
+
+def count_massive_failures(rarr,vcircarr,tbtfplug):
+    # Pull out Draco and Ursa Minor
+    rhalf = tbtfplug.rhalf[[1,-2]]
+    vhalf = tbtfplug.vhalf[[1,-2]]
+    verr = [thisverr[[1,-2]] for thisverr in tbtfplug.verr]
+    already_matched = [False for r in rhalf]
+    
+    biggest_v = np.max(vhalf+verr[1])
+
+    nprofiles = len(rarr)
+    massive_failures = [False for x in range(nprofiles)]
+    strong_massive_failures = [False for x in range(nprofiles)]
+    matched_to_halos = [False for x in range(nprofiles)]
+    for i in range(nprofiles):
+        r_prof = rarr[i,:]
+        v_prof = vcircarr[i,:]
+        thismatcharr = [False for r in rhalf]
+        gtrarr = [False for r in rhalf]
+        lessarr= [False for r in rhalf]
+        for j,(r,v,ve1,ve2) in enumerate(zip(rhalf,vhalf,verr[0],verr[1])):
+            if line_intersects_point(r,v,r_prof,v_prof,yerr1=ve1,yerr2=ve2):
+                thismatcharr[j] = True
+            if line_gtr_than_point(r,v,r_prof,v_prof,yerr1=ve1,yerr2=ve2):
+                gtrarr[j] = True
+            if line_less_than_point(r,v,r_prof,v_prof,yerr1=ve1,yerr2=ve2):
+                lessarr[j]= True
+
+        
+        if np.sum(gtrarr) == len(gtrarr):
+            strong_massive_failures[i] = True
+            massive_failures[i] = True
+            continue
+        elif np.sum(gtrarr)==0:
+            for j in range(len(rhalf)):
+                if thismatcharr[j]:
+                    if already_matched[j]:
+                        massive_failures[i] = True
+                    else:
+                        already_matched[j] = True
+                        matched_to_halos[i] = True
+                    break
+            # The alternative is that it is not a failure of any type
+        else: #greater than some but not others: a massive failure unless it intersects and is matched
+            intersects_and_matched = False
+            for j in range(len(rhalf)):
+                if thismatcharr[j]:
+                    if not already_matched[j]:
+                        already_matched[j] = True
+                        matched_to_halos[i] = True
+                        intersects_and_matched = True
+                        break
+            if not intersects_and_matched:
+                massive_failures[i] = True
+                
+    return massive_failures, strong_massive_failures, matched_to_halos
+

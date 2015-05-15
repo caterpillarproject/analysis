@@ -27,7 +27,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
     def _analyze(self,hpath):
         snap = 255
         zoomid = haloutils.load_zoomid(hpath)
-        rscat = haloutils.load_bound_rscat(hpath,snap)
+        rscat = haloutils.load_rscat(hpath,snap)
         subs = rscat.get_all_subhalos_within_halo(zoomid)
         subs = subs[subs['mgrav']/rscat.h0 > self.mmin]
         subids = np.array(subs['id'])
@@ -57,7 +57,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
             mgravarr[i]= i_mgrav
 
             rarr = self.get_scaled_rarr(i_rvir) #Mpc
-            rarr,mltr,p03rmin,halorvir,r200c,halomass,dr = self.compute_one_profile(rarr,hpath,rscat,subid,snap,header,calcp03r=True,calcr200=True,retdr=True,usebound=True)
+            rarr,mltr,p03rmin,halorvir,r200c,halomass,dr = self.compute_one_profile(rarr,hpath,rscat,subid,snap,header,calcp03r=True,calcr200=True,retdr=True)
             dr   *= 1000. #kpc
             rarr *= 1000. #kpc
             allmltrarr[i,:] = mltr
