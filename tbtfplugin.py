@@ -10,7 +10,7 @@ from scipy.interpolate import interp1d
 
 from caterpillaranalysis import *
 from subprofileplugin import SubVelocityProfileSoftPlugin
-#import brendanlib.grifflib as glib
+import brendanlib.grifflib as glib
 
 import MTanalysis,MTanalysis2
 
@@ -379,7 +379,7 @@ def tab_massive_failures(hpath):
 
 def plot_tbtf_failures():
     oldrcParams = plt.rcParams
-    #plt.rcParams.update(glib.fig_for_papers)
+    plt.rcParams.update(glib.fig_for_papers)
 
     plug = TBTFSoftPlugin()
 
@@ -411,3 +411,4 @@ def plot_tbtf_failures():
     plt.savefig('tbtfcount.png',bbox_inches='tight')
 
     plt.rcParams.update(oldrcParams)
+    return fig
