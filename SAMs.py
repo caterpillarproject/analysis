@@ -56,17 +56,26 @@ class SimpleSAMBasePlugin(PluginBase):
         ## properties at infall to MW
         extdat = self.extant.read(hpath)
         extdat.index = extdat['rsid']
-        infall_labels = ['rsid','snap','vmax','mvir','posx','posy','posz',
-                         'pecvx','pecvy','pecvz','virialratio','hostid_MT',
-                         'rvir','spinbullock','rs','scale_of_last_MM',
-                         'Jx','Jy','Jz','xoff']
-        infall_labels = ['infall_'+l for l in infall_labels]
+        all_labels = ['rsid','snap','vmax','mvir','posx','posy','posz',
+                      'pecvx','pecvy','pecvz','virialratio','hostid_MT',
+                      'rvir','spinbullock','rs','scale_of_last_MM',
+                      'Jx','Jy','Jz','xoff']
+        infall_labels = ['infall_'+l for l in all_labels]
         for col in infall_labels:
             assert col not in subs.columns
             subs[col] = extdat.ix[subs.index][col]
         infall_scale = haloutils.get_scale_snap(hpath,np.array(subs['infall_snap']))
         infall_z = haloutils.get_z_snap(hpath,np.array(subs['infall_snap']))
         subs['infall_scale'] = infall_scale; subs['infall_z'] = infall_z
+        # also do peak
+        peak_labels = ['peak_'+l for l in all_labels]
+        for col in peak_labels:
+            assert col not in subs.columns
+            subs[col] = extdat.ix[subs.index][col]
+        peak_scale = haloutils.get_scale_snap(hpath,np.array(subs['peak_snap']))
+        peak_z = haloutils.get_z_snap(hpath,np.array(subs['peak_snap']))
+        subs['peak_scale'] = peak_scale; subs['peak_z'] = peak_z
+
         ## setup properties at z=8,10,12 reionization
         subids = np.array(subs['id'])
         base_reionz_labels = ['origid','mvir','vmax'] #columns in MT

@@ -10,7 +10,7 @@ from caterpillaranalysis import PluginBase
 from MTanalysis2 import ExtantDataFirstPass
 
 import numpy.random as random
-from scipy import linalg, stats, integrate, interpolate, optimize
+from scipy import linalg, stats, integrate, interpolate, optimize, special
 from scipy.spatial.distance import pdist
 import functools,itertools
 from multiprocessing import Pool
@@ -46,6 +46,15 @@ def angular_correlation(pos,nbins=20):
     rr = float(len(cosd))/len(dd) #uniform in cos(theta)
     w = dd/rr - 1
     return w
+def angular_powspec_from_corr(w,lmax=20):
+    bins = np.linspace(-1,1,len(w)+1)
+    x = (bins[1:]+bins[:-1])/2.
+    dx = x[1]-x[0]
+    Cl_arr = np.zeros(lmax+1)
+    for l in range(lmax+1):
+        # 2pi * integral(w(x) P_l(x) dx, -1, 1)
+        Cl_arr[l] = 2*np.pi * np.sum(2*np.pi*w*special.legendre(l)(x)) * dx
+    return Cl_arr
 
 class DefaultRadialDistn(stats.rv_continuous):
     """

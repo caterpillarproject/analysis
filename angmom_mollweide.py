@@ -1,0 +1,188 @@
+import matplotlib; matplotlib.use('Agg')
+import numpy as np
+import pylab as plt
+import os,subprocess,sys,time
+import cPickle as pickle
+from scipy import special
+from scipy.spatial.distance import pdist
+
+import haloutils
+import rotations
+from caterpillaranalysis import PluginBase
+from SAMs import SimpleSAMBasePlugin
+
+from seaborn.apionly import cubehelix_palette
+chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
+
+class AngMomMollweidePlugin(SimpleSAMBasePlugin):
+    def __init__(self):
+        super(AngMomMollweidePlugin,self).__init__()
+        
+        # TODO
+        self.xmin = 0; self.xmax = 1
+        self.ymin = 0; self.ymax = 1
+        self.xlabel = 'b/a'
+        self.ylabel = 'c/a'
+        self.xlog=False; self.ylog=False
+        self.autofigname='angmom_mollweide'
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        subs = data
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        zoomid= haloutils.load_zoomid(hpath)
+        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+        hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
+        hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
+        hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
+        
+        #Ldisk = np.array(Ldisk); tag='Z'
+        #Ldisk = hLmom; tag='J'
+        Ldisk = hA; tag='A'
+        rotmat = rotations.rotate_to_z(Ldisk)
+
+        spos = np.array(subs[['posX','posY','posZ']])-hpos
+        svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+        sLmom = np.cross(spos,svel)
+        r_sLmom = rotmat.dot(sLmom.T).T
+
+        subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
+        subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
+        subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
+
+        subs.sort(columns='infall_vmax',ascending=False)
+        infall_scale = haloutils.get_scale_snap(hpath,subs[~np.isnan(subs['infall_snap'])]['infall_snap'])
+        infall_scale = pd.Series(infall_scale,index=subs[~np.isnan(subs['infall_snap'])].index)
+        subs['infall_scale'] = infall_scale
+
+        min_vmax_size=0.
+        max_vmax_size=100.
+        min_vmax=0.
+        max_vmax=100.
+        normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
+        sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
+
+        theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; sizes_vmax = sizes_vmax[::-1]
+        sc = ax.scatter(phi,theta,c=infall_scale,vmin=0,vmax=1,
+                        s=sizes_vmax,linewidth=0,cmap=chcmap)
+        #fig.colorbar(sc,orientation='horizontal')
+        
+class AngMomCorrelationPlugin(PluginBase):
+    def __init__(self):
+        super(AngMomCorrelationPlugin,self).__init__()
+        self.filename='angmom_corr.p'
+
+        self.xmin = -1; self.xmax = 1
+        self.ymin = -0.2; self.ymax = 0.3
+        self.xlabel = r'$\cos \theta$'
+        self.ylabel = r'$w(\theta)$'
+        self.xlog=False; self.ylog=False
+        self.autofigname='angmom_corr'
+
+        self.nbins=40
+        self.samplug = SimpleSAMBasePlugin()
+        self.logMpeakcutarr = [6,7,8,9]
+
+    def get_bins(self):
+        return np.linspace(-1,1,self.nbins+1)
+        
+    def angular_correlation(self,pos):
+        numpoints = len(pos)
+        cosd = 1-pdist(pos,'cosine')
+        bins = self.get_bins()
+        dd,x = np.histogram(cosd,bins=bins)
+        x = (x[:-1]+x[1:])/2.
+        rr = float(len(cosd))/len(dd) #uniform in cos(theta)
+        w = dd/rr - 1
+        return w
+
+    def angular_powspec_from_corr(self,w,lmax):
+        bins = self.get_bins()
+        x = (bins[1:]+bins[:-1])/2.
+        dx = x[1]-x[0]
+        Cl_arr = np.zeros(lmax+1)
+        for l in range(lmax+1):
+            # 2pi * integral(w(x) P_l(x) dx, -1, 1)
+            Cl_arr[l] = 2*np.pi * np.sum(2*np.pi*w*special.legendre(l)(x)) * dx
+        return Cl_arr
+
+    def _analyze(self,hpath):
+        subs = self.samplug.read(hpath)
+        try:
+            badsubs = subs==None
+        except:
+            badsubs = False
+        if badsubs:
+            raise IOError('No SimpleSAMs.p')
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        zoomid= haloutils.load_zoomid(hpath)
+        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+        hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
+        hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
+        hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
+        
+        spos = np.array(subs[['posX','posY','posZ']])-hpos
+        svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+        sLmom = np.cross(spos,svel)
+        logMpeak = np.log10(np.array(subs['peak_mvir']))
+
+        bins = self.get_bins()
+
+        wlist = []
+        Cllist = []
+        for logMpeakcut in self.logMpeakcutarr:
+            ii = logMpeak > logMpeakcut
+            w = self.angular_correlation(sLmom[ii])
+            Cl = self.angular_powspec_from_corr(w,self.nbins)
+            wlist.append(w)
+            Cllist.append(Cl)
+
+        with open(self.get_outfname(hpath),'w') as f:
+            pickle.dump([bins,wlist,Cllist,self.logMpeakcutarr],f)
+
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,wlist,Cllist,logMpeakcutarr = pickle.load(f)
+            return bins,wlist,logMpeakcutarr
+        except IOError:
+            return None
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        bins,wlist,logMpeakcutarr = data
+        x = (bins[1:]+bins[:-1])/2.
+        if lx != None:
+            for w in wlist:
+                ax.plot(x,w,color=self.colordict[lx],**kwargs)
+        else:
+            for w in wlist:
+                ax.plot(x,w,**kwargs)
+
+class AngMomPowerSpectrumPlugin(AngMomCorrelationPlugin):
+    def __init__(self):
+        super(AngMomPowerSpectrumPlugin,self).__init__()
+
+        self.xmin = 0; self.xmax = self.nbins
+        self.ymin = -.5; self.ymax = 2
+        self.xlabel = r'$\ell$'
+        self.ylabel = r'$C_\ell$'
+        self.xlog=False; self.ylog=False
+        self.autofigname='angmom_powspec'
+
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,wlist,Cllist,logMpeakcutarr = pickle.load(f)
+            return Cllist,logMpeakcutarr
+        except IOError:
+            return None
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+        Cllist,logMpeakcutarr = data
+        l = np.arange(len(Cllist[0]))
+        if lx != None:
+            for Cl in Cllist:
+                ax.plot(l,Cl,color=self.colordict[lx],**kwargs)
+        else:
+            for Cl in Cllist:
+                ax.plot(l,Cl,**kwargs)
+
