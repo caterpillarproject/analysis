@@ -136,7 +136,7 @@ def plot_5x5(plug,lx=14,figfilename=None,**kwargs):
         hid = haloutils.cid2hid[i+1]
         hpath = haloutils.get_hpath_lx(hid,lx)
         plug.plot(hpath,ax,**kwargs)
-        if hpath=None: continue
+        if hpath==None: continue
         plug.label_plot(hpath,ax,label='catnum')
     for i in range(4):
         for j in range(1,5):
