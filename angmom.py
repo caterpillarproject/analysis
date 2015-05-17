@@ -5,6 +5,7 @@ import os,subprocess,sys,time
 import cPickle as pickle
 from scipy import special
 from scipy.spatial.distance import pdist
+import pandas as pd
 
 import haloutils
 import rotations
@@ -14,58 +15,79 @@ from SAMs import SimpleSAMBasePlugin
 from seaborn.apionly import cubehelix_palette
 chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
 
-class AngMomMollweidePlugin(SimpleSAMBasePlugin):
-    def __init__(self):
-        super(AngMomMollweidePlugin,self).__init__()
-        
-        # TODO
-        self.xmin = 0; self.xmax = 1
-        self.ymin = 0; self.ymax = 1
-        self.xlabel = 'b/a'
-        self.ylabel = 'c/a'
-        self.xlog=False; self.ylog=False
-        self.autofigname='angmom_mollweide'
+def plot_mollweide_L(logMpeakcut=None,lx=14,tag='A'):
+    hids = haloutils.cid2hid.values()
+    for hid in hids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        print haloutils.hidstr(hid)
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        sc = _plot_mollweide_L(hpath,ax,tag,logMpeakcut=logMpeakcut)
+        fig.colorbar(sc,orientation='horizontal')
+        if logMpeakcut != None:
+            figfilename = '5-16/mollweideL'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+        else:
+            figfilename = '5-16/mollweideL'+tag+'_'+haloutils.hidstr(hid)+'.png'
 
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        subs = data
-        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
-        zoomid= haloutils.load_zoomid(hpath)
-        hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
-        hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
-        hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
-        hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
-        
-        #Ldisk = np.array(Ldisk); tag='Z'
-        #Ldisk = hLmom; tag='J'
-        Ldisk = hA; tag='A'
-        rotmat = rotations.rotate_to_z(Ldisk)
+        fig.savefig(figfilename,bbox_inches='tight')
+        plt.close('all')
 
-        spos = np.array(subs[['posX','posY','posZ']])-hpos
-        svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
-        sLmom = np.cross(spos,svel)
-        r_sLmom = rotmat.dot(sLmom.T).T
+def _plot_mollweide_L(hpath,ax,tag,logMpeakcut=None):
+    # TODO assert ax is mollweide projection
+    plug = SimpleSAMBasePlugin()
+    subs = plug.read(hpath)
+    
+    rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+    zoomid= haloutils.load_zoomid(hpath)
+    hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+    hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
+    hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
+    hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
+    
+    tagdict = {'Z':np.array([0,0,1]),
+               'J':hLmom,
+               'A':hA}
+    Ldisk = tagdict[tag]
+    rotmat = rotations.rotate_to_z(Ldisk)
+    
+    spos = np.array(subs[['posX','posY','posZ']])-hpos
+    svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+    sLmom = np.cross(spos,svel)
+    r_sLmom = rotmat.dot(sLmom.T).T
+    
+    subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
+    subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
+    subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
+    
+    subs.sort(columns='infall_vmax',ascending=False)
+    infall_scale = haloutils.get_scale_snap(hpath,subs[~np.isnan(subs['infall_snap'])]['infall_snap'])
+    infall_scale = pd.Series(infall_scale,index=subs[~np.isnan(subs['infall_snap'])].index)
+    subs['infall_scale'] = infall_scale
+    
+    min_vmax_size=0.
+    max_vmax_size=100.
+    min_vmax=0.
+    max_vmax=100.
+    normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
+    sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
 
-        subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
-        subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
-        subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    theta,phi = rotations.xyz2thetaphi(sLmom,rotate_for_mollweide=True)
+    ii = np.array(~np.isnan(subs['infall_scale']))
+    if logMpeakcut != None:
+        logMpeak = np.log10(np.array(subs['peak_mvir']))
+        ii = ii & (logMpeak > logMpeakcut)
 
-        subs.sort(columns='infall_vmax',ascending=False)
-        infall_scale = haloutils.get_scale_snap(hpath,subs[~np.isnan(subs['infall_snap'])]['infall_snap'])
-        infall_scale = pd.Series(infall_scale,index=subs[~np.isnan(subs['infall_snap'])].index)
-        subs['infall_scale'] = infall_scale
+    theta = theta[ii]; phi = phi[ii]; infall_scale = np.array(subs['infall_scale'])[ii]
+    sizes_vmax = sizes_vmax[ii]
+    
+    theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; sizes_vmax = sizes_vmax[::-1]
+    sc = ax.scatter(phi,theta,c=infall_scale,vmin=0,vmax=1,
+                    s=sizes_vmax,linewidth=0,cmap=chcmap)
+    return sc
 
-        min_vmax_size=0.
-        max_vmax_size=100.
-        min_vmax=0.
-        max_vmax=100.
-        normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
-        sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
-
-        theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; sizes_vmax = sizes_vmax[::-1]
-        sc = ax.scatter(phi,theta,c=infall_scale,vmin=0,vmax=1,
-                        s=sizes_vmax,linewidth=0,cmap=chcmap)
-        #fig.colorbar(sc,orientation='horizontal')
-        
 class AngMomCorrelationPlugin(PluginBase):
     def __init__(self):
         super(AngMomCorrelationPlugin,self).__init__()

@@ -94,7 +94,7 @@ if __name__=="__main__":
     from satplanes import SatellitePlanes
     hpath = haloutils.get_hpath_lx(1725139,14)
     plug = SatellitePlanes()
-    sats,evallist,eveclist = plug.read(hpath)
+    sats,ellipselist,eveclist = plug.read(hpath)
 
     spos = np.array(sats[['dx','dy','dz']])
     svel = np.array(sats[['dvx','dvy','dvz']])

@@ -21,41 +21,6 @@ from astropy import units as u
 from seaborn.apionly import cubehelix_palette
 chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
 
-def angular_dists(pos):
-    """
-    Given positions, returns an array of angular distances in radians
-    """
-    N = len(pos)
-    x = pos[:,0]; y = pos[:,1]; z = pos[:,2]
-    c = SkyCoord(x=x,y=y,z=z,frame='galactocentric')
-    angdists = np.zeros(N*(N-1)/2)
-    count = 0
-    for i in range(N):
-        for j in range(i+1,N):
-            angdists[count] = c[i].separation(c[j]).radian
-            count += 1
-    return angdists
-def angular_correlation(pos,nbins=20):
-    numpoints = len(pos)
-    #dists = angular_dists(pos)
-    #cosd = np.cos(dists)
-    cosd = 1-pdist(pos,'cosine')
-    bins = np.linspace(-1,1,nbins+1)
-    dd,x = np.histogram(cosd,bins=bins)
-    x = (x[:-1]+x[1:])/2.
-    rr = float(len(cosd))/len(dd) #uniform in cos(theta)
-    w = dd/rr - 1
-    return w
-def angular_powspec_from_corr(w,lmax=20):
-    bins = np.linspace(-1,1,len(w)+1)
-    x = (bins[1:]+bins[:-1])/2.
-    dx = x[1]-x[0]
-    Cl_arr = np.zeros(lmax+1)
-    for l in range(lmax+1):
-        # 2pi * integral(w(x) P_l(x) dx, -1, 1)
-        Cl_arr[l] = 2*np.pi * np.sum(2*np.pi*w*special.legendre(l)(x)) * dx
-    return Cl_arr
-
 class DefaultRadialDistn(stats.rv_continuous):
     """
     Zentner et al. 2005 radial distr.
@@ -115,7 +80,8 @@ class IsotropicSatellites(object):
 
     def plane_c_over_a(self,pos,satplug):
         evals,evecs = satplug.calc_eig(pos)
-        c_over_a = np.sqrt(evals[0]/evals[2])
+        ellipses = 1./np.sqrt(evals)
+        c_over_a = evals[2]/evals[0]
         return c_over_a
     def calc_c_over_a(self,satlist):
         satplug = SatellitePlanes()
@@ -220,12 +186,11 @@ class SatellitePlanes(PluginBase):
         self.maxsats = 25
 
     def calc_eig(self,satpos):
-        satdist2 = np.sum((satpos)**2,1)
-
+        #eigenvalues \propto 1/a^2, 1/b^2, 1/c^2 in that order
         I = np.zeros((3,3))
         for i in range(3):
             for j in range(3):
-                I[i,j] = np.sum((satpos[:,i]*satpos[:,j])/satdist2)
+                I[i,j] = np.sum(satpos[:,i]*satpos[:,j])
         evals, evecs = linalg.eigh(I)
         return evals,evecs
     
@@ -295,9 +260,12 @@ class SatellitePlanes(PluginBase):
     def _read(self,hpath):
         with open(self.get_outfname(hpath),'r') as f:
             evallist,eveclist,sats = pickle.load(f)
-        return sats,evallist,eveclist
+        evallist = np.array(evallist) #Nx3
+        ellipseaxes = 1./np.sqrt(evallist) #a, b, c
+        ellipselist = [ellipseaxes[i,:] for i in range(len(evallist))]
+        return sats,ellipselist,eveclist
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        sats,evallist,eveclist = data
+        sats,ellipselist,eveclist = data
         raise NotImplementedError
 
 def tab_c_over_a(hpath):
@@ -305,13 +273,26 @@ def tab_c_over_a(hpath):
     plug = SatellitePlanes()
     out = plug.read(hpath)
     if out == None: return None
-    sats,evallist,eveclist = out
-    evallist = np.array(evallist)
-    ca_arr = np.sqrt(evallist[:,0]/evallist[:,2])
-    ba_arr = np.sqrt(evallist[:,1]/evallist[:,2])
-    data = tuple(ca_arr)
-    names = ['ca'+str(i+1) for i in range(len(ca_arr))]
-    formats = [np.float for i in range(len(ca_arr))]
+    sats,ellipselist,eveclist = out
+    ellipselist = np.array(ellipselist)
+    ca_arr = ellipselist[:,2]/ellipselist[:,0]
+    #ba_arr = ellipselist[:,1]/ellipselist[:,0]
+    data = tuple(ca_arr) #tuple(np.concatenate([ca_arr,ba_arr]))
+    names = ['ca'+str(i+1) for i in range(len(ca_arr))]#+['ba'+str(i+1) for i in range(len(ba_arr))]
+    formats = [np.float for i in range(len(ca_arr))] #+len(ba_arr))]
+    return data,names,formats
+
+def tab_b_over_a(hpath):
+    if hpath==None: return None
+    plug = SatellitePlanes()
+    out = plug.read(hpath)
+    if out == None: return None
+    sats,ellipselist,eveclist = out
+    ellipselist = np.array(ellipselist)
+    ba_arr = ellipselist[:,1]/ellipselist[:,0]
+    data = tuple(ba_arr)
+    names = ['ba'+str(i+1) for i in range(len(ba_arr))]
+    formats = [np.float for i in range(len(ba_arr))]
     return data,names,formats
 
 def tab_rotation(hpath):
@@ -319,7 +300,7 @@ def tab_rotation(hpath):
     plug = SatellitePlanes()
     out = plug.read(hpath)
     if out == None: return None
-    sats,evallist,eveclist = out
+    sats,ellipselist,eveclist = out
 
     spos = np.array(sats[['dx','dy','dz']])
     svel = np.array(sats[['dvx','dvy','dvz']])
@@ -327,14 +308,13 @@ def tab_rotation(hpath):
 
     output = []
     for i in range(len(sats)):
-        evals = evallist[i]
         V = eveclist[i] #V[:,j] = (j+1)th eigenvector
         #Vinv = linalg.inv(V) #Change of basis matrix
         #newpos = np.dot(Vinv,spos.T).T
         #newvel = np.dot(Vinv,svel.T).T
-        proj = np.dot(sangmom[0:(i+1)],V[:,0])
+        proj = np.dot(sangmom[0:(i+1)],V[:,2])
         numzero = np.sum(np.abs(proj) < 1e-12)
-        if numzero > 0:
+        if numzero > 0 and i != 0:
             print "Warning: {0}/{1} satellites have 0 angular momentum ".format(numzero,i+1)
         num_coherent = max(np.sum(proj>0),i+1-np.sum(proj>0))
         output.append(num_coherent)
@@ -344,8 +324,74 @@ def tab_rotation(hpath):
     return data,names,formats
 
 if __name__=="__main__":
-    lx = 14; Ldisk = [0,0,1]
-#def plot_ang_mom(lx=14,Ldisk = [0,0,1]):
+#def simple_plots():
+    plug = SatellitePlanes()
+    df = haloutils.tabulate(tab_c_over_a,numprocs=1)
+    df2 = haloutils.tabulate(tab_b_over_a,numprocs=1)
+    fig,ax = plt.subplots(figsize=(8,8))
+    hids = df.index
+    conc = pd.Series(np.zeros(len(hids))+np.nan,index=hids)
+    for hid in hids:
+        ca_arr = np.array(df.ix[hid])
+        ax.plot(np.arange(plug.maxsats)+1,ca_arr,color='gray',label=haloutils.hidstr(hid))
+        hpath = haloutils.get_hpath_lx(hid,14)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        zoomid= haloutils.load_zoomid(hpath)
+        host = rscat.ix[zoomid]
+        conc.ix[hid] = np.log10(host['rvir']/host['rs'])
+
+    ax.set_ylim((0,1))
+    ax.plot([0,25],[0.18,0.18],'r:')
+    ax.plot([11,11],[0,1],'k:')
+    ax.set_xlabel(r'$\rm{num\ satellites}$')
+    ax.set_ylabel(r'$c/a$')
+    plt.savefig('halos_c_a.png',bbox_inches='tight')
+
+    fig,ax = plt.subplots(figsize=(8,8))
+    ba = df2['ba11']
+    ca = df['ca11']
+    sc = ax.scatter(ba,ca,c=conc,vmin=.8,vmax=1.2,s=25,cmap=chcmap)
+    ax.set_ylabel(r'$c/a$')
+    ax.set_xlabel(r'$b/a$')
+    ax.plot([0,1],[0,1],'k')
+    ax.plot([0,25],[0.18,0.18],'r:')
+    ax.set_xlim((0,1)); ax.set_ylim((0,1))
+    fig.colorbar(sc)
+    plt.savefig('halos_ba_ca.png',bbox_inches='tight')
+
+def plot_coherent():
+    numsats = np.arange(plug.maxsats)+1
+    df2 = haloutils.tabulate(tab_rotation,numprocs=1)
+    fig,ax = plt.subplots(figsize=(8,8))
+    #plt.show()
+    #dummy = raw_input()
+    hids = df2.index
+    ax.plot(numsats,numsats*0.5,'k-')
+    ax.plot(numsats,numsats*0.6,'k-')
+    ax.plot(numsats,numsats*0.7,'k-')
+    ax.plot(numsats,numsats*0.8,'k-')
+    ax.plot(numsats,numsats*0.9,'k-')
+    ax.plot(numsats,numsats,'k-')
+    ax.set_xlabel('num satellites')
+    ax.set_ylabel('num coherently rotating satellites')
+    ax.plot([11,11],[0,25],'k:')
+    ax.plot([0,25],[8,8],'k:')
+    for hid in hids:
+        numcoherent = np.array(df2.ix[hid])
+        #fracarr = np.array(df2.ix[hid]).astype(np.float)/(np.arange(plug.maxsats)+1)
+        l, = ax.plot(numsats,numcoherent,color='r',alpha=.9,label=haloutils.hidstr(hid))
+
+        #ax.set_title(haloutils.hidstr(hid))
+        #plt.draw()
+        #dummy = raw_input()
+        #l.remove()
+    plt.show()
+
+
+
+def plot_ang_mom(lx=14,Ldisk = [0,0,1]):
     #plug = SatellitePlanes()
     extplug = ExtantDataFirstPass()
     hids = haloutils.cid2hid.values()
@@ -435,7 +481,7 @@ def plot_mollweide_L():
 #        out = plug.read(hpath)
 #        if out == None: continue
 #        print haloutils.hidstr(hid)
-#        sats,evallist,eveclist = out
+#        sats,ellipselist,eveclist = out
 #        spos = np.array(sats[['dx','dy','dz']])
 #        svel = np.array(sats[['dvx','dvy','dvz']])
 #        Lsat = np.array(sats[['Lx','Ly','Lz']])
@@ -503,7 +549,7 @@ def tmp():
         if hpath==None: continue
         out = plug.read(hpath)
         if out==None: continue
-        sats,evals,evecs = out
+        sats,ellipses,evecs = out
         rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         zoomid= haloutils.load_zoomid(hpath)
         host = rscat.ix[zoomid]
@@ -515,44 +561,3 @@ def tmp():
         fig.savefig('5-5/mollweide/LrotA_'+haloutils.hidstr(hid)+'.png')
         plt.close('all')
 
-def simple_plots():
-    plug = SatellitePlanes()
-    df = haloutils.tabulate(tab_c_over_a,numprocs=1)
-    fig,ax = plt.subplots(figsize=(8,8))
-    hids = df.index
-    for hid in hids:
-        ca_arr = np.array(df.ix[hid])
-        ax.plot(np.arange(plug.maxsats)+1,ca_arr,color='gray',label=haloutils.hidstr(hid))
-    ax.set_ylim((0,1))
-    ax.plot([0,25],[0.18,0.18],'r:')
-    ax.plot([11,11],[0,1],'k:')
-    ax.set_xlabel(r'$\rm{num\ satellites}$')
-    ax.set_ylabel(r'$c/a$')
-    plt.savefig('halos_c_a.png',bbox_inches='tight')
-
-    numsats = np.arange(plug.maxsats)+1
-    df = haloutils.tabulate(tab_rotation,numprocs=1)
-    fig,ax = plt.subplots(figsize=(8,8))
-    #plt.show()
-    #dummy = raw_input()
-    hids = df.index
-    ax.plot(numsats,numsats*0.5,'k-')
-    ax.plot(numsats,numsats*0.6,'k-')
-    ax.plot(numsats,numsats*0.7,'k-')
-    ax.plot(numsats,numsats*0.8,'k-')
-    ax.plot(numsats,numsats*0.9,'k-')
-    ax.plot(numsats,numsats,'k-')
-    ax.set_xlabel('num satellites')
-    ax.set_ylabel('num coherently rotating satellites')
-    ax.plot([11,11],[0,25],'k:')
-    ax.plot([0,25],[8,8],'k:')
-    for hid in hids:
-        numcoherent = np.array(df.ix[hid])
-        #fracarr = np.array(df.ix[hid]).astype(np.float)/(np.arange(plug.maxsats)+1)
-        l, = ax.plot(numsats,numcoherent,color='r',alpha=.9,label=haloutils.hidstr(hid))
-
-        #ax.set_title(haloutils.hidstr(hid))
-        #plt.draw()
-        #dummy = raw_input()
-        #l.remove()
-    plt.show()
