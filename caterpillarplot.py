@@ -3,6 +3,7 @@ import numpy as np
 import pylab as plt
 import seaborn.apionly as sns
 
+plt.rcParams.update({'text.latex.preamble': r"\usepackage{amsmath}"})
 #plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
 #plt.rcParams.update({'text.usetex': True,
 #                     'font.family': 'lmodern',
@@ -31,6 +32,10 @@ def get_haloidlist(sheet):
 
     assert len(haloidlist) == 12
     return haloidlist
+
+def sheetplot(sheetnum,plug,whichlx=[14],figfilename=None,figsize=None,**kwargs):
+    """ Wrapper for convergeplot with whichlx=[14] """
+    return convergeplot(sheetnum,plug,whichlx=whichlx,figfilename=figfilename,figsize=figsize,**kwargs)
 
 def convergeplot(sheetnum,plug,whichlx=[14,13,12,11],figfilename=None,figsize=None,**kwargs):
     haloidlist = get_haloidlist(sheetnum)
@@ -125,3 +130,24 @@ def haloplot(hid,lx,pluglist,savefig=False,savepath=None,pdf=False,eps=False,nor
         plt.show()
     return figlist
 
+def plot_5x5(plug,lx=14,figfilename=None,**kwargs):
+    fig,axarr = plt.subplots(5,5,figsize=(12,12))
+    for i,ax in enumerate(np.ravel(axarr)):
+        hid = haloutils.cid2hid[i+1]
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        plug.plot(hpath,ax,**kwargs)
+        if hpath==None: continue
+        plug.label_plot(hpath,ax,label='catnum')
+    for i in range(4):
+        for j in range(1,5):
+            axarr[i,j].set_xlabel('')
+            axarr[i,j].set_ylabel('')
+    for i in range(4):
+        axarr[i,0].set_xlabel('')
+    for j in range(1,5):
+        axarr[4,j].set_ylabel('')
+    if figfilename != None:
+        fig.savefig(figfilename,bbox_inches='tight')
+    else:
+        plt.show()
+    return fig
