@@ -51,7 +51,7 @@ class PluginBase(object):
         analysispath = hpath+'/'+self.OUTPUTFOLDERNAME
         #subprocess.call("mkdir -p "+analysispath+"; chgrp annaproj "+analysispath,shell=True)
         subprocess.call("mkdir -p "+analysispath,shell=True)
-        if 'annaproj' != subprocess.check_output(["stat", "-c", "'%G'", apath]).strip()[1:-1]:
+        if 'annaproj' != subprocess.check_output(["stat", "-c", "'%G'", analysispath]).strip()[1:-1]:
             subprocess.call("chgrp annaproj "+analysispath,shell=True)
         return hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename
     def get_filename(self,hpath):
