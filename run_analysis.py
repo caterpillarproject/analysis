@@ -77,7 +77,7 @@ if __name__=="__main__":
     if arg == 6:
         SubProfile     = SubProfilePlugin()
         SubVelProfile  = SubVelocityProfilePlugin()
-        TBTF = TBTFPlugin()
+        TBTF = TBTFSoftPlugin()
         for lx in [12,13,14]:
             convergeplot(sheet,SubProfile,whichlx=[lx],figfilename='subprofLX'+str(lx)+''+ext,usehaloname=usehaloname,**recalckwargs)
             convergeplot(sheet,SubVelProfile,whichlx=[lx],figfilename='subvelprofLX'+str(lx)+''+ext,usehaloname=usehaloname)
