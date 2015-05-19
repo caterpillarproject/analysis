@@ -27,7 +27,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
         self.autofigname = 'subprofsoft'
 
     def _analyze(self,hpath):
-        snap = 255
+        snap = haloutils.get_lastsnap(hpath)
         zoomid = haloutils.load_zoomid(hpath)
         rscat = haloutils.load_rscat(hpath,snap)
         subs = rscat.get_all_subhalos_within_halo(zoomid)

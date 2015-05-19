@@ -108,6 +108,8 @@ def get_numsnaps(outpath):
     else:
         warnings.warn(outpath+"/ExpansionList not found, using default (256)")
         return 256
+def get_lastsnap(outpath):
+    return get_numsnaps(outpath)-1
 def get_foldername(outpath):
     return os.path.basename(os.path.normpath(outpath))
 def get_parent_hid(outpath):
@@ -313,7 +315,7 @@ def restrict_halopaths(halopathlist,
     if require_sorted:
         newhalopathlist = []
         for outpath in halopathlist:
-            if check_is_sorted(outpath,snap=255):
+            if check_is_sorted(outpath,snap=get_numsnaps(outpath)-1):
                 newhalopathlist.append(outpath) 
         halopathlist = newhalopathlist
     if require_mergertree:
@@ -392,14 +394,16 @@ def _load_index_row(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
         if (lx != 14) or (lx==14 and row['badflag']>0):
             print "WARNING: potentially bad halo match for H%i %s LX%i NV%i" % (haloid,ictype,lx,nv)
     return row
-def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=255):
+def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=None):
     """
     @param hpath: halo path to load zoom id
-    @param snap: default 255 (need to set this explicitly for hires)
+    @param snap: default None (automatically picks snap with get_numsnaps)
     @return: rockstar id of host halo associated with hpath and snap
 
     IMPORTANT: Uses MassAccrPlugin to get main branch MT for snap != last snap.
     """
+    if snap==None:
+        snap = get_numsnaps(hpath)-1
     if snap==(get_numsnaps(hpath)-1):
         try:
             row = _load_index_row(hpath,filename=filename)
@@ -441,13 +445,14 @@ def load_pcatz0(old=False):
         return RDR.RSDataReader(global_prntbase+"/rockstar",127,version=6)
 
 def load_scat(hpath):
+    snap = get_lastsnap(hpath)
     if "LX14" in hpath:
         try:
-            return RSF.subfind_catalog(hpath+'/outputs',255,double=True)
+            return RSF.subfind_catalog(hpath+'/outputs',snap,double=True)
         except ValueError:
-            return RSF.subfind_catalog(hpath+'/outputs',255)
+            return RSF.subfind_catalog(hpath+'/outputs',snap)
     else: 
-        return RSF.subfind_catalog(hpath+'/outputs',255)
+        return RSF.subfind_catalog(hpath+'/outputs',snap)
 
 def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None,rmaxcut=True):
     if version != None:
@@ -557,7 +562,8 @@ def get_quant_zoom(halo_path,quant):
 def get_main_branch(hpath):
     return pickle.load( open( hpath+"/analysis/main_branch.p", "rb" ) )
 
-def get_halo_header(hpath,snap=255):
+def get_halo_header(hpath,snap=None):
+    if snap==None: snap = get_lastsnap(hpath)
     return rsg.snapshot_header(hpath+"/outputs/snapdir_"+str(snap)+"/snap_"+str(snap))
 
 def get_colors(ncolors=12):
