@@ -130,15 +130,17 @@ def haloplot(hid,lx,pluglist,savefig=False,savepath=None,pdf=False,eps=False,nor
         plt.show()
     return figlist
 
-def plot_5x5(plug,lx=14,figfilename=None,**kwargs):
+def plot_5x5(plug,lx=14,figfilename=None,usecatnum=True,**kwargs):
     fig,axarr = plt.subplots(5,5,figsize=(12,12),sharex=True,sharey=True)
     fig.subplots_adjust(hspace=0,wspace=0)
+    if usecatnum: label='catnum'
+    else: label=None
     for i,ax in enumerate(np.ravel(axarr)):
         hid = haloutils.cid2hid[i+1]
         hpath = haloutils.get_hpath_lx(hid,lx)
         plug.plot(hpath,ax,**kwargs)
         if hpath==None: continue
-        plug.label_plot(hpath,ax,label='catnum')
+        plug.label_plot(hpath,ax,label=label)
     for i in range(4):
         for j in range(1,5):
             axarr[i,j].set_xlabel('')

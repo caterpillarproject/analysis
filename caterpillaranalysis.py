@@ -49,9 +49,9 @@ class PluginBase(object):
     def get_outfname(self,hpath):
         """ Use this function in _analysis to generate the data filename """
         analysispath = hpath+'/'+self.OUTPUTFOLDERNAME
-        #subprocess.call("mkdir -p "+analysispath+"; chgrp annaproj "+analysispath,shell=True)
         subprocess.call("mkdir -p "+analysispath,shell=True)
-        if 'annaproj' != subprocess.check_output(["stat", "-c", "'%G'", analysispath]).strip()[1:-1]:
+        thisgroup = subprocess.check_output(["stat", "-c", "'%G'", analysispath]).strip()[1:-1]
+        if thisgroup != 'annaproj' and thisgroup != 'nobody':
             subprocess.call("chgrp annaproj "+analysispath,shell=True)
         return hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename
     def get_filename(self,hpath):
@@ -136,13 +136,14 @@ class PluginBase(object):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         """ Implemented by plugins """
         raise NotImplementedError
-    def plot(self,hpath,ax,lx=None,labelon=False,normtohost=False,recalc=False,stop_on_error=False,formatonly=False,usehaloname=False,**kwargs):
+    def plot(self,hpath,ax,lx=None,labelon=False,normtohost=False,autocalc=True,recalc=False,stop_on_error=False,formatonly=False,usehaloname=False,**kwargs):
         """
         Creates a plot of the data in hpath. Automatically calls analyze() if data missing.
         @param hpath: which halo to plot
         @param ax: axis object to create the plot in
         @param lx: used for lxplot()
         @param labelon: if True, label axis with the halo ID
+        @param autocalc: if True, automatically analyze data if missing
         @param recalc: if true, force recalculation of the analysis (default False)
                        Can also pass in list of halo IDs to recalculate (useful if e.g. fixing one halo)
         @param formatonly: if true, only format the plot (default False)
@@ -155,7 +156,7 @@ class PluginBase(object):
             self.format_plot(ax,normtohost=normtohost)
             if labelon: self.label_plot(hpath,ax,normtohost=normtohost,label=label)
             return
-        data = self.read(hpath,recalc=recalc,stop_on_error=stop_on_error)
+        data = self.read(hpath,autocalc=autocalc,recalc=recalc,stop_on_error=stop_on_error)
         try:
             baddata = data==None
         except TypeError:
