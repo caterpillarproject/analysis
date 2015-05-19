@@ -100,7 +100,7 @@ class AngMomCorrelationPlugin(PluginBase):
         self.xlog=False; self.ylog=False
         self.autofigname='angmom_corr'
 
-        self.nbins=40
+        self.nbins=40; self.lmax=20
         self.samplug = SimpleSAMBasePlugin()
         self.logMpeakcutarr = [6,7,8,9]
 
@@ -116,6 +116,23 @@ class AngMomCorrelationPlugin(PluginBase):
         rr = float(len(cosd))/len(dd) #uniform in cos(theta)
         w = dd/rr - 1
         return w
+
+    def a_lm(self,l,m,theta,phi):
+        #Note special.sph_harm documentation has opposite definitions of theta/phi
+        return 1./(np.pi * 4.0) * np.sum(np.conj(special.sph_harm(m,l,phi,theta)))
+    def C_l(self,l,theta,phi,rnorm=1):
+        alm_arr = np.zeros(2*l+1,dtype=complex)
+        for i in range(2*l+1):
+            m = i-l
+            alm_arr[i] = self.a_lm(l,m,theta,phi)
+        sumsquares = np.sum(alm_arr * np.conj(alm_arr))
+        return sumsquares/(4*np.pi*(2*l+1)*rnorm**2)
+    def angular_powspec(self,pos,lmax,lmin=0):
+        Cl_arr = np.zeros(lmax-lmin+1,dtype=complex)
+        theta,phi = rotations.xyz2thetaphi(pos)
+        for i,l in enumerate(np.arange(lmin,lmax+1)):
+            Cl_arr[i] = self.C_l(l,theta,phi)
+        return Cl_arr
 
     def angular_powspec_from_corr(self,w,lmax):
         bins = self.get_bins()
@@ -153,9 +170,11 @@ class AngMomCorrelationPlugin(PluginBase):
         Cllist = []
         for logMpeakcut in self.logMpeakcutarr:
             ii = logMpeak > logMpeakcut
-            w = self.angular_correlation(sLmom[ii])
-            Cl = self.angular_powspec_from_corr(w,self.nbins)
+            w = self.angular_correlation(sLmom[ii,:])
             wlist.append(w)
+
+            #Cl = self.angular_powspec_from_corr(w,self.nbins)
+            Cl = self.angular_powspec(sLmom[ii,:],self.lmax)
             Cllist.append(Cl)
 
         with open(self.get_outfname(hpath),'w') as f:
@@ -183,11 +202,11 @@ class AngMomPowerSpectrumPlugin(AngMomCorrelationPlugin):
     def __init__(self):
         super(AngMomPowerSpectrumPlugin,self).__init__()
 
-        self.xmin = 0; self.xmax = self.nbins
-        self.ymin = -.5; self.ymax = 2
+        self.xmin = 0; self.xmax = self.lmax
+        self.ymin = 1e-4; self.ymax = 10**0.2
         self.xlabel = r'$\ell$'
-        self.ylabel = r'$C_\ell$'
-        self.xlog=False; self.ylog=False
+        self.ylabel = r'$C_\ell/C_0$'
+        self.xlog=False; self.ylog=True
         self.autofigname='angmom_powspec'
 
     def _read(self,hpath):
@@ -198,13 +217,18 @@ class AngMomPowerSpectrumPlugin(AngMomCorrelationPlugin):
         except IOError:
             return None
 
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
         Cllist,logMpeakcutarr = data
         l = np.arange(len(Cllist[0]))
+        numlines=0
         if lx != None:
             for Cl in Cllist:
-                ax.plot(l,Cl,color=self.colordict[lx],**kwargs)
+                ax.plot(l,Cl/Cl[0],'s-',color=self.colordict[lx],**kwargs)
+                numlines += 1
+                if (maxlines != None) and (numlines == maxlines): break
         else:
             for Cl in Cllist:
-                ax.plot(l,Cl,**kwargs)
+                ax.plot(l,Cl/Cl[0],'s-',**kwargs)
+                numlines += 1
+                if (maxlines != None) and (numlines == maxlines): break
 
