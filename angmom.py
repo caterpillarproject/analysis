@@ -80,18 +80,24 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     elif whatdata=='infallpos':
         mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
         hostmb = mtc[zoomid].getMainBranch()
-        mbhostpos = hostmb[['posX','posY','posZ']][::-1].view((np.float,3))
         mbhostsnap= hostmb['snap'][::-1]
         maxsnap = mbhostsnap[-1]; minsnap = mbhostsnap[0]
         assert len(mbhostsnap)==maxsnap-minsnap+1
         assert np.all(mbhostsnap==np.sort(mbhostsnap))
+        mbhostpos = hostmb[['posX','posY','posZ']][::-1].view((np.float,3))
+        mbhostA   = hostmb[['A[x](500c)','A[y](500c)','A[z](500c)']][::-1].view((np.float,3))
+        rotmatlist = [rotations.rotate_to_z(np.array(Ldisk)) for Ldisk in mbhostA]
         iigood = ~np.array(np.isnan(subs['infall_snap']))
         infall_ix  = np.zeros(len(subs)).astype(int)
         infall_hpos= np.zeros((len(subs),3))+np.nan
         infall_ix[iigood] = subs['infall_snap'][iigood]-minsnap
         infall_hpos[iigood] = mbhostpos[infall_ix[iigood],:]
         infall_pos = subs[['infall_posx','infall_posy','infall_posz']]-infall_hpos
-        plot_pos = rotmat.dot(infall_pos.T).T
+        for snap,rotmat in zip(range(minsnap,maxsnap+1),rotmatlist):
+            iisnap = subs['infall_snap']==snap
+            thispos = np.array(infall_pos[iisnap])
+            infall_pos[iisnap] = rotmat.dot(thispos.T).T
+        plot_pos = np.array(infall_pos)
 
     min_vmax_size=0.
     max_vmax_size=100.
@@ -102,8 +108,8 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
 
     plot_size= sizes_vmax
 
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
+    ax.set_xticklabels(['' for i in ax.get_xticklabels()])
+    ax.set_yticklabels(['' for i in ax.get_yticklabels()])
     theta,phi = rotations.xyz2thetaphi(plot_pos,rotate_for_mollweide=True)
     ii = np.array(~np.isnan(subs['infall_scale']))
     if logMpeakcut != None:
