@@ -9,7 +9,7 @@ import pandas as pd
 
 import haloutils
 import rotations
-from caterpillaranalysis import PluginBase
+from caterpillaranalysis import PluginBase,MassAccrPlugin
 from SAMs import SimpleSAMBasePlugin
 
 from seaborn.apionly import cubehelix_palette
@@ -51,12 +51,67 @@ def plot_mollweide_infall(logMpeakcut=None,lx=14,tag='A'):
         fig.savefig(figfilename,bbox_inches='tight')
         plt.close('all')
 
+def plot_mollweide_host(lx=14):
+    hids = haloutils.cid2hid.values()
+    plug = MassAccrPlugin()
+    for hid in hids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        print haloutils.hidstr(hid)
+
+        hostmb = plug.read(hpath)
+        hostA   = hostmb[['A[x]','A[y]','A[z]']].view((np.float,3))
+        hostJ   = hostmb[['Jx','Jy','Jz']].view((np.float,3))
+        hostscale = hostmb['scale']
+
+        thetaA,phiA = rotations.xyz2thetaphi(hostA,rotate_for_mollweide=True)
+        thetaJ,phiJ = rotations.xyz2thetaphi(hostJ,rotate_for_mollweide=True)
+
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        ax.grid(True)
+        ax.set_xticklabels(['' for i in ax.get_xticklabels()])
+        ax.set_yticklabels(['' for i in ax.get_yticklabels()])
+        sc = ax.scatter(phiA,thetaA,c=hostscale,vmin=0,vmax=1,
+                        marker='s',linewidth=0,cmap=chcmap)
+        fig.colorbar(sc,orientation='horizontal')
+        figfilename = '5-20/mollweideHostA'+'_'+haloutils.hidstr(hid)+'.png'
+        fig.savefig(figfilename,bbox_inches='tight')
+
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        ax.grid(True)
+        ax.set_xticklabels(['' for i in ax.get_xticklabels()])
+        ax.set_yticklabels(['' for i in ax.get_yticklabels()])
+        sc = ax.scatter(phiJ,thetaJ,c=hostscale,vmin=0,vmax=1,
+                        marker='o',linewidth=0,cmap=chcmap)
+        fig.colorbar(sc,orientation='horizontal')
+        figfilename = '5-20/mollweideHostJ'+'_'+haloutils.hidstr(hid)+'.png'
+        fig.savefig(figfilename,bbox_inches='tight')
+
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        ax.grid(True)
+        ax.set_xticklabels(['' for i in ax.get_xticklabels()])
+        ax.set_yticklabels(['' for i in ax.get_yticklabels()])
+        sc = ax.scatter(phiA,thetaA,c=hostscale,vmin=0,vmax=1,
+                        marker='s',linewidth=0,cmap=chcmap)
+        sc = ax.scatter(phiJ,thetaJ,c=hostscale,vmin=0,vmax=1,
+                        marker='o',linewidth=0,cmap=chcmap)
+        fig.colorbar(sc,orientation='horizontal')
+        figfilename = '5-20/mollweideHostAJ'+'_'+haloutils.hidstr(hid)+'.png'
+        fig.savefig(figfilename,bbox_inches='tight')
+
+        plt.close('all')
+
+def plot_mollweide_time():
+    pass
+
 def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
     assert whatdata in ['infallpos','angmom']
 
     plug = SimpleSAMBasePlugin()
     subs = plug.read(hpath)
+    mbplug = MassAccrPlugin()
     
     rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
     zoomid= haloutils.load_zoomid(hpath)
@@ -78,14 +133,14 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
         sLmom = np.cross(spos,svel)
         plot_pos = rotmat.dot(sLmom.T).T
     elif whatdata=='infallpos':
-        mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
-        hostmb = mtc[zoomid].getMainBranch()
+        raise NotImplementedError("rotating to A is not a very stable coordinate frame")
+        hostmb = mbplug.read(hpath)
         mbhostsnap= hostmb['snap'][::-1]
         maxsnap = mbhostsnap[-1]; minsnap = mbhostsnap[0]
         assert len(mbhostsnap)==maxsnap-minsnap+1
         assert np.all(mbhostsnap==np.sort(mbhostsnap))
-        mbhostpos = hostmb[['posX','posY','posZ']][::-1].view((np.float,3))
-        mbhostA   = hostmb[['A[x](500c)','A[y](500c)','A[z](500c)']][::-1].view((np.float,3))
+        mbhostpos = hostmb[['x','y','z']][::-1].view((np.float,3))
+        mbhostA   = hostmb[['A[x]','A[y]','A[z]']][::-1].view((np.float,3))
         rotmatlist = [rotations.rotate_to_z(np.array(Ldisk)) for Ldisk in mbhostA]
         iigood = ~np.array(np.isnan(subs['infall_snap']))
         infall_ix  = np.zeros(len(subs)).astype(int)
@@ -108,6 +163,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
 
     plot_size= sizes_vmax
 
+    ax.grid(True)
     ax.set_xticklabels(['' for i in ax.get_xticklabels()])
     ax.set_yticklabels(['' for i in ax.get_yticklabels()])
     theta,phi = rotations.xyz2thetaphi(plot_pos,rotate_for_mollweide=True)
