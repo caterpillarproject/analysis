@@ -23,18 +23,38 @@ def plot_mollweide_L(logMpeakcut=None,lx=14,tag='A'):
         if not haloutils.check_last_rockstar_exists(hpath): continue
         print haloutils.hidstr(hid)
         fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
-        sc = _plot_mollweide_L(hpath,ax,tag,logMpeakcut=logMpeakcut)
+        sc = _plot_mollweide_SAM('angmom',hpath,ax,tag,logMpeakcut=logMpeakcut)
         fig.colorbar(sc,orientation='horizontal')
         if logMpeakcut != None:
-            figfilename = '5-16/mollweideL'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-19/mollweideL'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
         else:
-            figfilename = '5-16/mollweideL'+tag+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-19/mollweideL'+tag+'_'+haloutils.hidstr(hid)+'.png'
 
         fig.savefig(figfilename,bbox_inches='tight')
         plt.close('all')
 
-def _plot_mollweide_L(hpath,ax,tag,logMpeakcut=None):
+def plot_mollweide_infall(logMpeakcut=None,lx=14,tag='A'):
+    hids = haloutils.cid2hid.values()
+    for hid in hids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        print haloutils.hidstr(hid)
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        sc = _plot_mollweide_SAM('infallpos',hpath,ax,tag,logMpeakcut=logMpeakcut)
+        fig.colorbar(sc,orientation='horizontal')
+        if logMpeakcut != None:
+            figfilename = '5-19/mollweideIn'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+        else:
+            figfilename = '5-19/mollweideIn'+tag+'_'+haloutils.hidstr(hid)+'.png'
+
+        fig.savefig(figfilename,bbox_inches='tight')
+        plt.close('all')
+
+def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
+    assert whatdata in ['infallpos','angmom']
+
     plug = SimpleSAMBasePlugin()
     subs = plug.read(hpath)
     
@@ -51,20 +71,28 @@ def _plot_mollweide_L(hpath,ax,tag,logMpeakcut=None):
     Ldisk = tagdict[tag]
     rotmat = rotations.rotate_to_z(Ldisk)
     
-    spos = np.array(subs[['posX','posY','posZ']])-hpos
-    svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
-    sLmom = np.cross(spos,svel)
-    r_sLmom = rotmat.dot(sLmom.T).T
-    
-    subs['dx'] = spos[:,0]; subs['dy'] = spos[:,1]; subs['dz'] = spos[:,2]
-    subs['dvx'] = svel[:,0]; subs['dvy'] = svel[:,1]; subs['dvz'] = svel[:,2]
-    subs['Lx'] = sLmom[:,0]; subs['Ly'] = sLmom[:,1]; subs['Lz'] = sLmom[:,2]
-    
-    subs.sort(columns='infall_vmax',ascending=False)
-    infall_scale = haloutils.get_scale_snap(hpath,subs[~np.isnan(subs['infall_snap'])]['infall_snap'])
-    infall_scale = pd.Series(infall_scale,index=subs[~np.isnan(subs['infall_snap'])].index)
-    subs['infall_scale'] = infall_scale
-    
+    subs.sort(columns='infall_vmax')
+    if whatdata=='angmom':
+        spos = np.array(subs[['posX','posY','posZ']])-hpos
+        svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+        sLmom = np.cross(spos,svel)
+        plot_pos = rotmat.dot(sLmom.T).T
+    elif whatdata=='infallpos':
+        mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
+        hostmb = mtc[zoomid].getMainBranch()
+        mbhostpos = hostmb[['posX','posY','posZ']][::-1].view((np.float,3))
+        mbhostsnap= hostmb['snap'][::-1]
+        maxsnap = mbhostsnap[-1]; minsnap = mbhostsnap[0]
+        assert len(mbhostsnap)==maxsnap-minsnap+1
+        assert np.all(mbhostsnap==np.sort(mbhostsnap))
+        iigood = ~np.array(np.isnan(subs['infall_snap']))
+        infall_ix  = np.zeros(len(subs)).astype(int)
+        infall_hpos= np.zeros((len(subs),3))+np.nan
+        infall_ix[iigood] = subs['infall_snap'][iigood]-minsnap
+        infall_hpos[iigood] = mbhostpos[infall_ix[iigood],:]
+        infall_pos = subs[['infall_posx','infall_posy','infall_posz']]-infall_hpos
+        plot_pos = rotmat.dot(infall_pos.T).T
+
     min_vmax_size=0.
     max_vmax_size=100.
     min_vmax=0.
@@ -72,20 +100,22 @@ def _plot_mollweide_L(hpath,ax,tag,logMpeakcut=None):
     normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
     sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
 
+    plot_size= sizes_vmax
+
     ax.set_xticklabels([])
     ax.set_yticklabels([])
-    theta,phi = rotations.xyz2thetaphi(sLmom,rotate_for_mollweide=True)
+    theta,phi = rotations.xyz2thetaphi(plot_pos,rotate_for_mollweide=True)
     ii = np.array(~np.isnan(subs['infall_scale']))
     if logMpeakcut != None:
         logMpeak = np.log10(np.array(subs['peak_mvir']))
         ii = ii & (logMpeak > logMpeakcut)
 
     theta = theta[ii]; phi = phi[ii]; infall_scale = np.array(subs['infall_scale'])[ii]
-    sizes_vmax = sizes_vmax[ii]
+    plot_size = plot_size[ii]
     
-    theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; sizes_vmax = sizes_vmax[::-1]
+    theta = theta[::-1]; phi = phi[::-1]; infall_scale = infall_scale[::-1]; plot_size = plot_size[::-1]
     sc = ax.scatter(phi,theta,c=infall_scale,vmin=0,vmax=1,
-                    s=sizes_vmax,linewidth=0,cmap=chcmap)
+                    s=plot_size,linewidth=0,cmap=chcmap)
     return sc
 
 class AngMomCorrelationPlugin(PluginBase):
