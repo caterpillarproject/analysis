@@ -102,8 +102,61 @@ def plot_mollweide_host(lx=14):
 
         plt.close('all')
 
-def plot_mollweide_time():
-    pass
+def plot_mollweide_time(hids=None,lx=14):
+    if hids==None:
+        hids = haloutils.cid2hid.values()
+    plug = MassAccrPlugin()
+    for hid in hids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        print haloutils.hidstr(hid)
+
+        hostmb = plug.read(hpath)
+        hostA   = hostmb[['A[x]','A[y]','A[z]']].view((np.float,3))
+        hostJ   = hostmb[['Jx','Jy','Jz']].view((np.float,3))
+        hostscale = hostmb['scale']
+        hostsnaps = hostmb['snap']
+        hostpos   = hostmb[['x','y','z']].view((np.float,3))
+        hostrvir  = hostmb['rvir']
+        hostzoomid= hostmb['origid']
+
+
+        figfilenamebase = '5-20/'+haloutils.hidstr(hid)
+        subprocess.call(['mkdir -p '+figfilenamebase],shell=True)
+        for snap,zoomid,hA,hJ,hpos,hrvir in zip(hostsnaps,hostzoomid,hostA,hostJ,hostpos,hostrvir):
+            snapstr = str(snap).zfill(3)
+
+            rscat = haloutils.load_rscat(hpath,snap,rmaxcut=False)
+            subs = rscat.get_all_subhalos_within_halo(zoomid)
+            if len(subs)==0: continue
+            spos = np.array(subs[['posX','posY','posZ']])-hpos
+            svmax= np.array(subs['vmax'])
+            sdr  = 1000.*np.sqrt(np.sum(spos**2,1))/hrvir
+
+            min_vmax_size=0.
+            max_vmax_size=100.
+            min_vmax=0.
+            max_vmax=100.
+            normed_vmax = np.array((svmax-min_vmax)/(max_vmax-min_vmax))
+            sizes_vmax = normed_vmax * (max_vmax_size - min_vmax_size) + min_vmax_size
+
+            for tag,direction in zip(['Z','J','A'],[np.array([0,0,1]),hJ,hA]):
+                figfilename = figfilenamebase+'/'+tag+snapstr+'.png'
+                rotmat = rotations.rotate_to_z(direction)
+                thispos = rotmat.dot(spos.T).T
+                theta,phi = rotations.xyz2thetaphi(thispos,rotate_for_mollweide=True)
+
+                fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+                ax.grid(True)
+                ax.set_xticklabels(['' for i in ax.get_xticklabels()])
+                ax.set_yticklabels(['' for i in ax.get_yticklabels()])
+                sc = ax.scatter(phi,theta,c=sdr,vmin=0,vmax=1,
+                                s=sizes_vmax,linewidth=0,cmap=chcmap)
+                fig.colorbar(sc,orientation='horizontal')
+                fig.savefig(figfilename)
+            plt.close('all')
+        break
 
 def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
