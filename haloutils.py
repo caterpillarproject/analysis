@@ -526,7 +526,7 @@ def load_soft(hpath):
         f = open(fname,'r')
         for line in f:
             s = line.split()
-            if s[0]=="SofteningHaloMaxPhys":
+            if s[0]=="SofteningHaloMaxPhys" or s[0]=="SofteningMaxPhysType1":
                 forceres = float(s[1])
                 break
         f.close()
