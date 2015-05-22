@@ -377,3 +377,221 @@ class AngMomPowerSpectrumPlugin(AngMomCorrelationPlugin):
                 numlines += 1
                 if (maxlines != None) and (numlines == maxlines): break
 
+class CorrelationPowSpecSnapsPlugin(AngMomCorrelationPlugin):
+    def __init__(self,verbose=False):
+        super(CorrelationPowSpecSnapsPlugin,self).__init__()
+        self.filename = 'corr_powspec_snaps.p'
+
+        self.xmin = None; self.xmax = None
+        self.ymin = None; self.ymax = None
+        self.xlabel = None
+        self.ylabel = None
+        self.xlog = False
+        self.ylog = False
+        self.autofigname='corr_snaps'
+
+        self.vmaxcutarr = [5,10,15,20]
+        self.mbplug = MassAccrPlugin()
+        self.lmax = 60
+
+        self.verbose = verbose
+
+    def _analyze(self,hpath):
+        numsnaps = haloutils.get_numsnaps(hpath)
+        hostmb = self.mbplug.read(hpath)
+        hostsnaps = hostmb['snap']
+        hostpos = hostmb[['x','y','z']].view((np.float,3))
+        hostvel = hostmb[['vx','vy','vz']].view((np.float,3))
+        hostrsid = hostmb['origid']
+
+        alldata = []
+        if self.verbose: print haloutils.hidstr(haloutils.get_parent_hid(hpath))
+        for snap,hpos,hvel,zoomid in zip(hostsnaps,hostpos,hostvel,hostrsid):
+            if self.verbose: start = time.time(); print snap
+            rscat = haloutils.load_rscat(hpath,snap) #TODO what if there's the merger tree bug?
+            subs = rscat.get_all_subhalos_within_halo(zoomid)
+            svmax= np.array(subs['vmax'])
+            spos = np.array(subs[['posX','posY','posZ']])-hpos
+            svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
+            sLmom = np.cross(spos,svel)
+            if len(subs)==0: continue
+            snapdata_Lw = []
+            snapdata_LCl = []
+            snapdata_Xw = []
+            snapdata_XCl = []
+            for vmaxcut in self.vmaxcutarr:
+                iicut = svmax > vmaxcut
+                Lw = self.angular_correlation(sLmom[iicut,:])
+                LCl= self.angular_powspec(sLmom[iicut,:],self.lmax)
+                Xw = self.angular_correlation(spos[iicut,:])
+                XCl= self.angular_powspec(spos[iicut,:],self.lmax)
+                snapdata_Lw.append(Lw)
+                snapdata_LCl.append(LCl)
+                snapdata_Xw.append(Xw)
+                snapdata_XCl.append(XCl)
+            alldata.append([snapdata_Lw,snapdata_LCl,snapdata_Xw,snapdata_XCl])
+            if self.verbose:
+                print " snap {0}: {1:.1f} sec".format(snap,time.time()-start)
+                sys.stdout.flush()
+
+        bins = self.get_bins(); lmax = self.lmax
+        with open(self.get_outfname(hpath),'w') as f:
+            pickle.dump([bins,lmax,self.vmaxcutarr,hostsnaps,alldata],f)
+
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,lmax,vmaxcutarr,hostsnaps,alldata = pickle.load(f)
+            assert lmax==self.lmax
+            assert len(self.vmaxcutarr) == len(alldata[0][0])
+        except IOError:
+            return None
+        return alldata
+
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+        raise NotImplementedError
+
+    def correlation_deviation(self,w):
+        return np.sum(np.abs(w))/float(len(w))
+    def powspec_ratio(self,Cl):
+        return Cl[2]/np.sum(Cl)
+
+class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
+    def __init__(self,**kwargs):
+        super(AngMomCorrelationSnapsPlugin,self).__init__(**kwargs)
+        self.xmin = 0; self.xmax = 1
+        self.ymin = 0; self.ymax = 2.5
+        self.xlog = False; self.ylog = False
+        self.xlabel = 'scale'
+        self.ylabel = 'average absolute deviation from 0'
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,lmax,vmaxcutarr,hostsnaps,alldata = pickle.load(f)
+            assert lmax==self.lmax
+            assert len(self.vmaxcutarr) == len(alldata[0][0])
+            angmomcorr = [snapdata[0] for snapdata in alldata]
+        except IOError:
+            return None
+        return angmomcorr,bins
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+        angmomcorr,bins = data
+        numvmaxcut = len(self.vmaxcutarr)
+        hostmb = self.mbplug.read(hpath)
+        hostscale = hostmb['scale']
+        output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
+        for i,vmaxcut in enumerate(self.vmaxcutarr):
+            for j,wlist in enumerate(angmomcorr):
+                w = wlist[i]
+                output[i,j] = self.correlation_deviation(w)
+        if lx != None:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
+        else:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,**kwargs)
+
+class AngMomPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
+    def __init__(self,**kwargs):
+        super(AngMomPowSpecSnapsPlugin,self).__init__(**kwargs)
+        self.xmin = 0; self.xmax = 1
+        self.ymin = 1e-3; self.ymax = 1
+        self.xlog = False; self.ylog = True
+        self.xlabel = 'scale'
+        self.ylabel = r'$C_2/\sum_\ell C_\ell$'
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,lmax,vmaxcutarr,hostsnaps,alldata = pickle.load(f)
+            assert lmax==self.lmax
+            assert len(self.vmaxcutarr) == len(alldata[0][0])
+            angmompowspec = [snapdata[1] for snapdata in alldata]
+        except IOError:
+            return None
+        return angmompowspec,lmax
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+        angmompowspec,lmax = data
+        numvmaxcut = len(self.vmaxcutarr)
+        hostmb = self.mbplug.read(hpath)
+        hostscale = hostmb['scale']
+        output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
+        for i,vmaxcut in enumerate(self.vmaxcutarr):
+            for j,Cllist in enumerate(angmompowspec):
+                Cl = Cllist[i]
+                output[i,j] = self.powspec_ratio(Cl)
+        if lx != None:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
+        else:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,**kwargs)
+        ax.plot([0,1],[1,1],'k:')
+
+class InPosCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
+    def __init__(self,**kwargs):
+        super(InPosPowSpecSnapsPlugin,self).__init__(**kwargs)
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,lmax,vmaxcutarr,hostsnaps,alldata = pickle.load(f)
+            assert lmax==self.lmax
+            assert len(self.vmaxcutarr) == len(alldata[0][0])
+            inposcorr = [snapdata[2] for snapdata in alldata]
+        except IOError:
+            return None
+        return inposcorr,bins
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+        inposcorr,bins = data
+        numvmaxcut = len(self.vmaxcutarr)
+        hostmb = self.mbplug.read(hpath)
+        hostscale = hostmb['scale']
+        output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
+        for i,vmaxcut in enumerate(self.vmaxcutarr):
+            for j,wlist in enumerate(inposcorr):
+                w = wlist[i]
+                output[i,j] = self.correlation_deviation(w)
+        if lx != None:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
+        else:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,**kwargs)
+
+class InPosPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
+    def __init__(self,**kwargs):
+        super(InPosPowSpecSnapsPlugin,self).__init__(**kwargs)
+    def _read(self,hpath):
+        try:
+            with open(self.get_outfname(hpath),'r') as f:
+                bins,lmax,vmaxcutarr,hostsnaps,alldata = pickle.load(f)
+            assert lmax==self.lmax
+            assert len(self.vmaxcutarr) == len(alldata[0][0])
+            inpospowspec = [snapdata[3] for snapdata in alldata]
+        except IOError:
+            return None
+        return inpospowspec
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+        inpospowspec,lmax = data
+        numvmaxcut = len(self.vmaxcutarr)
+        hostmb = self.mbplug.read(hpath)
+        hostscale = hostmb['scale']
+        output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
+        for i,vmaxcut in enumerate(self.vmaxcutarr):
+            for j,Cllist in enumerate(inpospowspec):
+                Cl = Cllist[i]
+                output[i,j] = self.powspec_ratio(Cl)
+        if lx != None:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
+        else:
+            for i in range(numvmaxcut):
+                yplot = output[i,:]
+                ax.plot(hostscale,yplot,**kwargs)
+        ax.plot([0,1],[1,1],'k:')
