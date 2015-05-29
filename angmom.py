@@ -166,12 +166,18 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     subs = plug.read(hpath)
     mbplug = MassAccrPlugin()
     
-    rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
-    zoomid= haloutils.load_zoomid(hpath)
-    hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
-    hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
-    hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
-    hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
+    mb = mbplug.read(hpath)
+    host = mb[-1]
+    hpos = np.array([host['x'],host['y'],host['z']])
+    hvel = np.array([host['vx'],host['vy'],host['vz']])
+    hLmom = np.array([host['Jx'],host['Jy'],host['Jz']])
+    hA = np.array([host['A[x]'],host['A[y]'],host['A[z]']])
+    #rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+    #zoomid= haloutils.load_zoomid(hpath)
+    #hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
+    #hvel = np.array(rscat.ix[zoomid][['pecVX','pecVY','pecVZ']])
+    #hLmom = np.array(rscat.ix[zoomid][['Jx','Jy','Jz']])
+    #hA = np.array(rscat.ix[zoomid][['A2[x]','A2[y]','A2[z]']])
     
     tagdict = {'Z':np.array([0,0,1]),
                'J':hLmom,
@@ -222,7 +228,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     theta,phi = rotations.xyz2thetaphi(plot_pos,rotate_for_mollweide=True)
     ii = np.array(~np.isnan(subs['infall_scale']))
     if logMpeakcut != None:
-        logMpeak = np.log10(np.array(subs['peak_mvir']))
+        logMpeak = np.log10(np.array(subs['infall_mvir']))
         ii = ii & (logMpeak > logMpeakcut)
 
     theta = theta[ii]; phi = phi[ii]; infall_scale = np.array(subs['infall_scale'])[ii]
@@ -240,8 +246,8 @@ class AngMomCorrelationPlugin(PluginBase):
 
         self.xmin = -1; self.xmax = 1
         self.ymin = -0.2; self.ymax = 0.3
-        self.xlabel = r'$\cos \theta$'
-        self.ylabel = r'$w(\theta)$'
+        self.xlabel = r'$\cos\, \theta_{\mathbf{L}}$'
+        self.ylabel = r'$w(\theta_{\mathbf{L}})$'
         self.xlog=False; self.ylog=False
         self.autofigname='angmom_corr'
 
@@ -307,7 +313,7 @@ class AngMomCorrelationPlugin(PluginBase):
         spos = np.array(subs[['posX','posY','posZ']])-hpos
         svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
         sLmom = np.cross(spos,svel)
-        logMpeak = np.log10(np.array(subs['peak_mvir']))
+        logMpeak = np.log10(np.array(subs['infall_mvir']))
 
         bins = self.get_bins()
 
@@ -333,15 +339,22 @@ class AngMomCorrelationPlugin(PluginBase):
         except IOError:
             return None
 
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=1,
+              color1=None,color2=None,color3=None,**kwargs):
         bins,wlist,logMpeakcutarr = data
         x = (bins[1:]+bins[:-1])/2.
-        if lx != None:
-            for w in wlist:
-                ax.plot(x,w,color=self.colordict[lx],**kwargs)
-        else:
-            for w in wlist:
-                ax.plot(x,w,**kwargs)
+        numlines = 0
+        hid = haloutils.get_parent_hid(hpath)
+        for w in wlist:
+            if w[0] > 0.03: color = color1
+            else: color = color2
+            if hid != 1422331 and hid != 1631506:
+                lw = 2
+            else:
+                lw = 4; color = color3
+            ax.plot(x,w,color=color,lw=lw,**kwargs)
+            numlines += 1
+            if numlines >= maxlines: break
 
 class AngMomPowerSpectrumPlugin(AngMomCorrelationPlugin):
     def __init__(self):
