@@ -2,7 +2,6 @@ import numpy as np
 import pylab as plt
 import os,subprocess,sys,time
 import asciitable
-import pynbody as pnb
 import readsnapshots.readsnapHDF5_greg as rsg
 import haloutils
 import scipy.optimize as optimize

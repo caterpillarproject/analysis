@@ -2,6 +2,8 @@ import numpy as np
 import pylab as plt
 import warnings
 
+from numpy import random
+
 class AbundMatch(object):
     def __init__(self):
         raise NotImplementedError
@@ -46,7 +48,7 @@ class Behroozi13AbundMatch(AbundMatch):
         self.MICLa = -2.503
         
     def __getitem__(self,key):
-        pass
+        raise NotImplementedError
     def get_logMstar(self,Mhalo,z):
         logM1,logeps,alpha,delta,gamma,xi,logMICL = self.scale_params(1./(1.+z))
         def _f(x):
@@ -54,6 +56,14 @@ class Behroozi13AbundMatch(AbundMatch):
         return logM1 + logeps + _f(np.log10(Mhalo)-logM1)-_f(0)
     def get_Mstar(self,Mhalo,z=0.):
         return 10.**self.get_logMstar(Mhalo,z)
+    def get_Mstar_scatter(self,Mhalo,z=0.):
+        xi = self._xi(1./(1.+z))
+        try:
+            N = len(Mhalo)
+        except:
+            N = 1
+        scatter = random.normal(scale=xi,size=N)
+        return self.get_Mstar(Mhalo,z=z)*10**scatter
 
     def scale_params(self,a):
         nu = np.exp(-4.*a*a)
@@ -100,6 +110,8 @@ class Moster13AbundMatch(AbundMatch):
         self.beta11 = 0.153
         self.gamma10 = 0.608
         self.gamma11 = 0.173
+
+        self.scatter = 0.15
     def __getitem__(self,key):
         raise NotImplementedError
     def get_Mratio(self,Mhalo,z):
@@ -116,3 +128,11 @@ class Moster13AbundMatch(AbundMatch):
         beta = self.beta10 + self.beta11*(1-a)
         gamma = self.gamma10 + self.gamma11*(1-a)
         return logM1,N,beta,gamma
+
+    def get_Mstar_scatter(self,Mhalo,z=0.):
+        try:
+            N = len(Mhalo)
+        except:
+            N = 1
+        scatter = random.normal(scale=self.scatter,size=N)
+        return self.get_Mstar(Mhalo,z=z)*10**scatter
