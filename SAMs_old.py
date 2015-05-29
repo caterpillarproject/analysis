@@ -19,7 +19,7 @@ def get_snap_reion(hpath,zreion,justafter=False):
 class SimpleSAMBasePlugin(PluginBase):
     def __init__(self,verbose=False):
         super(SimpleSAMBasePlugin,self).__init__()
-        self.filename='SimpleSAMs2.p'
+        self.filename='SimpleSAMs.p'
 
         self.xmin = 0; self.xmax = 1
         self.ymin = 0; self.ymax = 1

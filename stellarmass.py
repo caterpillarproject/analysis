@@ -3,7 +3,7 @@ import pylab as plt
 import os,sys,subprocess,time
 
 import haloutils
-from SAMs import SimpleSAMBasePlugin
+from SAMs_old import SimpleSAMBasePlugin
 import abundmatch
 
 class AMStellarMassPlugin(SimpleSAMBasePlugin):

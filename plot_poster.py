@@ -17,7 +17,7 @@ import haloutils
 import caterpillarplot
 
 from angmom import AngMomCorrelationPlugin,_plot_mollweide_SAM
-
+from plot_galaxy_planes import SatellitePlanesBACAPlotter,SatellitePlanesEdgeOnPlotter
 hids = haloutils.cid2hid.values()
 g_hids = list(hids); g_hids.remove(94687)
 
@@ -46,10 +46,38 @@ def plot_two_mollweide_angmom():
     cbar_ax = fig.add_axes([.125,.1,.75,.06])
     fig.colorbar(sc,cax=cbar_ax,orientation='horizontal' )
     cbar_ax.set_xlabel('infall scale')
-    fig.savefig('POSTER_PLOTS/angmom_mollweide',bbox_inches='tight')
+    fig.savefig('POSTER_PLOTS/angmom_mollweide.png',bbox_inches='tight')
     return fig
 
+def plot_sat_baca():
+    fig,ax = plt.subplots(figsize=(8,8))
+    plot_sams = ['Ni11','L0i1','L1i1']
+    markers = ['o','s','^']
+    for i,sam in enumerate(plot_sams):
+        plug = SatellitePlanesBACAPlotter(plot_sams=[sam])
+        caterpillarplot.stackplot(g_hids,14,plug,color = colors[i],marker=markers[i],labelconc=False,ax=ax)
+    import matplotlib.lines as mlines
+    l0 = mlines.Line2D([],[],color=colors[0],marker=markers[0],lw=0,label='A')
+    l1 = mlines.Line2D([],[],color=colors[1],marker=markers[1],lw=0,label='B1')
+    l2 = mlines.Line2D([],[],color=colors[2],marker=markers[2],lw=0,label='B2')
+    ax.legend(handles=[l0,l1,l2],loc='upper left',fontsize='xx-large')
+    fig.savefig('POSTER_PLOTS/sat_baca.png',bbox_inches='tight')
+    return fig
+
+def plot_H5320_thin():
+    #TODO label with c/a, r_perp, r_par, N corotating
+    #make symbols larger
+    fig,ax = plt.subplots(figsize=(8,8))
+    hid = 5320; hpath = haloutils.get_hpath_lx(hid,14)
+    plug = SatellitePlanesEdgeOnPlotter()
+    plug.plot(hpath,ax)
+    return fig
+    
 if __name__=="__main__":
-    fig = plot_subs_w_angmom()
-    fig = plot_two_mollweide_angmom()
+
+
+    #fig = plot_subs_w_angmom()
+    #fig = plot_two_mollweide_angmom()
+    #fig = plot_sat_baca()
+    fig = plot_H5320_thin()
     plt.show()

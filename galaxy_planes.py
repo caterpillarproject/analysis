@@ -6,7 +6,7 @@ import cPickle as pickle
 
 import haloutils
 import abundmatch,stellarmass
-from SAMs import SimpleSAMBasePlugin
+from SAMs_old import SimpleSAMBasePlugin
 from caterpillaranalysis import PluginBase,MassAccrPlugin
 from scipy import linalg
 

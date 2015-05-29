@@ -7,7 +7,7 @@ import os,sys,subprocess,time,functools
 import haloutils
 import caterpillarplot
 import abundmatch,stellarmass
-from SAMs import SimpleSAMBasePlugin
+from SAMs_old import SimpleSAMBasePlugin
 from galaxy_planes import SatellitePlanesPlugin
 
 from seaborn.apionly import cubehelix_palette
@@ -74,7 +74,7 @@ class SatellitePlanesBACAPlotter(SatellitePlanesPlugin):
         for sam in self.plot_sams:
             row = df.ix[sam]
             ba = row['ba']; ca = row['ca']
-            ax.plot(ba,ca,label=sam,marker='o',**kwargs)
+            ax.plot(ba,ca,label=sam,**kwargs)
         ax.plot([0,1],[0,1],'k:')
         if labelconc:
             try:
@@ -108,8 +108,8 @@ class SatellitePlanesFaceOnPlotter(SatellitePlanesPlugin):
         super(SatellitePlanesFaceOnPlotter,self).__init__()
         self.xmin = -250; self.xmax = 250
         self.ymin = -250; self.ymax = 250
-        self.xlabel = r'Major Axis'
-        self.ylabel = r'Middle Axis'
+        self.xlabel = r'$\rm{Major\ Axis}$'
+        self.ylabel = r'$\rm{Middle\ Axis}$'
         self.xlog=False; self.ylog=False
         self.autofigname='satplanesfaceon'
         self.cmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
@@ -120,7 +120,7 @@ class SatellitePlanesFaceOnPlotter(SatellitePlanesPlugin):
         svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
         #Rotate using U
         if U==None:
-            ba,ca,rperp,rpar,ntheta,U = plug.calculate_plane_params(spos,svel,return_vecs=True)
+            ba,ca,rperp,rpar,ntheta,U = self.calculate_plane_params(spos,svel,return_vecs=True)
         spos = U.T.dot(spos.T).T
         svel = U.T.dot(svel.T).T
         #spos in kpc from host center
@@ -180,8 +180,8 @@ class SatellitePlanesEdgeOnPlotter(SatellitePlanesFaceOnPlotter):
         super(SatellitePlanesEdgeOnPlotter,self).__init__()
         self.xmin = -250; self.xmax = 250
         self.ymin = -250; self.ymax = 250
-        self.xlabel = r'Major Axis'
-        self.ylabel = r'Minor Axis'
+        self.xlabel = r'$\rm{Major\ Axis}$'
+        self.ylabel = r'$\rm{Minor\ Axis}$'
         self.xlog=False; self.ylog=False
         self.autofigname='satplanesedgeon'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):

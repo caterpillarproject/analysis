@@ -10,7 +10,7 @@ import pandas as pd
 import haloutils
 import rotations
 from caterpillaranalysis import PluginBase,MassAccrPlugin
-from SAMs import SimpleSAMBasePlugin
+from SAMs_old import SimpleSAMBasePlugin
 
 from seaborn.apionly import cubehelix_palette
 chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
@@ -33,7 +33,26 @@ def plot_mollweide_L(logMpeakcut=None,lx=14,tag='A'):
         fig.savefig(figfilename,bbox_inches='tight')
         plt.close('all')
 
+def plot_mollweide_pos(logMpeakcut=None,lx=14,tag='A'):
+    hids = haloutils.cid2hid.values()
+    for hid in hids:
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        if hpath==None: continue
+        if not haloutils.check_last_rockstar_exists(hpath): continue
+        print haloutils.hidstr(hid)
+        fig,ax = plt.subplots(subplot_kw={'projection':'mollweide'})
+        sc = _plot_mollweide_SAM('satpos',hpath,ax,tag,logMpeakcut=logMpeakcut)
+        fig.colorbar(sc,orientation='horizontal')
+        if logMpeakcut != None:
+            figfilename = '5-28/mollweideX/mollweideX'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+        else:
+            figfilename = '5-28/mollweideX/mollweideX'+tag+'_'+haloutils.hidstr(hid)+'.png'
+
+        fig.savefig(figfilename,bbox_inches='tight')
+        plt.close('all')
+
 def plot_mollweide_infall(logMpeakcut=None,lx=14,tag='A'):
+    raise NotImplementedError
     hids = haloutils.cid2hid.values()
     for hid in hids:
         hpath = haloutils.get_hpath_lx(hid,lx)
@@ -160,7 +179,7 @@ def plot_mollweide_time(hids=None,lx=14):
 
 def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
-    assert whatdata in ['infallpos','angmom']
+    assert whatdata in ['infallpos','angmom','satpos']
 
     plug = SimpleSAMBasePlugin()
     subs = plug.read(hpath)
@@ -191,6 +210,9 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
         svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
         sLmom = np.cross(spos,svel)
         plot_pos = rotmat.dot(sLmom.T).T
+    elif whatdata=='satpos':
+        spos = np.array(subs[['posX','posY','posZ']])-hpos
+        plot_pos = rotmat.dot(spos.T).T
     elif whatdata=='infallpos':
         raise NotImplementedError("rotating to A is not a very stable coordinate frame")
         hostmb = mbplug.read(hpath)
