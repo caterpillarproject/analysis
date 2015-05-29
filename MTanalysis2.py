@@ -9,6 +9,16 @@ from scipy.integrate import quad
 import os, subprocess
 import pandas
 
+
+# for quick testing:
+#hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
+
+#/bigbang/data/AnnaGroup/caterpillar/halos/H95289/H95289_BB_Z127_P7_LN7_LX14_O4_NV4
+# subhalo ids:
+#44661. Mass in RSCatalog way too high. Mass in merger tree very reasonsble.
+#its host is 42818, which is much smaller than 44661
+
+
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
     tmp = dist > boxsize/2.0
@@ -82,7 +92,8 @@ class ExtantDataFirstPass(PluginBase):
         if hostID != hostID1:
             print 'host IDs do not match!!'
         hosthalo = cat.ix[hostID]
-        subs = cat.get_subhalos_within_halo(hostID)
+        subs = cat.get_all_subhalos_within_halo(hostID)
+
         otherdata=[]
         print 'loading mtc'
         
@@ -206,7 +217,6 @@ class ExtantDataFirstPass(PluginBase):
         return
 
 
-
 class AllExtantData(PluginBase):
     def __init__(self):
         super(AllExtantData,self).__init__()
@@ -265,8 +275,6 @@ class AllExtantData(PluginBase):
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
-
-
 
 
 
