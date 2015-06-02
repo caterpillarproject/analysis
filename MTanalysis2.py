@@ -125,13 +125,45 @@ class ExtantDataFirstPass(PluginBase):
                 sys.stdout.flush()
                 toosmall+=1
                 continue
-            max_mass_snap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+
 
             # get infall time, if possible
             iLoc, iSnap = getInfall(sub_mb, host_mb, max_mass)
             if iLoc==None:
                 # within getInfall, print how it errored
                 continue
+
+            # get max_mass values.
+            max_mass_loc = np.argmax(sub_mb['mvir'])
+            if sub_mb[max_mass_loc]['phantom']!=0:
+                # phantom halo in merger tree. Find peak of non phantom values
+                mask = np.where(sub_mb['phantom']==0)[0]
+                tmploc = np.argmax(sub_mb[mask]['mvir'])
+                max_mass_loc = mask[tmploc]
+
+            max_mass_vmax = sub_mb[max_mass_loc]['vmax']
+            max_mass_snap = sub_mb[max_mass_loc]['snap']
+            max_mass_rsid = sub_mb[max_mass_loc]['origid']
+            max_mass_mvir = sub_mb[max_mass_loc]['mvir']
+            max_mass_posx = sub_mb[max_mass_loc]['posX']
+            max_mass_posy = sub_mb[max_mass_loc]['posY']
+            max_mass_posz = sub_mb[max_mass_loc]['posZ']
+            max_mass_pecvx = sub_mb[max_mass_loc]['pecVX']
+            max_mass_pecvy = sub_mb[max_mass_loc]['pecVY']
+            max_mass_pecvz = sub_mb[max_mass_loc]['pecVZ']
+            max_mass_virialratio = sub_mb[max_mass_loc]['T/|U|']
+            max_mass_hostid_MT = sub_mb[max_mass_loc]['pid'] # merger tree ID of host, one level up
+            max_mass_rvir = sub_mb[max_mass_loc]['rvir']
+            max_mass_spinbullock = sub_mb[max_mass_loc]['spin_bullock']
+            max_mass_rs = sub_mb[max_mass_loc]['rs']
+            max_mass_scale_of_last_MM = sub_mb[max_mass_loc]['scale_of_last_MM']
+            max_mass_Jx = sub_mb[max_mass_loc]['Jx']
+            max_mass_Jy = sub_mb[max_mass_loc]['Jy']
+            max_mass_Jz = sub_mb[max_mass_loc]['Jz']
+            max_mass_xoff = sub_mb[max_mass_loc]['xoff']
+            
+
+
 
             # get all peak values. Peak values all based on when vmax reaches its peak.
             peak_loc = np.argmax(sub_mb['vmax'])
@@ -140,6 +172,7 @@ class ExtantDataFirstPass(PluginBase):
                 mask = np.where(sub_mb['phantom']==0)[0]
                 tmploc = np.argmax(sub_mb[mask]['vmax'])
                 peak_loc = mask[tmploc]
+
 
             peak_vmax = sub_mb[peak_loc]['vmax']
             peak_snap = sub_mb[peak_loc]['snap']
@@ -185,7 +218,7 @@ class ExtantDataFirstPass(PluginBase):
             infall_Jz = sub_mb[iLoc]['Jz']
             infall_xoff = sub_mb[iLoc]['xoff']
 
-            otherdata=np.r_[otherdata,sub_rank,subRSID,max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
+            otherdata=np.r_[otherdata,sub_rank,subRSID, max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff,peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
             if sub_rank%100==0:
                 print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
             sys.stdout.flush()
@@ -208,7 +241,7 @@ class ExtantDataFirstPass(PluginBase):
         #for i in range(data2.shape[0]):
         #    holder[i]=data2[i]
         #return holder
-        pdtype = ['sub_rank','rsid','max_mass','max_mass_snap','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
+        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -330,7 +363,7 @@ class DestroyedDataFirstPass(PluginBase):
                 if max_mass/cat.h0 < self.min_mass: 
                     sys.stdout.flush()
                     continue
-                max_mass_snap = sub_mb[np.argmax(sub_mb['mvir'])]['snap']
+
 
                 # get infall time, if possible
                 iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)
@@ -338,6 +371,37 @@ class DestroyedDataFirstPass(PluginBase):
                     print 'subhalo', j, 'is bad in MT. Reason to follow.'
                     sys.stdout.flush()
                     continue
+
+
+                # get all max_mass values
+                max_mass_loc = np.argmax(sub_mb['mvir'])
+                if sub_mb[max_mass_loc]['phantom']!=0:
+                    # phantom halo in merger tree. Find peak of non phantom values
+                    mask = np.where(sub_mb['phantom']==0)[0]
+                    tmploc = np.argmax(sub_mb[mask]['mvir'])
+                    max_mass_loc = mask[tmploc]
+
+                max_mass_vmax = sub_mb[max_mass_loc]['vmax']
+                max_mass_snap = sub_mb[max_mass_loc]['snap']
+                max_mass_rsid = sub_mb[max_mass_loc]['origid']
+                max_mass_mvir = sub_mb[max_mass_loc]['mvir']
+                max_mass_posx = sub_mb[max_mass_loc]['posX']
+                max_mass_posy = sub_mb[max_mass_loc]['posY']
+                max_mass_posz = sub_mb[max_mass_loc]['posZ']
+                max_mass_pecvx = sub_mb[max_mass_loc]['pecVX']
+                max_mass_pecvy = sub_mb[max_mass_loc]['pecVY']
+                max_mass_pecvz = sub_mb[max_mass_loc]['pecVZ']
+                max_mass_virialratio = sub_mb[max_mass_loc]['T/|U|']
+                max_mass_hostid_MT = sub_mb[max_mass_loc]['pid'] # merger tree ID of host, one level up
+                max_mass_rvir = sub_mb[max_mass_loc]['rvir']
+                max_mass_spinbullock = sub_mb[max_mass_loc]['spin_bullock']
+                max_mass_rs = sub_mb[max_mass_loc]['rs']
+                max_mass_scale_of_last_MM = sub_mb[max_mass_loc]['scale_of_last_MM']
+                max_mass_Jx = sub_mb[max_mass_loc]['Jx']
+                max_mass_Jy = sub_mb[max_mass_loc]['Jy']
+                max_mass_Jz = sub_mb[max_mass_loc]['Jz']
+                max_mass_xoff = sub_mb[max_mass_loc]['xoff']
+
 
                 # get all peak values. Peak values all based on when vmax reaches its peak.
                 peak_loc = np.argmax(sub_mb['vmax'])
@@ -391,7 +455,7 @@ class DestroyedDataFirstPass(PluginBase):
                 infall_xoff = sub_mb[iLoc]['xoff']
 
 
-                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],max_mass,max_mass_snap, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,i]
+                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,i]
                 #print j, 'halo in host level', i
                 good+=1
                 sys.stdout.flush()
@@ -417,7 +481,7 @@ class DestroyedDataFirstPass(PluginBase):
                 data = np.r_[data,tmp]
                 i+=1
             dt = "float64"
-            dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('peak_rs',dt),('peak_scale_of_last_MM',dt),('peak_Jx',dt),('peak_Jy',dt),('peak_Jz',dt),('peak_xoff',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('infall_rs',dt),('infall_scale_of_last_MM',dt),('infall_Jx',dt),('infall_Jy',dt),('infall_Jz',dt),('infall_xoff',dt),('backsnap',dt)]
+            dtype = [('sub_rank',dt),('rsid',dt), ('max_mass_rsid',dt), ('max_mass_snap',dt), ('max_mass_vmax',dt),('max_mass',dt),('max_mass_posx',dt),('max_mass_posy',dt),('max_mass_posz',dt),('max_mass_pecvx',dt),('max_mass_pecvy',dt),('max_mass_pecvz',dt),('max_mass_virialratio',dt),('max_mass_hostid_MT',dt),('max_mass_rvir',dt),('max_mass_spinbullock',dt),('max_mass_rs',dt),('max_mass_scale_of_last_MM',dt),('max_mass_Jx',dt),('max_mass_Jy',dt),('max_mass_Jz',dt),('max_mass_xoff',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('peak_rs',dt),('peak_scale_of_last_MM',dt),('peak_Jx',dt),('peak_Jy',dt),('peak_Jz',dt),('peak_xoff',dt), ('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('infall_rs',dt),('infall_scale_of_last_MM',dt),('infall_Jx',dt),('infall_Jy',dt),('infall_Jz',dt),('infall_xoff',dt),('backsnap',dt)]
             n = len(dtype)
             holder = np.ndarray( (len(data)/n,), dtype=dtype )
             data2 = data.reshape(len(data)/n,n)
@@ -431,7 +495,7 @@ class DestroyedDataFirstPass(PluginBase):
    
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        pdtype = ['sub_rank','rsid','max_mass','max_mass_snap','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff','backsnap']
+        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff', 'peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff','backsnap']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
