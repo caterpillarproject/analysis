@@ -10,7 +10,8 @@ import pandas as pd
 import haloutils
 import rotations
 from caterpillaranalysis import PluginBase,MassAccrPlugin
-from SAMs_old import SimpleSAMBasePlugin
+#from SAMs_old import SimpleSAMBasePlugin
+from fast_SAMs import FastSAMBasePlugin
 
 from seaborn.apionly import cubehelix_palette
 chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
@@ -26,9 +27,9 @@ def plot_mollweide_L(logMpeakcut=None,lx=14,tag='A'):
         sc = _plot_mollweide_SAM('angmom',hpath,ax,tag,logMpeakcut=logMpeakcut)
         fig.colorbar(sc,orientation='horizontal')
         if logMpeakcut != None:
-            figfilename = '5-19/mollweideL'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-29/mollweideL/mollweideL'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
         else:
-            figfilename = '5-19/mollweideL'+tag+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-29/mollweideL/mollweideL'+tag+'_'+haloutils.hidstr(hid)+'.png'
 
         fig.savefig(figfilename,bbox_inches='tight')
         plt.close('all')
@@ -44,9 +45,9 @@ def plot_mollweide_pos(logMpeakcut=None,lx=14,tag='A'):
         sc = _plot_mollweide_SAM('satpos',hpath,ax,tag,logMpeakcut=logMpeakcut)
         fig.colorbar(sc,orientation='horizontal')
         if logMpeakcut != None:
-            figfilename = '5-28/mollweideX/mollweideX'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-29/mollweideX/mollweideX'+tag+'_Mpeak'+str(logMpeakcut)+'_'+haloutils.hidstr(hid)+'.png'
         else:
-            figfilename = '5-28/mollweideX/mollweideX'+tag+'_'+haloutils.hidstr(hid)+'.png'
+            figfilename = '5-29/mollweideX/mollweideX'+tag+'_'+haloutils.hidstr(hid)+'.png'
 
         fig.savefig(figfilename,bbox_inches='tight')
         plt.close('all')
@@ -181,7 +182,8 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
     assert whatdata in ['infallpos','angmom','satpos']
 
-    plug = SimpleSAMBasePlugin()
+    #plug = SimpleSAMBasePlugin()
+    plug = FastSAMBasePlugin()
     subs = plug.read(hpath)
     mbplug = MassAccrPlugin()
     
@@ -264,7 +266,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
 class AngMomCorrelationPlugin(PluginBase):
     def __init__(self):
         super(AngMomCorrelationPlugin,self).__init__()
-        self.filename='angmom_corr.p'
+        self.filename='angmom_corr2.p'
 
         self.xmin = -1; self.xmax = 1
         self.ymin = -0.2; self.ymax = 0.3
@@ -274,8 +276,11 @@ class AngMomCorrelationPlugin(PluginBase):
         self.autofigname='angmom_corr'
 
         self.nbins=40; self.lmax=20
-        self.samplug = SimpleSAMBasePlugin()
+        self.samplug = FastSAMBasePlugin() #SimpleSAMBasePlugin()
         self.logMpeakcutarr = [6,7,8,9]
+
+        x = self.get_bins()
+        self.x = (x[1:]+x[:-1])/2.
 
     def get_bins(self):
         return np.linspace(-1,1,self.nbins+1)
@@ -317,7 +322,19 @@ class AngMomCorrelationPlugin(PluginBase):
             Cl_arr[l] = 2*np.pi * np.sum(2*np.pi*w*special.legendre(l)(x)) * dx
         return Cl_arr
 
+    def correlation_endfraction(self,w,theta_deg):
+        ii = np.abs(self.x) > np.cos(theta_deg*np.pi/180.)
+        return np.sum(1.+w[ii])/np.sum(1.+w)
+    def correlation_enhancement(self,w,theta_deg):
+        ii = np.abs(self.x) > np.cos(theta_deg*np.pi/180.)
+        return np.sum(1.+w[ii])/np.sum(ii)
+        
+    def powspec_ratio(self,Cl):
+        return Cl[2]/np.sum(Cl)
+
     def _analyze(self,hpath):
+        if not haloutils.check_last_rockstar_exists(hpath):
+            raise IOError("No rockstar")
         subs = self.samplug.read(hpath)
         try:
             badsubs = subs==None
@@ -368,7 +385,8 @@ class AngMomCorrelationPlugin(PluginBase):
         numlines = 0
         hid = haloutils.get_parent_hid(hpath)
         for w in wlist:
-            if w[0] > 0.03: color = color1
+            enhancement = self.correlation_enhancement(w,45.)
+            if enhancement > 1.06: color = color1
             else: color = color2
             if hid != 1422331 and hid != 1631506:
                 lw = 2
@@ -486,10 +504,6 @@ class CorrelationPowSpecSnapsPlugin(AngMomCorrelationPlugin):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
         raise NotImplementedError
 
-    def correlation_deviation(self,w):
-        return np.sum(np.abs(w))/float(len(w))
-    def powspec_ratio(self,Cl):
-        return Cl[2]/np.sum(Cl)
 
 class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
     def __init__(self,**kwargs):
@@ -498,7 +512,7 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         self.ymin = 0; self.ymax = 2.5
         self.xlog = False; self.ylog = False
         self.xlabel = 'scale'
-        self.ylabel = 'average absolute deviation from 0'
+        self.ylabel = 'fraction within 45 degrees'
     def _read(self,hpath):
         try:
             with open(self.get_outfname(hpath),'r') as f:
@@ -518,7 +532,7 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         for i,vmaxcut in enumerate(self.vmaxcutarr):
             for j,wlist in enumerate(angmomcorr):
                 w = wlist[i]
-                output[i,j] = self.correlation_deviation(w)
+                output[i,j] = self.correlation_endfraction(w)
         if lx != None:
             for i in range(numvmaxcut):
                 yplot = output[i,:]
@@ -588,7 +602,7 @@ class InPosCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         for i,vmaxcut in enumerate(self.vmaxcutarr):
             for j,wlist in enumerate(inposcorr):
                 w = wlist[i]
-                output[i,j] = self.correlation_deviation(w)
+                output[i,j] = self.correlation_endfraction(w)
         if lx != None:
             for i in range(numvmaxcut):
                 yplot = output[i,:]

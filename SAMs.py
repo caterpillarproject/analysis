@@ -153,8 +153,8 @@ class SimpleSAMBasePlugin(PluginBase):
             elif self.verbose:
                 warnings.warn("subid {0:7} Skipping mthresh: Mmax={1:.2e}".format(subid, np.max(mb['mvir'])))
     
-            with open(self.get_outfname(hpath),'w') as f:
-                pickle.dump(subs,f)
+        with open(self.get_outfname(hpath),'w') as f:
+            pickle.dump(subs,f)
                 
     def _read(self,hpath):
         try:

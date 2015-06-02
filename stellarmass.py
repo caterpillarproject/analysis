@@ -3,10 +3,11 @@ import pylab as plt
 import os,sys,subprocess,time
 
 import haloutils
-from SAMs_old import SimpleSAMBasePlugin
+#from SAMs_old import SimpleSAMBasePlugin
+from fast_SAMs import FastSAMBasePlugin
 import abundmatch
 
-class AMStellarMassPlugin(SimpleSAMBasePlugin):
+class AMStellarMassPlugin(FastSAMBasePlugin):
     def __init__(self,verbose=False):
         super(AMStellarMassPlugin,self).__init__(verbose=verbose)
 
@@ -28,7 +29,7 @@ class AMStellarMassPlugin(SimpleSAMBasePlugin):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         subs = data
         if normtohost: raise NotImplementedError
-        Minfall = subs['infall_mvir']
+        Minfall = subs['peak_mvir']
         Mstarlist = [AM.get_Mstar(Minfall) for AM in self.AMlist]
         thiscol = None
         for Mstar,linestyle in zip(Mstarlist,self.linestyles):
@@ -73,7 +74,7 @@ if __name__=="__main__":
     #bins = np.arange(-0.5,12.5+.5,.5)
 
     hpath = haloutils.get_hpath_lx(5320,14)
-    plug = SimpleSAMBasePlugin()
+    plug = FastSAMBasePlugin()
     M13AM = abundmatch.Moster13AbundMatch()
     B13AM = abundmatch.Behroozi13AbundMatch()
     G14AM = abundmatch.GK14AbundMatch()

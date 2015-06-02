@@ -198,7 +198,7 @@ class PluginBase(object):
         ax.set_ylabel(ylabel)
         if xlog: ax.set_xscale('log')
         if ylog: ax.set_yscale('log')
-    def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
+    def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1,fontsize='medium',**kwargs):
         if label==None: 
             label = r'$\rm{'+haloutils.hidstr(haloutils.get_parent_hid(hpath))+r'}$'
         elif label=='catnum':
@@ -216,7 +216,7 @@ class PluginBase(object):
         else:
             yoff    = (ymax-ymin)*dy
             ylabel  = ymax - yoff
-        ax.text(xlabel,ylabel,label,color='black',fontsize='medium')
+        ax.text(xlabel,ylabel,label,color='black',fontsize=fontsize,**kwargs)
 
     ### Helper methods for analysis
     def get_rssubs(self,rscat,zoomid):
