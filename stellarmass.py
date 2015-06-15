@@ -4,6 +4,7 @@ import os,sys,subprocess,time
 
 import haloutils
 from SAMs import SimpleSAMBasePlugin
+#from fast_SAMs import FastSAMBasePlugin as SimpleSAMBasePlugin
 import abundmatch
 
 class AMStellarMassPlugin(SimpleSAMBasePlugin):
@@ -28,7 +29,7 @@ class AMStellarMassPlugin(SimpleSAMBasePlugin):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         subs = data
         if normtohost: raise NotImplementedError
-        Minfall = subs['infall_mvir']
+        Minfall = subs['max_mass']
         Mstarlist = [AM.get_Mstar(Minfall) for AM in self.AMlist]
         thiscol = None
         for Mstar,linestyle in zip(Mstarlist,self.linestyles):
