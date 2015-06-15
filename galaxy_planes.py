@@ -6,8 +6,8 @@ import cPickle as pickle
 
 import haloutils
 import abundmatch,stellarmass
-#from SAMs_old import SimpleSAMBasePlugin
-from fast_SAMs import FastSAMBasePlugin
+from SAMs import SimpleSAMBasePlugin
+#from fast_SAMs import FastSAMBasePlugin as SimpleSAMBasePlugin
 from caterpillaranalysis import PluginBase,MassAccrPlugin
 from scipy import linalg
 import angmom
@@ -95,7 +95,7 @@ class SatellitePlanesPlugin(PluginBase):
         self.filename='satsamplanes2.p'
 
         self.mbplug = MassAccrPlugin()
-        self.samplug = FastSAMBasePlugin()#SimpleSAMBasePlugin()
+        self.samplug = SimpleSAMBasePlugin()
         self.thetaarr = [10,20,30,40,50,60,70,80,90]
         self.thetaarrnames = ['n_th'+str(theta) for theta in self.thetaarr]
         self.n1thetaarrnames = ['n1_th'+str(theta) for theta in self.thetaarr]
@@ -417,17 +417,20 @@ class PlaneEvolutionPlugin(SatellitePlanesPlugin):
         ax.plot([max_infall_time,max_infall_time],[self.ymin,self.ymax],'r:')
 
 if __name__=="__main__":
-    RECALC=True
+    RECALC=False
     plug = SatellitePlanesPlugin()
+    #plug = PlaneEvolutionPlugin(whichsam='L0m1')
+    #plug = PlaneEvolutionPlugin(whichsam='L1m1')
     alldf = {}
     allix = {}
     for hid in haloutils.cid2hid.values():
         hpath = haloutils.get_hpath_lx(hid,14)
         if hpath==None: continue
         try:
-            df,satindexdict = plug.read(hpath,recalc=RECALC)
+            #df,satindexdict = plug.read(hpath,recalc=RECALC)
+            out = plug.read(hpath,recalc=RECALC)
         except TypeError:
             continue
-        catnum = haloutils.hid2catnum[hid]
-        alldf[catnum]=df
-        allix[catnum]=satindexdict
+        #catnum = haloutils.hid2catnum[hid]
+        #alldf[catnum]=df
+        #allix[catnum]=satindexdict

@@ -10,11 +10,12 @@ import pandas as pd
 import haloutils
 import rotations
 from caterpillaranalysis import PluginBase,MassAccrPlugin
-#from SAMs_old import SimpleSAMBasePlugin
-from fast_SAMs import FastSAMBasePlugin
+from SAMs import SimpleSAMBasePlugin
+#from fast_SAMs import FastSAMBasePlugin as SimpleSAMBasePlugin
 
-from seaborn.apionly import cubehelix_palette
+from seaborn.apionly import cubehelix_palette,color_palette
 chcmap = cubehelix_palette(as_cmap=True,start=.5,rot=-1.5,hue=1.0,gamma=1.0)
+default_colors = color_palette('muted')
 
 def plot_mollweide_L(logMpeakcut=None,lx=14,tag='A'):
     hids = haloutils.cid2hid.values()
@@ -182,8 +183,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     # TODO assert ax is mollweide projection
     assert whatdata in ['infallpos','angmom','satpos']
 
-    #plug = SimpleSAMBasePlugin()
-    plug = FastSAMBasePlugin()
+    plug = SimpleSAMBasePlugin()
     subs = plug.read(hpath)
     mbplug = MassAccrPlugin()
     
@@ -252,7 +252,8 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     theta,phi = rotations.xyz2thetaphi(plot_pos,rotate_for_mollweide=True)
     ii = np.array(~np.isnan(subs['infall_scale']))
     if logMpeakcut != None:
-        logMpeak = np.log10(np.array(subs['infall_mvir']))
+        #logMpeak = np.log10(np.array(subs['infall_mvir']))
+        logMpeak = np.log10(np.array(subs['max_mass']))
         ii = ii & (logMpeak > logMpeakcut)
 
     theta = theta[ii]; phi = phi[ii]; infall_scale = np.array(subs['infall_scale'])[ii]
@@ -266,7 +267,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
 class AngMomCorrelationPlugin(PluginBase):
     def __init__(self):
         super(AngMomCorrelationPlugin,self).__init__()
-        self.filename='angmom_corr2.p'
+        self.filename='angmom_corr.p'
 
         self.xmin = -1; self.xmax = 1
         self.ymin = -0.2; self.ymax = 0.3
@@ -276,11 +277,13 @@ class AngMomCorrelationPlugin(PluginBase):
         self.autofigname='angmom_corr'
 
         self.nbins=40; self.lmax=20
-        self.samplug = FastSAMBasePlugin() #SimpleSAMBasePlugin()
+        self.samplug = SimpleSAMBasePlugin()
         self.logMpeakcutarr = [6,7,8,9]
 
         x = self.get_bins()
         self.x = (x[1:]+x[:-1])/2.
+
+        self.enhancethresh = 1.06
 
     def get_bins(self):
         return np.linspace(-1,1,self.nbins+1)
@@ -352,7 +355,8 @@ class AngMomCorrelationPlugin(PluginBase):
         spos = np.array(subs[['posX','posY','posZ']])-hpos
         svel = np.array(subs[['pecVX','pecVY','pecVZ']])-hvel
         sLmom = np.cross(spos,svel)
-        logMpeak = np.log10(np.array(subs['infall_mvir']))
+        #logMpeak = np.log10(np.array(subs['infall_mvir']))
+        logMpeak = np.log10(np.array(subs['max_mass']))
 
         bins = self.get_bins()
 
@@ -379,20 +383,22 @@ class AngMomCorrelationPlugin(PluginBase):
             return None
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=1,
-              color1=None,color2=None,color3=None,**kwargs):
+              color_by_enhanced=False,
+              color1=default_colors[0],color2=default_colors[1],**kwargs):
         bins,wlist,logMpeakcutarr = data
         x = (bins[1:]+bins[:-1])/2.
         numlines = 0
         hid = haloutils.get_parent_hid(hpath)
         for w in wlist:
             enhancement = self.correlation_enhancement(w,45.)
-            if enhancement > 1.06: color = color1
-            else: color = color2
-            if hid != 1422331 and hid != 1631506:
-                lw = 2
+            if color_by_enhanced:
+                if enhancement > self.enhancethresh: color = color1
+                else: color = color2
             else:
-                lw = 4; color = color3
-            ax.plot(x,w,color=color,lw=lw,**kwargs)
+                if 'color' in kwargs: 
+                    color = kwargs.pop('color')
+                else: color = None
+            ax.plot(x,w,color=color,**kwargs)
             numlines += 1
             if numlines >= maxlines: break
 

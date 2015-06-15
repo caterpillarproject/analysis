@@ -4,6 +4,7 @@ import os,subprocess,sys,time
 import cPickle as pickle
 import pandas as pd
 import warnings
+from optparse import OptionParser
 
 import haloutils
 from caterpillaranalysis import PluginBase
@@ -19,23 +20,8 @@ def get_snap_reion(hpath,zreion,justafter=False):
 class SimpleSAMBasePlugin(PluginBase):
     def __init__(self,verbose=False):
         super(SimpleSAMBasePlugin,self).__init__()
-        self.filename='SimpleSAMs2.p'
+        self.filename='SimpleSAMs.p'
 
-        self.xmin = 0; self.xmax = 1
-        self.ymin = 0; self.ymax = 1
-        self.xlabel = 'NA'
-        self.ylabel = 'NA'
-        self.xlog=False; self.ylog=False
-        self.autofigname='SimpleSAMs'
-
-        self.modelnames = {'R1':  'z=8 reionization',
-                           'R2': 'z=10 reionization',
-                           'R3': 'z=12 reionization',
-                           'I1': 'first infall to any galaxy',
-                           'I2': 'first infall to MW',
-                           'A1': 'Moster abundance matching',
-                           'S1': 'Stochastic abundance matching'
-                           }
         self.extant = ExtantDataFirstPass()
         self.mthresh = 3.*10.**8 #h^-1 Msun
         self.verbose = verbose
@@ -75,6 +61,15 @@ class SimpleSAMBasePlugin(PluginBase):
         peak_scale = haloutils.get_scale_snap(hpath,np.array(subs['peak_snap']))
         peak_z = haloutils.get_z_snap(hpath,np.array(subs['peak_snap']))
         subs['peak_scale'] = peak_scale; subs['peak_z'] = peak_z
+        # also do max_mass
+        max_mass_labels = ['max_mass_'+l for l in all_labels]
+        for col in max_mass_labels:
+            if col=='max_mass_mvir': col='max_mass'
+            assert col not in subs.columns
+            subs[col] = extdat.ix[subs.index][col]
+        max_mass_scale = haloutils.get_scale_snap(hpath,np.array(subs['max_mass_snap']))
+        max_mass_z = haloutils.get_z_snap(hpath,np.array(subs['max_mass_snap']))
+        subs['max_mass_scale'] = max_mass_scale; subs['max_mass_z'] = max_mass_z
 
         ## setup properties at z=8,10,12 reionization
         subids = np.array(subs['id'])
@@ -106,7 +101,7 @@ class SimpleSAMBasePlugin(PluginBase):
             try:
                 mt = mtc[subid]
             except KeyError:
-                warnings.warn("MTCatalogue does not have sub id {0} (mass {1:.2e})".format(subid,subs['mgrav'][subid]))
+                print "MTCatalogue does not have sub id {0} (mass {1:.2e})".format(subid,subs['mgrav'][subid])
                 continue
             mb = mt.getMainBranch()
             ## properties at z=8,10,12 reionization
@@ -114,7 +109,7 @@ class SimpleSAMBasePlugin(PluginBase):
                 snap_reion = get_snap_reion(hpath,zreion)
                 reion_ii = mb['snap']==snap_reion
                 if np.sum(reion_ii)==0:
-                    if self.verbose: warnings.warn("subid {0:7} Skipping z{1}".format(subid, zreion))
+                    if self.verbose: print "subid {0:7} Skipping z{1}".format(subid, zreion)
                     continue
                 this_data = [float(mb[reion_ii][label][0]) for label in base_reionz_labels]
                 reionz_labels = ['z'+str(zreion)+'_'+label for label in base_reionz_labels]
@@ -140,7 +135,7 @@ class SimpleSAMBasePlugin(PluginBase):
                 for form_label,val in zip(form_labels,this_data):
                     subs[form_label][subid] = val
             elif self.verbose:
-                warnings.warn("subid {0:7} Skipping form: Minfall={1:.2e}, M(z=0)={2:.2e}".format(subid, Minfall, subs['mgrav'][subid]))
+                print "subid {0:7} Skipping form: Minfall={1:.2e}, M(z=0)={2:.2e}".format(subid, Minfall, subs['mgrav'][subid])
             ## properties at mthresh
             mthresh_ii = mb['mvir']>self.mthresh
             if np.sum(mthresh_ii)>0:
@@ -151,7 +146,7 @@ class SimpleSAMBasePlugin(PluginBase):
                 for mthresh_label,val in zip(mthresh_labels,this_data):
                     subs[mthresh_label][subid] = val
             elif self.verbose:
-                warnings.warn("subid {0:7} Skipping mthresh: Mmax={1:.2e}".format(subid, np.max(mb['mvir'])))
+                print "subid {0:7} Skipping mthresh: Mmax={1:.2e}".format(subid, np.max(mb['mvir']))
     
         with open(self.get_outfname(hpath),'w') as f:
             pickle.dump(subs,f)
@@ -168,8 +163,20 @@ class SimpleSAMBasePlugin(PluginBase):
         raise NotImplementedError
 
 if __name__=="__main__":
-    hid = int(sys.argv[1])
-    lx = int(sys.argv[2])
-    hpath = haloutils.get_hpath_lx(hid,lx)
+    parser = OptionParser()
+    parser.add_option("--recalc",action="store_true",dest="recalc",default=False,
+                      help="Force recalculation")
+    (options,args) = parser.parse_args()
+
     plug = SimpleSAMBasePlugin(verbose=True)
-    subs = plug.read(hpath,recalc=True)
+    if len(args)==2: # Do one specified by hid,lx
+        hid = int(args[0])
+        lx = int(args[1])
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        subs = plug.read(hpath,recalc=options.recalc)
+    else: # Do everything
+        lx = 14
+        for hid in haloutils.cid2hid.values():
+            print hid
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            subs = plug.read(hpath,recalc=options.recalc)

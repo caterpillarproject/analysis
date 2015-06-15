@@ -7,7 +7,7 @@ import os,sys,subprocess,time,functools
 import haloutils
 import caterpillarplot
 import abundmatch,stellarmass
-from SAMs_old import SimpleSAMBasePlugin
+from SAMs import SimpleSAMBasePlugin
 from galaxy_planes import SatellitePlanesPlugin
 
 from seaborn.apionly import cubehelix_palette,color_palette
@@ -229,7 +229,14 @@ class SatellitePlanesEdgeOnPlotter(SatellitePlanesFaceOnPlotter):
         self._plot_axes(0,2,hpath,data,ax,lx,labelon,normtohost,plottracks,plottracks_all,mtc,**kwargs)
 
 def plot_ca_2x2():
-    pass
+    fig,axarr = plt.subplots(2,2,figsize=(12,12))
+    axlist = np.ravel(axarr)
+    hids = haloutils.cid2hid.values(); hids.remove(94687)
+    for ax,sam in zip(axlist,global_plot_sams):
+        ax.set_title(sam)
+        thisplotter = SatellitePlanesBACAPlotter(plot_sams=[sam])
+        caterpillarplot.stackplot(hids,14,thisplotter,ax=ax,labelconc=False,color='k',marker='o')
+    return fig
 
 if __name__=="__main__":
     plug = SatellitePlanesPlugin()
@@ -240,33 +247,29 @@ if __name__=="__main__":
     faceon = SatellitePlanesFaceOnPlotter()
     edgeon = SatellitePlanesEdgeOnPlotter()
 
-    fig,axarr = plt.subplots(2,2,figsize=(12,12))
-    axlist = np.ravel(axarr)
-    hids = haloutils.cid2hid.values(); hids.remove(94687)
-    for ax,sam in zip(axlist,global_plot_sams):
-        ax.set_title(sam)
-        thisplotter = SatellitePlanesBACAPlotter(plot_sams=[sam])
-        caterpillarplot.stackplot(hids,14,thisplotter,ax=ax,labelconc=False,color='k',marker='o')
-    fig.savefig('6-5/baca_stack.png')
+    prefix = '6-15/planes/'
+
+    fig = plot_ca_2x2()
+    fig.savefig(prefix+'baca_stack.png')
 
     fig = caterpillarplot.plot_5x5(faceon)
-    fig.savefig('6-5/faceon.png')
+    fig.savefig(prefix+'faceon.png')
 
     fig = caterpillarplot.plot_5x5(edgeon)
-    fig.savefig('6-5/edgeon.png')
+    fig.savefig(prefix+'edgeon.png')
 
     fig = caterpillarplot.plot_5x5(planesize)
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('6-5/planesize.png')
+    fig.savefig(prefix+'planesize.png')
     
     fig = caterpillarplot.plot_5x5(baca,marker='o')
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('6-5/baca.png')
+    fig.savefig(prefix+'baca.png')
 
     fig = caterpillarplot.plot_5x5(angle)
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('6-5/angle.png')
+    fig.savefig(prefix+'angle.png')
 
     fig = caterpillarplot.plot_5x5(radial)
     fig.axes[4].legend(fontsize='x-small',loc='lower right')
-    fig.savefig('6-5/radial.png')
+    fig.savefig(prefix+'radial.png') 
