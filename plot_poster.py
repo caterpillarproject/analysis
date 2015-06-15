@@ -66,7 +66,7 @@ def plot_subs_w_angmom():
     plug = AngMomCorrelationPlugin()
     fig,ax = plt.subplots(figsize=(8,8))
     caterpillarplot.stackplot(hids+[1422331,1631506],14,plug,ax=ax,color1=colors[0],color2=colors[1],color3=colors[2])
-    fig.savefig('POSTER_PLOTS/angmom_corr.png',bbox_inches='tight')
+    fig.savefig('6-5/angmom_corr.png',bbox_inches='tight')
     return fig
 def plot_two_mollweide_angmom():
     hid1 = 1631506
@@ -84,12 +84,13 @@ def plot_two_mollweide_angmom():
     cbar_ax = fig.add_axes([.125,.1,.75,.06])
     fig.colorbar(sc,cax=cbar_ax,orientation='horizontal' )
     cbar_ax.set_xlabel(r'$\rm{infall\ scale}$')
-    fig.savefig('POSTER_PLOTS/angmom_mollweide.png',bbox_inches='tight')
+    fig.savefig('6-5/angmom_mollweide.png',bbox_inches='tight')
     return fig
 
 def plot_sat_baca():
     fig,ax = plt.subplots(figsize=(8,8))
-    plot_sams = ['Np11','L0p1','L1p1']
+    #plot_sams = ['Np11','L0p1','L1p1']
+    plot_sams = ['Np11','L0m1','L1m1']
     markers = ['o','s','^']
     
     ax.add_patch(Rectangle((0,0),1,0.18,facecolor='lightskyblue',alpha=0.5,linewidth=0))
@@ -103,14 +104,15 @@ def plot_sat_baca():
     ax.legend(handles=[l0,l1,l2],loc='upper left',fontsize='xx-large')
 
 
-    fig.savefig('POSTER_PLOTS/sat_baca.png',bbox_inches='tight')
+    fig.savefig('6-5/sat_baca.png',bbox_inches='tight')
     return fig
 
 def plot_H5320_thin():
     hid = 5320; hpath = haloutils.get_hpath_lx(hid,14)
     plug = SatellitePlanesPlugin()
     df,satix = plug.read(hpath)
-    row = df.ix['L0p1']
+    #row = df.ix['L0p1']
+    row = df.ix['L0m1']
     rperp = row['rperp']
     
     fig,ax = plt.subplots(figsize=(8,8))
@@ -122,27 +124,27 @@ def plot_H5320_thin():
     ax.axis('off')
     fig.savefig('thincatplanetracks.png',bbox_inches='tight')
 
-#    fig,ax = plt.subplots(figsize=(8,8))
-#    ax.add_patch(Rectangle((-250,-rperp),500,2*rperp,facecolor='gray',alpha=0.3,linewidth=0))
-#    ax.text(-225,225,r'$\rm{Cat}-5$',fontsize='x-large')
-#    plug = SatellitePlanesEdgeOnPlotter()
-#    plug.plot(hpath,ax,plottracks=True)
-#    ax.text(90,200,r'$c/a={0:.2f}$'.format(row['ca']),fontsize='x-large')
-#    ax.text(90,175,r'$r_{{\rm \bot,rms}}={0:.1f}\,\rm{{kpc}}$'.format(row['rperp']),fontsize='x-large')
-#    ax.text(90,150,r'${0}\ \rm{{satellites}}$'.format(int(row['n_th90'])),fontsize='x-large')
-#    ax.text(90,125,r'${0}\ \rm{{aligned\ at\ }}30^\circ$'.format(int(row['n_th30'])),fontsize='x-large')
-#    fig.savefig('POSTER_PLOTS/H5320_planetracks.png',bbox_inches='tight')
-#
-#    fig,ax = plt.subplots(figsize=(8,8))
-#    ax.add_patch(Rectangle((-250,-rperp),500,2*rperp,facecolor='gray',alpha=0.3,linewidth=0))
-#    ax.text(-225,225,r'$\rm{Cat}-5$',fontsize='x-large')
-#    plug = SatellitePlanesEdgeOnPlotter()
-#    plug.plot(hpath,ax,plottracks=False)
-#    ax.text(90,200,r'$c/a={0:.2f}$'.format(row['ca']),fontsize='x-large')
-#    ax.text(90,175,r'$r_{{\rm \bot,rms}}={0:.1f}\,\rm{{kpc}}$'.format(row['rperp']),fontsize='x-large')
-#    ax.text(90,150,r'${0}\ \rm{{satellites}}$'.format(int(row['n_th90'])),fontsize='x-large')
-#    ax.text(90,125,r'${0}\ \rm{{aligned\ at\ }}30^\circ$'.format(int(row['n_th30'])),fontsize='x-large')
-#    fig.savefig('POSTER_PLOTS/H5320_notracks.png',bbox_inches='tight')
+    fig,ax = plt.subplots(figsize=(8,8))
+    ax.add_patch(Rectangle((-250,-rperp),500,2*rperp,facecolor='gray',alpha=0.3,linewidth=0))
+    ax.text(-225,225,r'$\rm{Cat}-5$',fontsize='x-large')
+    plug = SatellitePlanesEdgeOnPlotter()
+    plug.plot(hpath,ax,plottracks=True)
+    ax.text(90,200,r'$c/a={0:.2f}$'.format(row['ca']),fontsize='x-large')
+    ax.text(90,175,r'$r_{{\rm \bot,rms}}={0:.1f}\,\rm{{kpc}}$'.format(row['rperp']),fontsize='x-large')
+    ax.text(90,150,r'${0}\ \rm{{satellites}}$'.format(int(row['n_th90'])),fontsize='x-large')
+    ax.text(90,125,r'${0}\ \rm{{aligned\ at\ }}30^\circ$'.format(int(row['n_th30'])),fontsize='x-large')
+    fig.savefig('6-5/H5320_planetracks.png',bbox_inches='tight')
+
+    fig,ax = plt.subplots(figsize=(8,8))
+    ax.add_patch(Rectangle((-250,-rperp),500,2*rperp,facecolor='gray',alpha=0.3,linewidth=0))
+    ax.text(-225,225,r'$\rm{Cat}-5$',fontsize='x-large')
+    plug = SatellitePlanesEdgeOnPlotter()
+    plug.plot(hpath,ax,plottracks=False)
+    ax.text(90,200,r'$c/a={0:.2f}$'.format(row['ca']),fontsize='x-large')
+    ax.text(90,175,r'$r_{{\rm \bot,rms}}={0:.1f}\,\rm{{kpc}}$'.format(row['rperp']),fontsize='x-large')
+    ax.text(90,150,r'${0}\ \rm{{satellites}}$'.format(int(row['n_th90'])),fontsize='x-large')
+    ax.text(90,125,r'${0}\ \rm{{aligned\ at\ }}30^\circ$'.format(int(row['n_th30'])),fontsize='x-large')
+    fig.savefig('6-5/H5320_notracks.png',bbox_inches='tight')
     return fig
     
 def plot_baca_time():
@@ -163,8 +165,10 @@ def plot_baca_time():
             import brendanlib.conversions as bconversions
             t_lastMM = bconversions.GetTime(a_lastMM,OmegaM=.3175,OmegaL=.6825,h=.6711)
             ax.plot([t_lastMM,t_lastMM],[self.ymin,self.ymax],'k-.')
-    plotter0 = PlotPlaneEvol('L0p1')
-    plotter1 = PlotPlaneEvol('L1p1')
+    #plotter0 = PlotPlaneEvol('L0p1')
+    #plotter1 = PlotPlaneEvol('L1p1')
+    plotter0 = PlotPlaneEvol('L0m1')
+    plotter1 = PlotPlaneEvol('L1m1')
 
     fig,axarr = plt.subplots(5,4,figsize=(12,14.4))
     fig.subplots_adjust(hspace=0,wspace=0)
@@ -196,7 +200,7 @@ def plot_baca_time():
     for j in range(4):
         axarr[4,j].set_yticks([0,.2,.4,.6,.8,1])
         if j==0: axarr[4,j].set_yticklabels(['0.0','0.2','0.4','0.6','0.8','1.0'])
-    fig.savefig('POSTER_PLOTS/baca_time3.png',bbox_inches='tight')
+    fig.savefig('6-5/baca_time3.png',bbox_inches='tight')
     return fig
 
 def plot_radial_grid():
@@ -213,12 +217,12 @@ def plot_radial_grid():
         axarr[4,j].set_yticks([0,.2,.4,.6,.8,1])
         if j==0: axarr[4,j].set_yticklabels(['0.0','0.2','0.4','0.6','0.8','1.0'])
     #axarr[0,0].legend(loc='lower right',fontsize='small')
-    fig.savefig('POSTER_PLOTS/radial_grid.png',bbox_inches='tight')
+    fig.savefig('6-5/radial_grid.png',bbox_inches='tight')
     return fig
 
 def plot_host_ca():
     fig,axarr = plt.subplots(2,2,figsize=(12,12),sharey=True)
-    #df = haloutils.tabulate(plane_tabfn,numprocs=8,exclude_hids=[94687],savefile='plane_table.csv')
+    df = haloutils.tabulate(plane_tabfn,numprocs=8,exclude_hids=[94687],savefile='plane_table.csv')
     df = pd.read_csv('plane_table.csv',index_col=0)
 
     #MW sorted by D_MW
@@ -238,7 +242,8 @@ def plot_host_ca():
             [23 , 0.267 ], [24 , 0.267 ], [25 , 0.275 ], [26 , 0.276 ]])
     axarr[1,1].plot(MWdat3[:,0],MWdat3[:,1],'k--',label='MW')
 
-    plot_sams = ['Np11','L0p1','L1p1']
+    #plot_sams = ['Np11','L0p1','L1p1']
+    plot_sams = ['Np11','L0m1','L1m1']
     labels = samlabels
     markers = ['o','s','^']
     mycolors = colors[0:3]
@@ -270,7 +275,7 @@ def plot_host_ca():
 
     axarr[0,1].legend(loc='upper left')
     axarr[1,1].legend(loc='upper left')
-    fig.savefig('POSTER_PLOTS/host_ca.png',bbox_inches='tight')
+    fig.savefig('6-5/host_ca.png',bbox_inches='tight')
 
 def plot_host_cordev(theta_deg=30):
     assert theta_deg in [30,45]
@@ -305,7 +310,7 @@ def plot_host_cordev(theta_deg=30):
     ax = axarr[1,1]
     ax.set_xlabel(r'$\rm{host\ spin}$')
     ax.scatter(df['spin'],df['corr_enhance'+str(theta_deg)],color=color,marker=marker,s=s)
-    fig.savefig('POSTER_PLOTS/host_cordev'+str(theta_deg)+'.png',bbox_inches='tight')
+    fig.savefig('6-5/host_cordev'+str(theta_deg)+'.png',bbox_inches='tight')
 
 def plot_5x4_all():
     from plot_galaxy_planes import SatellitePlanesAnglePlotter,SatellitePlanesFaceOnPlotter,SatellitePlanesEdgeOnPlotter
@@ -324,13 +329,13 @@ def plot_5x4_all():
 if __name__=="__main__":
     plot_5x4_all()
 
-    #fig = plot_subs_w_angmom()
-    #fig = plot_two_mollweide_angmom()
-    #fig = plot_sat_baca()
-    #fig = plot_H5320_thin()
-    #fig = plot_baca_time()
-    #fig = plot_radial_grid()
-    #fig = plot_host_ca()
-    #fig = plot_host_cordev(30)
-    #fig = plot_host_cordev(45)
+    fig = plot_subs_w_angmom()
+    fig = plot_two_mollweide_angmom()
+    fig = plot_sat_baca()
+    fig = plot_H5320_thin()
+    fig = plot_baca_time()
+    fig = plot_radial_grid()
+    fig = plot_host_ca()
+    fig = plot_host_cordev(30)
+    fig = plot_host_cordev(45)
     #plt.show()

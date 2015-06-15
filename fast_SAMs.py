@@ -60,6 +60,15 @@ class FastSAMBasePlugin(PluginBase):
         peak_scale = haloutils.get_scale_snap(hpath,np.array(subs['peak_snap']))
         peak_z = haloutils.get_z_snap(hpath,np.array(subs['peak_snap']))
         subs['peak_scale'] = peak_scale; subs['peak_z'] = peak_z
+        # also do max_mass
+        max_mass_labels = ['max_mass_'+l for l in all_labels]
+        for col in max_mass_labels:
+            if col=='max_mass_mvir': col='max_mass'
+            assert col not in subs.columns
+            subs[col] = extdat.ix[subs.index][col]
+        max_mass_scale = haloutils.get_scale_snap(hpath,np.array(subs['max_mass_snap']))
+        max_mass_z = haloutils.get_z_snap(hpath,np.array(subs['max_mass_snap']))
+        subs['max_mass_scale'] = max_mass_scale; subs['max_mass_z'] = max_mass_z
 
 #        ## setup properties at z=8,10,12 reionization
 #        subids = np.array(subs['id'])

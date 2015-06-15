@@ -17,7 +17,7 @@ def plane_tabfn(hpath):
     if not haloutils.check_last_rockstar_exists(hpath): return None
     names = ['hid','corr_enhance30','corr_enhance45','conc','mass','spin','scale_of_last_MM','c_to_a']
     formats = [int,float,float,float,float,float,float,float]
-    samnames = ['Ni11','Np11','L0i1','L1i1','L0p1','L1p1']
+    samnames = ['Ni11','Np11','L0i1','L1i1','L0p1','L1p1','L0m1','L1m1']
     samvals = ['ba','ca','rperp','rpar','Nsats']
     for samname in samnames:
         names   += [samname+'_'+val for val in samvals]
@@ -108,10 +108,11 @@ class SatellitePlanesPlugin(PluginBase):
         self.Mz8_cut = 10.**8
 
         self.samnames = ['Ni11','Ni15','Ni25',
-                         'Np11','Ni15','Ni25',
+                         'Np11','Np15','Np25',
                          #'RNi11','RNi15','RNi25',
                          'L0p0','L0i0','L0p1','L0i1','L0p2','L0i2',
-                         'L1p0','L1i0','L1p1','L1i1','L1p2','L1i2']
+                         'L1p0','L1i0','L1p1','L1i1','L1p2','L1i2',
+                         'L0m0','L0m1','L0m2','L1m0','L1m1','L1m2']
         self.samixfns = [self.ixfn_Ni(11),self.ixfn_Ni(15),self.ixfn_Ni(25),
                          self.ixfn_Np(11),self.ixfn_Np(15),self.ixfn_Np(25),
                          #self.ixfn_RNi(11),self.ixfn_RNi(15),self.ixfn_RNi(25),
@@ -120,7 +121,9 @@ class SatellitePlanesPlugin(PluginBase):
                          self.ixfn_Lp(0,2),self.ixfn_Li(0,2),
                          self.ixfn_Lp(1,0),self.ixfn_Li(1,0),
                          self.ixfn_Lp(1,1),self.ixfn_Li(1,1),
-                         self.ixfn_Lp(1,2),self.ixfn_Li(1,2)]
+                         self.ixfn_Lp(1,2),self.ixfn_Li(1,2),
+                         self.ixfn_Lm(0,0),self.ixfn_Lm(0,1),self.ixfn_Lm(0,2),
+                         self.ixfn_Lm(1,0),self.ixfn_Lm(1,1),self.ixfn_Lm(1,2)]
         self.samlist = zip(self.samnames,self.samixfns)
 
         if usesvd:
@@ -161,21 +164,27 @@ class SatellitePlanesPlugin(PluginBase):
         """Returns ixfn for first N ranked by infall_vmax cut by reionization (z=8) mass"""
         return functools.partial(self._ixfn_RNi,N=N)
 
-    def _ixfn_L(self,subs,AM,useinfall,Mstar_cut):
+    def _ixfn_L(self,subs,AM,whichmass,Mstar_cut):
         this_subs = subs.copy()
-        if useinfall:
+        if whichmass=='i':
             Mstar = AM.get_Mstar(np.array(this_subs['infall_mvir']))
-        else:
+        elif whichmass=='p':
             Mstar = AM.get_Mstar(np.array(this_subs['peak_mvir']))
+        elif whichmass=='m':
+            Mstar = AM.get_Mstar(np.array(this_subs['max_mass']))
         return this_subs.index[Mstar>Mstar_cut]
     def ixfn_Lp(self,whichMstar_cut,whichAM):
         Mstar_cut = self.Mstar_cutlist[whichMstar_cut]
         AM = self.AMlist[whichAM]
-        return functools.partial(self._ixfn_L,AM=AM,useinfall=False,Mstar_cut=Mstar_cut)
+        return functools.partial(self._ixfn_L,AM=AM,whichmass='p',Mstar_cut=Mstar_cut)
     def ixfn_Li(self,whichMstar_cut,whichAM):
         Mstar_cut = self.Mstar_cutlist[whichMstar_cut]
         AM = self.AMlist[whichAM]
-        return functools.partial(self._ixfn_L,AM=AM,useinfall=True,Mstar_cut=Mstar_cut)
+        return functools.partial(self._ixfn_L,AM=AM,whichmass='i',Mstar_cut=Mstar_cut)
+    def ixfn_Lm(self,whichMstar_cut,whichAM):
+        Mstar_cut = self.Mstar_cutlist[whichMstar_cut]
+        AM = self.AMlist[whichAM]
+        return functools.partial(self._ixfn_L,AM=AM,whichmass='m',Mstar_cut=Mstar_cut)
 
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):

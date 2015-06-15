@@ -12,7 +12,7 @@ from galaxy_planes import SatellitePlanesPlugin
 
 from seaborn.apionly import cubehelix_palette,color_palette
 
-global_plot_sams = ['Np11','L0p1','L1p1']
+global_plot_sams = ['Np11','L0m1','L1m1']
 
 class SatellitePlanesAnglePlotter(SatellitePlanesPlugin):
     def __init__(self,plot_sams=global_plot_sams):
@@ -247,26 +247,26 @@ if __name__=="__main__":
         ax.set_title(sam)
         thisplotter = SatellitePlanesBACAPlotter(plot_sams=[sam])
         caterpillarplot.stackplot(hids,14,thisplotter,ax=ax,labelconc=False,color='k',marker='o')
-    fig.savefig('5-29/baca_stack.png')
+    fig.savefig('6-5/baca_stack.png')
 
     fig = caterpillarplot.plot_5x5(faceon)
-    fig.savefig('5-29/faceon.png')
+    fig.savefig('6-5/faceon.png')
 
     fig = caterpillarplot.plot_5x5(edgeon)
-    fig.savefig('5-29/edgeon.png')
+    fig.savefig('6-5/edgeon.png')
 
     fig = caterpillarplot.plot_5x5(planesize)
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('5-29/planesize.png')
+    fig.savefig('6-5/planesize.png')
     
     fig = caterpillarplot.plot_5x5(baca,marker='o')
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('5-29/baca.png')
+    fig.savefig('6-5/baca.png')
 
     fig = caterpillarplot.plot_5x5(angle)
     fig.axes[4].legend(fontsize='x-small',loc='upper right')
-    fig.savefig('5-29/angle.png')
+    fig.savefig('6-5/angle.png')
 
     fig = caterpillarplot.plot_5x5(radial)
     fig.axes[4].legend(fontsize='x-small',loc='lower right')
-    fig.savefig('5-29/radial.png')
+    fig.savefig('6-5/radial.png')
