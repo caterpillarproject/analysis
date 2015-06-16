@@ -111,8 +111,9 @@ class PluginBase(object):
         if not recalc and self.file_exists(hpath):
             try:
                 return self._read(hpath)
-            except:
+            except Exception as e:
                 print "READ ERROR: {0}".format(hpath)
+                print sys.exc_info()
                 return None
         elif autocalc:
             start = time.time()

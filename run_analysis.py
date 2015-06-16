@@ -16,6 +16,7 @@ if __name__=="__main__":
     parser.add_option("-s","--sheet",action="store",type=int,dest='sheet',default=1)
     parser.add_option("--numlabel",action="store_true",dest='numlabel',default=False)
     parser.add_option("--stoponerror",action="store_true",dest='stoponerror',default=False)
+    parser.add_option("--prefix",action="store",type=str,dest="prefix",default="")
     (options,args) = parser.parse_args()
     firsttwelve = get_haloidlist(1)
     ### Use this section for quick testing scripts 
@@ -26,7 +27,7 @@ if __name__=="__main__":
         arg = int(args[0])
 
     ### Use this section for essentially finalized analysis plots
-    prefix = '6-15/'
+    prefix = options.prefix
     sheet = options.sheet; ext = '_s'+str(sheet)
     myrecalc = options.recalc
     recalckwargs = {'recalc':options.recalc,
