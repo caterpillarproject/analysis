@@ -528,8 +528,8 @@ def make_mt_snapid_to_baseidrow(hpath,recalc=False,halodir='halos_bound',treedir
     for base_rsid,mt in mtc.Trees.iteritems():
         snaps = mt['snap']
         origids = mt['origid']
-        keys = map(make_mtindex_key,zip(snaps,origids))
-        vals = map(make_mtindex_val,zip(itertools.repeat(base_rsid,len(keys)),itertools.count()))
+        keys = map(make_key,zip(snaps,origids))
+        vals = map(make_val,zip(itertools.repeat(base_rsid,len(keys)),itertools.count()))
         
         allkeys += keys
         allvals += vals
