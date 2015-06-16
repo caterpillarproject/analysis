@@ -2,7 +2,6 @@ import numpy as np
 import pylab as plt
 import os,subprocess,sys,time
 import asciitable
-import pynbody as pnb
 import readsnapshots.readsnapHDF5_greg as rsg
 import haloutils
 import scipy.optimize as optimize
@@ -112,8 +111,9 @@ class PluginBase(object):
         if not recalc and self.file_exists(hpath):
             try:
                 return self._read(hpath)
-            except:
+            except Exception as e:
                 print "READ ERROR: {0}".format(hpath)
+                print sys.exc_info()
                 return None
         elif autocalc:
             start = time.time()
@@ -199,7 +199,7 @@ class PluginBase(object):
         ax.set_ylabel(ylabel)
         if xlog: ax.set_xscale('log')
         if ylog: ax.set_yscale('log')
-    def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1):
+    def label_plot(self,hpath,ax,label=None,normtohost=False,dx=.05,dy=.1,fontsize='medium',**kwargs):
         if label==None: 
             label = r'$\rm{'+haloutils.hidstr(haloutils.get_parent_hid(hpath))+r'}$'
         elif label=='catnum':
@@ -217,7 +217,7 @@ class PluginBase(object):
         else:
             yoff    = (ymax-ymin)*dy
             ylabel  = ymax - yoff
-        ax.text(xlabel,ylabel,label,color='black',fontsize='medium')
+        ax.text(xlabel,ylabel,label,color='black',fontsize=fontsize,**kwargs)
 
     ### Helper methods for analysis
     def get_rssubs(self,rscat,zoomid):
