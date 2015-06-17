@@ -1037,6 +1037,13 @@ class MassAccrPlugin(PluginBase):
         else:
             ax.plot(x,y,**kwargs)
             ax.plot([lastmm,lastmm],[ymin,ymax],':')
+    def get_phantomless_mb(self,mb):
+        """ Cut the mb so it is continuous and there are no phantoms """
+        try:
+            minindex = np.where(mb['phantom'] > 0)[0][-1]
+        except IndexError:
+            return mb
+        return mb[minindex+1:]
 class LinearMassAccrPlugin(MassAccrPlugin):
     def __init__(self,Mmin=10**4.5,Mmax=10**10.6,ymin=10**-10,ymax=10**-1.0):
         super(LinearMassAccrPlugin,self).__init__()

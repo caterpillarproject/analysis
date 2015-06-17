@@ -1,7 +1,7 @@
 import matplotlib; matplotlib.use('Agg')
 import numpy as np
 import pylab as plt
-import os,subprocess,sys,time
+import os,subprocess,sys,time,warnings
 import cPickle as pickle
 from scipy import special
 from scipy.spatial.distance import pdist
@@ -265,7 +265,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
     return sc
 
 class AngMomCorrelationPlugin(PluginBase):
-    def __init__(self):
+    def __init__(self,enhancethresh=1.06):
         super(AngMomCorrelationPlugin,self).__init__()
         self.filename='angmom_corr.p'
 
@@ -283,7 +283,7 @@ class AngMomCorrelationPlugin(PluginBase):
         x = self.get_bins()
         self.x = (x[1:]+x[:-1])/2.
 
-        self.enhancethresh = 1.06
+        self.enhancethresh = enhancethresh
 
     def get_bins(self):
         return np.linspace(-1,1,self.nbins+1)
@@ -449,7 +449,7 @@ class CorrelationPowSpecSnapsPlugin(AngMomCorrelationPlugin):
         self.ylog = False
         self.autofigname='corr_snaps'
 
-        self.vmaxcutarr = [5,10,15,20]
+        self.vmaxcutarr = [0,5,10,15,20]
         self.mbplug = MassAccrPlugin()
         self.lmax = 60
 
@@ -458,6 +458,8 @@ class CorrelationPowSpecSnapsPlugin(AngMomCorrelationPlugin):
     def _analyze(self,hpath):
         numsnaps = haloutils.get_numsnaps(hpath)
         hostmb = self.mbplug.read(hpath)
+        hostmb = self.mbplug.get_phantomless_mb(hostmb)
+
         hostsnaps = hostmb['snap']
         hostpos = hostmb[['x','y','z']].view((np.float,3))
         hostvel = hostmb[['vx','vy','vz']].view((np.float,3))
@@ -467,7 +469,7 @@ class CorrelationPowSpecSnapsPlugin(AngMomCorrelationPlugin):
         if self.verbose: print haloutils.hidstr(haloutils.get_parent_hid(hpath))
         for snap,hpos,hvel,zoomid in zip(hostsnaps,hostpos,hostvel,hostrsid):
             if self.verbose: start = time.time(); print snap
-            rscat = haloutils.load_rscat(hpath,snap) #TODO what if there's the merger tree bug?
+            rscat = haloutils.load_rscat(hpath,snap)
             subs = rscat.get_all_subhalos_within_halo(zoomid)
             svmax= np.array(subs['vmax'])
             spos = np.array(subs[['posX','posY','posZ']])-hpos
@@ -533,12 +535,13 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         angmomcorr,bins = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
+        hostmb = self.mbplug.get_phantomless_mb(hostmb)
         hostscale = hostmb['scale']
         output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
         for i,vmaxcut in enumerate(self.vmaxcutarr):
             for j,wlist in enumerate(angmomcorr):
                 w = wlist[i]
-                output[i,j] = self.correlation_endfraction(w)
+                output[i,j] = self.correlation_enhancement(w,45.)
         if lx != None:
             for i in range(numvmaxcut):
                 yplot = output[i,:]
@@ -570,6 +573,7 @@ class AngMomPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         angmompowspec,lmax = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
+        hostmb = self.mbplug.get_phantomless_mb(hostmb)
         hostscale = hostmb['scale']
         output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
         for i,vmaxcut in enumerate(self.vmaxcutarr):
@@ -603,6 +607,7 @@ class InPosCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         inposcorr,bins = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
+        hostmb = self.mbplug.get_phantomless_mb(hostmb)
         hostscale = hostmb['scale']
         output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
         for i,vmaxcut in enumerate(self.vmaxcutarr):
@@ -635,6 +640,7 @@ class InPosPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         inpospowspec,lmax = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
+        hostmb = self.mbplug.get_phantomless_mb(hostmb)
         hostscale = hostmb['scale']
         output = np.zeros((numvmaxcut,len(hostscale))) + np.nan
         for i,vmaxcut in enumerate(self.vmaxcutarr):
