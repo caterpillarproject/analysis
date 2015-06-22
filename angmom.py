@@ -517,10 +517,10 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
     def __init__(self,**kwargs):
         super(AngMomCorrelationSnapsPlugin,self).__init__(**kwargs)
         self.xmin = 0; self.xmax = 1
-        self.ymin = 0; self.ymax = 2.5
+        self.ymin = 0.9; self.ymax = 1.25
         self.xlog = False; self.ylog = False
         self.xlabel = 'scale'
-        self.ylabel = 'fraction within 45 degrees'
+        self.ylabel = '45 deg enhancement'
     def _read(self,hpath):
         try:
             with open(self.get_outfname(hpath),'r') as f:
@@ -531,7 +531,7 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         except IOError:
             return None
         return angmomcorr,bins
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,whichlines=None,**kwargs):
         angmomcorr,bins = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
@@ -544,10 +544,12 @@ class AngMomCorrelationSnapsPlugin(CorrelationPowSpecSnapsPlugin):
                 output[i,j] = self.correlation_enhancement(w,45.)
         if lx != None:
             for i in range(numvmaxcut):
+                if whichlines != None and i not in whichlines: continue
                 yplot = output[i,:]
                 ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
         else:
             for i in range(numvmaxcut):
+                if whichlines != None and i not in whichlines: continue
                 yplot = output[i,:]
                 ax.plot(hostscale,yplot,**kwargs)
 
@@ -569,7 +571,7 @@ class AngMomPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
         except IOError:
             return None
         return angmompowspec,lmax
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,maxlines=None,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,whichlines=None,**kwargs):
         angmompowspec,lmax = data
         numvmaxcut = len(self.vmaxcutarr)
         hostmb = self.mbplug.read(hpath)
@@ -582,10 +584,12 @@ class AngMomPowSpecSnapsPlugin(CorrelationPowSpecSnapsPlugin):
                 output[i,j] = self.powspec_ratio(Cl)
         if lx != None:
             for i in range(numvmaxcut):
+                if whichlines != None and i not in whichlines: continue
                 yplot = output[i,:]
                 ax.plot(hostscale,yplot,color=self.colordict[lx],**kwargs)
         else:
             for i in range(numvmaxcut):
+                if whichlines != None and i not in whichlines: continue
                 yplot = output[i,:]
                 ax.plot(hostscale,yplot,**kwargs)
         ax.plot([0,1],[1,1],'k:')
