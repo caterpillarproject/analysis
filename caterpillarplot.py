@@ -154,3 +154,28 @@ def plot_5x5(plug,lx=14,figfilename=None,usecatnum=True,**kwargs):
     else:
         plt.show()
     return fig
+
+def plot_6x4(plug,lx=14,figfilename=None,usecatnum=True,**kwargs):
+    fig,axarr = plt.subplots(6,4,figsize=(10,12),sharex=True,sharey=True)
+    fig.subplots_adjust(hspace=0,wspace=0)
+    if usecatnum: label='catnum'
+    else: label=None
+    for i,ax in enumerate(np.ravel(axarr)):
+        hid = haloutils.cid2hid[i+1]
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        plug.plot(hpath,ax,**kwargs)
+        if hpath==None: continue
+        plug.label_plot(hpath,ax,label=label)
+    for i in range(5):
+        for j in range(1,4):
+            axarr[i,j].set_xlabel('')
+            axarr[i,j].set_ylabel('')
+    for i in range(5):
+        axarr[i,0].set_xlabel('')
+    for j in range(1,4):
+        axarr[5,j].set_ylabel('')
+    if figfilename != None:
+        fig.savefig(figfilename,bbox_inches='tight')
+    else:
+        plt.show()
+    return fig

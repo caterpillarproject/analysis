@@ -405,8 +405,8 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=Non
     IMPORTANT: Uses MassAccrPlugin to get main branch MT for snap != last snap.
     """
     if snap==None:
-        snap = get_numsnaps(hpath)-1
-    if snap==(get_numsnaps(hpath)-1):
+        snap = get_lastsnap(hpath)
+    if snap==(get_lastsnap(hpath)):
         try:
             row = _load_index_row(hpath,filename=filename)
         except ValueError:
@@ -431,6 +431,8 @@ def load_zoomid(hpath,filename=global_halobase+"/parent_zoom_index.txt",snap=Non
         ii = snaplist == snap
         if np.sum(ii) != 1: 
             raise ValueError("{0} snap {1} does not have a valid main branch rsid ({2} indices match snap)".format(get_foldername(hpath),snap,np.sum(ii)))
+        if tab['phantom'][ii][0] != 0:
+            raise ValueError("{0} snap {1} is a phantom".format(get_foldername(hpath),snap))
         return tab['origid'][ii][0]
     
 def load_haloprops(hpath,filename=global_halobase+"/parent_zoom_index.txt"):
@@ -506,46 +508,6 @@ def load_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 def load_zoom_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,haloids=[load_zoomid(hpath)],**kwargs)
-def make_mtindex_key(snap,origid):
-    return str(snap).zfill(3)+","+str(origid)
-def make_mt_snapid_to_baseidrow(hpath,recalc=False,halodir='halos_bound',treedir='trees'):
-    def make_key(arg):
-        return make_mtindex_key(arg[0],arg[1])
-    def make_val(arg):
-        return arg
-    #def make_mtindex_val(base_rsid,row):
-    #    return (base_rsid,row)
-    indexpath = hpath+'/'+halodir+'/'+treedir+'/snap_id_to_baseid_row.p'
-    if os.path.exists(indexpath) and (not recalc): return
-
-    start = time.time()
-    mtc = load_mtc(hpath,indexbyrsid=True)
-    allkeys = []
-    allvals = []
-    print "Load Time: {0:.1f} sec".format(time.time()-start)
-
-    start = time.time()
-    for base_rsid,mt in mtc.Trees.iteritems():
-        snaps = mt['snap']
-        origids = mt['origid']
-        keys = map(make_key,zip(snaps,origids))
-        vals = map(make_val,zip(itertools.repeat(base_rsid,len(keys)),itertools.count()))
-        
-        allkeys += keys
-        allvals += vals
-    
-    index = dict(zip(allkeys,allvals))
-    with open(indexpath,'w') as f:
-        pickle.dump(index,f)
-    print "Convert Time: {0:.1f} sec".format(time.time()-start)
-    subprocess.call(['chmod g+rwx '+indexpath],shell=True)
-    subprocess.call(['chgrp annaproj '+indexpath],shell=True)
-def load_mt_snapid_to_baseidrow(hpath,halodir='halos_bound',treedir='trees'):
-    indexpath = hpath+'/'+halodir+'/'+treedir+'/snap_id_to_baseid_row.p'
-    assert os.path.exists(indexpath)
-    with open(indexpath,'r') as f:
-        index = pickle.load(f)
-    return index
 
 def load_pmtc(hpath=global_prntbase,verbose=True,halodir='rockstar',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=3,**kwargs)
