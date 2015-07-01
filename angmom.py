@@ -179,7 +179,7 @@ def plot_mollweide_time(hids=None,lx=14):
             plt.close('all')
         break
 
-def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
+def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None,max_size=100.):
     # TODO assert ax is mollweide projection
     assert whatdata in ['infallpos','angmom','satpos']
 
@@ -238,7 +238,7 @@ def _plot_mollweide_SAM(whatdata,hpath,ax,tag,logMpeakcut=None):
         plot_pos = np.array(infall_pos)
 
     min_vmax_size=0.
-    max_vmax_size=100.
+    max_vmax_size=max_size
     min_vmax=0.
     max_vmax=100.
     normed_vmax = np.array((subs['infall_vmax']-min_vmax)/(max_vmax-min_vmax))
