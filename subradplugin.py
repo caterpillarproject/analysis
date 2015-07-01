@@ -47,7 +47,7 @@ class SubhaloRadialPlugin(PluginBase):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         # TODO refactor histogramming into read?
         subid,dist,submass,submgrav,subrvir = data
-        ii = submgrav/submass > 0.9
+        ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         rarr = np.logspace(-2,3,25)
@@ -74,10 +74,10 @@ class SubhaloRadialByMassPlugin(SubhaloRadialPlugin):
         self.numbins     = 7
         self.labels = [r'$'+str(self.logmassbins[i])+r'<logM<'+str(self.logmassbins[i+1])+r'$' for i in range(self.numbins)]
         self.bincolors = ['b','r','g','y','c','m','k']
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,legendon=True,**kwargs):
         assert lx != None
         subid,dist,submass,submgrav,subrvir = data
-        ii = submgrav/submass > 0.9
+        ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         rarr = np.logspace(-2,3,25)
@@ -97,7 +97,7 @@ class SubhaloRadialByMassPlugin(SubhaloRadialPlugin):
             try: minii = np.min(np.where(n_ratio > 0)[0])
             except ValueError: continue
             ax.plot(rarr[minii:],n_ratio[minii:],color=self.bincolors[i],label=self.labels[i],**kwargs)
-            ax.legend(loc='lower left',fontsize='xx-small')
+        if legendon: ax.legend(loc='lower left',fontsize='xx-small')
 class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
     def __init__(self):
         super(IntegrableSubhaloRadialPlugin,self).__init__()
@@ -108,7 +108,7 @@ class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
         self.autofigname = 'integrablesubrad'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         subid,dist,submass,submgrav,subrvir = data
-        ii = submgrav/submass > 0.9
+        ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         rarr = np.logspace(-2,3,25)
@@ -132,10 +132,10 @@ class IntegrableSubhaloRadialByMassPlugin(SubhaloRadialByMassPlugin):
         self.ylabel = r'$df/dlogr$'
         self.ylog=False
         self.autofigname = 'integrablesubradbymass'
-    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
+    def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,legendon=True,**kwargs):
         assert lx != None
         subid,dist,submass,submgrav,subrvir = data
-        ii = submgrav/submass > 0.9
+        ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         rarr = np.logspace(-2,3,25)
@@ -155,7 +155,7 @@ class IntegrableSubhaloRadialByMassPlugin(SubhaloRadialByMassPlugin):
             if normtohost:
                 rarr = rarr/rvir
             ax.plot(rarr[minii:],n_plot[minii:],color=self.bincolors[i],label=self.labels[i],**kwargs)
-            ax.legend(loc='lower left',fontsize='xx-small')
+        if legendon: ax.legend(loc='lower left',fontsize='xx-small')
     
 class SubhaloRadialSubmassFracPlugin(MultiPlugin):
     def __init__(self,rmin=10**0,rmax=10**3):
@@ -178,7 +178,7 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         r,mltr,p03r,rvir,r200c,pNFW,pEIN = alldata        
         rbin = np.concatenate(([0],r))
         subid,dist,submass,submgrav,subrvir = subdata
-        ii = submgrav/submass > 0.9
+        ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         dist /= 1000. #kpc to Mpc
