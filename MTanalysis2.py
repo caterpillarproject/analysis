@@ -18,6 +18,22 @@ import pandas
 #44661. Mass in RSCatalog way too high. Mass in merger tree very reasonsble.
 #its host is 42818, which is much smaller than 44661
 
+######################### EXAMPLE TO LOAD STAR IDS AND MASS
+#AE = AllExtantData()
+#AD = AllDestroyedData()
+#TM = TagMass()
+# dataE = AE.read(hpath)
+# dataD = AD.read(hpath)
+#idsE,massE,idsD,massD = TM.read(hpath)
+# get stars from specific halo:
+# halostars = getStars(dataE, idsE, row)
+# halostarmass - getStarMass(dataE, massE,row)
+########################################
+def getStars(data, ids, row):
+    return ids[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
+
+def getStarMass(data, mass, row):
+    return mass[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
 
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
@@ -163,8 +179,6 @@ class ExtantDataFirstPass(PluginBase):
             max_mass_xoff = sub_mb[max_mass_loc]['xoff']
             
 
-
-
             # get all peak values. Peak values all based on when vmax reaches its peak.
             peak_loc = np.argmax(sub_mb['vmax'])
             if sub_mb[peak_loc]['phantom']!=0:
@@ -172,7 +186,6 @@ class ExtantDataFirstPass(PluginBase):
                 mask = np.where(sub_mb['phantom']==0)[0]
                 tmploc = np.argmax(sub_mb[mask]['vmax'])
                 peak_loc = mask[tmploc]
-
 
             peak_vmax = sub_mb[peak_loc]['vmax']
             peak_snap = sub_mb[peak_loc]['snap']
@@ -264,7 +277,7 @@ class AllExtantData(PluginBase):
     def _analyze(self,hpath):
         ED = ExtantDataFirstPass()
         dataE = ED.read(hpath)
-        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz']
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos']
         data_newE = pandas.DataFrame(np.zeros((len(dataE),len(dtype)))-1,columns=dtype)
         peak_dataE = {}
         for peaksnap,line in zip(dataE['peak_snap'],dataE.index):
@@ -273,7 +286,10 @@ class AllExtantData(PluginBase):
         infall_dataE = {}
         for infallsnap,line in zip(dataE['infall_snap'],dataE.index):
             infall_dataE.setdefault(infallsnap, []).append(line)       
-            
+
+        # initialize arrays for tagging
+        allstars=[]; start_pos=0     
+       
         for snap in range(haloutils.get_numsnaps(hpath)):
             print snap, 'snap in get extra parameters Extant'
             sys.stdout.flush()
@@ -299,9 +315,20 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['infall_corevelx'] = cat.ix[infall_rsid]['corevelx']
                         data_newE.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
                         data_newE.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
+                        
+                        iPids = cat.get_all_particles_from_halo(infall_rsid)
+                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        data_newE.ix[line]['nstars'] = len(star_pids)
+                        data_newE.ix[line]['start_pos'] = start_pos
+                        allstars=np.r_[allstars,star_pids]
+                        start_pos+=len(star_pids)
+
                 
         fulldataE = pandas.concat((dataE,data_newE),axis=1)
         fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat', 'wb')
+        np.array(allstars).tofile(f)
+        f.close()
 
     def _read(self,hpath):
         return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
@@ -311,7 +338,17 @@ class AllExtantData(PluginBase):
 
 
 
-## need to change most everything to match the above line
+
+
+
+
+
+# This currently does not identify sub-subs in merger tree
+# need to port over code from auxiliary_add in tagDestroyed.py on Odyssey TagCode4.0 folder
+# Scenario 1: sub-sub enters main host on its own, then falls into sub, then merges with sub
+# Secenario 2: sub-sub falls into sub, then sub and sub-sub system fall into main host together,
+# then sub-sub merges with sub
+# In both cases, I am currently tagging sub-sub when it first enters the main host.
 class DestroyedDataFirstPass(PluginBase):
     def __init__(self):
         super(DestroyedDataFirstPass,self).__init__()
@@ -529,7 +566,7 @@ class AllDestroyedData(PluginBase):
     def _analyze(self,hpath):
         DD = DestroyedDataFirstPass()
         dataD = DD.read(hpath)
-        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz']
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz','nstars','start_pos']
         data_newD = pandas.DataFrame(np.zeros((len(dataD),len(dtype)))-1,columns=dtype)
         peak_dataD = {}
         for peaksnap,line in zip(dataD['peak_snap'],dataD.index):
@@ -538,7 +575,10 @@ class AllDestroyedData(PluginBase):
         infall_dataD = {}
         for infallsnap,line in zip(dataD['infall_snap'],dataD.index):
             infall_dataD.setdefault(infallsnap, []).append(line)       
-            
+
+        # initialize arrays
+        allstars=[]; start_pos=0
+
         for snap in range(haloutils.get_numsnaps(hpath)):
             print snap, 'snap in get extra parameters Destroyed'
             sys.stdout.flush()
@@ -564,12 +604,102 @@ class AllDestroyedData(PluginBase):
                         data_newD.ix[line]['infall_corevelx'] = cat.ix[infall_rsid]['corevelx']
                         data_newD.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
                         data_newD.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
+
+                        iPids = cat.get_all_particles_from_halo(infall_rsid)
+                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        data_newD.ix[line]['nstars'] = len(star_pids)
+                        data_newD.ix[line]['start_pos'] = start_pos
+                        allstars=np.r_[allstars,star_pids]
+                        start_pos+=len(star_pids)
                 
         fulldataD = pandas.concat((dataD,data_newD),axis=1)
         fulldataD.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat', 'wb')
+        np.array(allstars).tofile(f)
+        f.close()
 
     def _read(self,hpath):
         return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
+
+
+
+# Moster et al stellar mass to halo mass relationship
+def getFraction(M, a):
+    M10 = 11.590
+    M11 = 1.195
+    N10 = .0351
+    N11 = -0.0247
+    B10 = 1.376
+    B11 = -0.826
+    G10 = 0.608
+    G11 = 0.329
+    def M1(a):
+        return 10**(M10+M11*(1-a))
+    def N(a):
+        return N10 + N11*(1-a)
+    def beta(a):
+        return B10 + B11*(1-a)
+    def gamma(a):
+        return G10 + G11*(1-a)
+    return 2*N(a)*( (M/M1(a) )**-beta(a) + ( M/M1(a) )**gamma(a) )**-1
+    
+
+class TagMass(PluginBase):
+    def __init__(self):
+        super(TagMass,self).__init__()
+        self.filename='destroyedMass_moster.dat'
+        self.xmin=1;     self.xmax=400
+        self.ymin=10**-5; self.ymax=10*6
+        self.xlog= True; self.ylog = True
+        self.xlabel='' ; self.ylabel=r''
+        self.autofigname=''
+
+    def _analyze(self,hpath):
+        # RetagExtant
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
+        Extant = AllExtantData()
+        dataE = Extant.read(hpath)
+        idsE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat')
+        fracs = getFraction(dataE['infall_mvir']/cat.h0, haloutils.get_scale_snap(hpath, np.array(dataE['infall_snap'],dtype=np.int32)) )
+        # need something better than getScale
+        nstars = np.array(dataE['nstars'],dtype=np.int32)
+        mper=(dataE['infall_mvir']/cat.h0*fracs)/nstars
+        sp = np.array(dataE['start_pos'],dtype=np.int32)
+
+        # must initialize mper_arr as same length as ids
+        # then must index it as mper_arr[start_pos:start_pos+nstars]=mper[i]*nstars[i]. So that they properly align.
+        mper_arr = np.zeros(len(idsE))
+        for i in range(len(dataE)):
+            mper_arr[sp[i]:sp[i]+nstars[i]] = [mper[i]]*nstars[i]
+        # rewrite data properly here
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantMass_moster.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+        # Now retag destroyed data
+        Destroyed = AllDestroyedData()
+        dataD = Destroyed.read(hpath)
+        idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat')
+        mper_arr=np.zeros(len(idsD))
+        fracs = getFraction(dataD['infall_mvir']/cat.h0, haloutils.get_scale_snap(hpath, np.array(dataD['infall_snap'],dtype=np.int32)) )
+        nstars = np.array(dataD['nstars'],dtype=np.int32)
+        mper=(dataD['infall_mvir']/cat.h0*fracs)/nstars
+        sp = np.array(dataD['start_pos'],dtype=np.int32)
+        for i in range(len(dataD)):
+            mper_arr[sp[i]:sp[i]+nstars[i]] = [mper[i]]*nstars[i]
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedMass_moster.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+    def _read(self,hpath):
+        # extant data
+        idsE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat')
+        massE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantMass_moster.dat')
+        # destroyed data
+        idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat')
+        massD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedMass_moster.dat')
+        return np.array(idsE,dtype=np.int64), massE, np.array(idsD,dtype=np.int64), massD
