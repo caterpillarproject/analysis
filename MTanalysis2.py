@@ -18,6 +18,10 @@ import pandas
 #44661. Mass in RSCatalog way too high. Mass in merger tree very reasonsble.
 #its host is 42818, which is much smaller than 44661
 
+# trying to push
+#  git config --global push.default matching
+#  git config --global push.default simple
+
 ######################### EXAMPLE TO LOAD STAR IDS AND MASS
 #AE = AllExtantData()
 #AD = AllDestroyedData()
