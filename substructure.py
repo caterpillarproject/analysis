@@ -1,15 +1,16 @@
 import numpy as np
 import haloutils
-#import readsnapshots.readsnapHDF5_greg as rsg
 from caterpillaranalysis import *
 from scipy import interpolate
-#from scipy.integrate import quad
 import matplotlib.pyplot as plt
-import grifflib as glib
-#from caterpillaranalysis import ProfilePlugin
+#import grifflib as glib
 
 
-#hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
+
+# to Read in values
+#substruct = SubstructurePlugin()
+#nsubs_vmax, nsubs_vmax_ever,subhalomass,submass_frac,subs_inner_frac = substruct.read(hpath)
+
 
 def distance(posA, posB,boxsize=100*1000.):
     dist = abs(posA-posB)
@@ -84,12 +85,14 @@ class SubstructurePlugin(PluginBase):
         return data
         
 
-substruct = SubstructurePlugin()
+#hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
+#substruct = SubstructurePlugin()
 #nsubs_vmax, nsubs_vmax_ever,subhalomass,submass_frac,subs_inner_frac = substruct.read(hpath)
-lx = 14
-figdir = '/bigbang/data/AnnaGroup/GregFigs/lx'+str(lx)+'/'
+#lx = 14
+#figdir = '/bigbang/data/AnnaGroup/GregFigs/lx'+str(lx)+'/'
 #halo_paths = haloutils.find_halo_paths(levellist=[lx],require_mergertree=True,require_subfind=False,verbose=False) 
 
+"""
 halo_paths = ['/bigbang/data/AnnaGroup/caterpillar/halos/H95289/H95289_BB_Z127_P7_LN7_LX14_O4_NV4',
  '/bigbang/data/AnnaGroup/caterpillar/halos/H1195448/H1195448_EC_Z127_P7_LN7_LX14_O4_NV4',
  '/bigbang/data/AnnaGroup/caterpillar/halos/H1354437/H1354437_EA_Z127_P7_LN7_LX14_O4_NV5',
@@ -120,3 +123,4 @@ for hpath in halo_paths:
     nsubs, nsubs_vmax, nsubs_vmax_ever,subhalomass,submass_frac,subs_inner_frac = substruct.read(hpath)
     print subs_inner_frac, 'inner fraction'
     print 'done with', hpath
+"""
