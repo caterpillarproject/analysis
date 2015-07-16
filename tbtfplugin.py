@@ -412,3 +412,33 @@ def plot_tbtf_failures():
 
     plt.rcParams.update(oldrcParams)
     return fig
+
+def tab_tbtf_formation(hpath):
+    import formationtime
+    tbtf_out = tab_massive_failures(hpath)
+    if tbtf_out == None: return None
+    ftime_out = formationtime.formation_tabfn(hpath)
+    if ftime_out == None: return None
+    tbtf_d, tbtf_n, tbtf_f = tbtf_out
+    form_d, form_n, form_f = ftime_out
+    data = np.concatenate([tbtf_d,form_d])
+    names = np.concatenate([tbtf_n,form_n])
+    formats = np.concatenate([tbtf_f,form_f])
+    return data,names,formats
+
+def plot_tbtf_formation(exclude_hids=[94687,388476,1599988]):
+    df = haloutils.tabulate(tab_tbtf_formation,lx=14,exclude_hids=exclude_hids)
+    df['massive_failure_ratio'] = df['massive_failures'].astype(float)/df['num_sats']
+    import seaborn.apionly as sns
+    g = sns.PairGrid(df,y_vars=['strong_massive_failures','massive_failures','num_sats','massive_failure_ratio'],x_vars=['conc','a_lmm','a_mmm','a_half','a_exp'])
+    #g.map_diag(plt.hist)
+    #g.map_offdiag(plt.scatter)
+    from scipy import stats
+    def plot_cor(x,y,**kwargs):
+        r, p = stats.pearsonr(x,y)
+        ax = plt.gca()
+        ax.annotate("r={:.2f}, p={:.3f}".format(r,p),
+                    xy=(.1, .9), xycoords=ax.transAxes)
+    g.map(plt.scatter)
+    g.map(plot_cor)
+    return g
