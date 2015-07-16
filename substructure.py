@@ -84,6 +84,38 @@ class SubstructurePlugin(PluginBase):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
         return data
         
+def substructure_tabfn(hpath):
+    if hpath==None: return None
+    plug = SubstructurePlugin()
+    data = plug.read(hpath)
+    nsubs,nsubs_vmax, nsubs_vmax_ever,subhalomass,submass_frac,subs_inner_frac = data
+    names = ['nsubs','nsubs_vmax','nsubs_vmax_ever','subhalomass','submass_frac','subs_inner_frac']
+    formats = [int, int, int, np.float, np.float, np.float]
+    return data,names,formats
+
+def substructure_formation_tabfn(hpath):
+    import formationtime
+    if hpath==None: return None
+    out1 = substructure_tabfn(hpath)
+    if out1==None: return None
+    out2 = formationtime.formation_tabfn(hpath)
+    if out2==None: return None
+    d1,n1,f1 = out1
+    d2,n2,f2 = out2
+    data = np.concatenate([d1,d2])
+    names = np.concatenate([n1,n2])
+    formats = np.concatenate([f1,f2])
+    return data, names, formats
+
+def plot_substructure_formation(filename=None,exclude_hids=[94687,388476,1599988]):
+    df = haloutils.tabulate(substructure_formation_tabfn,lx=14,exclude_hids=exclude_hids)
+    import seaborn.apionly as sns
+    g = sns.PairGrid(df)
+    g.map_diag(plt.hist)
+    g.map_offdiag(plt.scatter)
+    if filename != None:
+        g.savefig(filename)
+    return g
 
 #hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
 #substruct = SubstructurePlugin()
