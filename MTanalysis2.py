@@ -72,10 +72,10 @@ flags = 9. same as the subhalos that do work
 # halostarmass - getStarMass(dataE, massE,row)
 ########################################
 def getStars(data, ids, row):
-    return np.array(ids[int(data['start_pos']):int(data['start_pos']+data['nstars'])], dtype=np.int64)
+    return np.array(ids[int(data[row]['start_pos']):int(data[row]['start_pos']+data[row]['nstars'])], dtype=np.int64)
 
 def getStarMass(data, mass, row):
-    return mass[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
+    return mass[int(data[row]['start_pos']):int(data[row]['start_pos']+data[row]['nstars'])]
 
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
