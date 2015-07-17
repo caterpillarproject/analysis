@@ -10,6 +10,44 @@ import os, subprocess
 import pandas
 
 
+"""
+hid = 'H1631506'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 148923 # this is a sub-sub halo!! And its parent is not in the merger tree....
+
+mass = 2.13e8
+sub_rank = 46
+flags = 9
+
+its hostID is:  162183, which is a subhalo. So it is a sub-sub halo.
+162183 is also not found in the merger tree
+1.06 kpc away from center of host, mgrav is 3.032336896e9. mvir is 4.8e9
+
+162185 is the main host
+
+hid = 'H581141'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 118959
+its hostID is 119299
+main hostID is 155162
+--> it is a sub-sub again
+its first host is found in the merger tree. at a distance of 130.7 kpc
+
+hid = 'H1387186'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 119955
+its host id is: 150793
+real main halo id: 150793
+
+
+hid = 'H581180'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 166360
+its host is 166371
+main host is 166371
+flags = 9. same as the subhalos that do work
+"""
+
 # for quick testing:
 #hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
 
@@ -34,7 +72,7 @@ import pandas
 # halostarmass - getStarMass(dataE, massE,row)
 ########################################
 def getStars(data, ids, row):
-    return ids[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
+    return np.array(ids[int(data['start_pos']):int(data['start_pos']+data['nstars'])], dtype=np.int64)
 
 def getStarMass(data, mass, row):
     return mass[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
@@ -129,12 +167,12 @@ class ExtantDataFirstPass(PluginBase):
             sub_rank+=1
             sub = getSubTree(mtc,subRSID)
             if sub==None:
-                print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e' %cat.ix[subRSID]['mvir'], 'Time = ', (time.time()-start_time)/60., 'minutes'
+                print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax']), 'Time = ', (time.time()-start_time)/60., 'minutes'
                 sys.stdout.flush()
                 continue
             sub_mb = sub.getMainBranch(0)
             if sub_mb == None:
-                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e' %cat.ix[subRSID]['mvir']
+                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax'])
                 sys.stdout.flush()
                 continue # skip to next subhalo
 
