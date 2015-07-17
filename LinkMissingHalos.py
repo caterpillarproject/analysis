@@ -2,11 +2,11 @@ import MTanalysis2 as MTA
 import haloutils
 import numpy as np
 
-hid = 'H1631506'
-subRSID = 148923
+#hid = 'H1631506'
+#subRSID = 148923
 
-#hid = 'H581180'
-#subRSID = 166360
+hid = 'H581180'
+subRSID = 166360
 
 # to find the correct row
 #hid = 'H1387186'
@@ -43,7 +43,8 @@ def get_link_to_row(hid, subRSID):
         n = np.sum(common)
         if n>len(star_ids)/2.:
             fixed_row = row
-            
+            print n, len(star_ids), 'number of stars in original tagging, number of stars in z=0 halo'
+            print n/len(star_ids), len(star_ids), 'if the first number is close to 1, and the second number is reasonably large, confidence on the match is high'
     print dataD['infall_snap'][fixed_row], 'infall snap'
     print dataD['backsnap'][fixed_row], 'back snap'
     print fixed_row, 'row in dataD'
