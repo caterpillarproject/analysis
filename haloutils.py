@@ -237,15 +237,15 @@ def check_last_rockstar_exists(outpath,boundbin=True,fullbin=False,particles=Fal
     lastsnap = numsnaps - 1; snapstr = str(lastsnap)
     return check_rockstar_exists(outpath,lastsnap,boundbin=boundbin,fullbin=fullbin,particles=particles)
 
-def check_mergertree_exists(outpath,autoconvert=False,boundbin=True):
+def check_mergertree_exists(outpath,autoconvert=False,boundbin=True,treedir='trees'):
     if boundbin: halodir = 'halos_bound'
     else: halodir = 'halos'
-    ascii_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree_0_0_0.dat')
-    binary_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree.bin')
+    ascii_exists = os.path.exists(outpath+'/'+halodir+'/'+treedir+'/tree_0_0_0.dat')
+    binary_exists = os.path.exists(outpath+'/'+halodir+'/'+treedir+'/tree.bin')
     if autoconvert and ascii_exists and not binary_exists:
         print "---check_mergertree_exists: Automatically converting ascii to binary"
-        MTC.convertmt(outpath+'/'+halodir+'/trees',version=4)
-        binary_exists = os.path.exists(outpath+'/'+halodir+'/trees/tree.bin')
+        MTC.convertmt(outpath+'/'+halodir+'/'+treedir,version=4)
+        binary_exists = os.path.exists(outpath+'/'+halodir+'/'+treedir+'/tree.bin')
     return ascii_exists and binary_exists
 
 def check_is_sorted(outpath,snap=0,hdf5=True):
@@ -352,8 +352,12 @@ def find_halo_paths(basepath=global_halobase,
         if filename[0] == "H":
             haloidlist.append(filename)
     for haloid in haloidlist:
-        hpathlist = get_available_hpaths(haloid,contam=contamsuite,checkgadget=False,
-                                         basepath=basepath)
+        try:
+            hpathlist = get_available_hpaths(haloid,contam=contamsuite,checkgadget=False,
+                                             basepath=basepath)
+        except IOError as e:
+            print "ERROR: skipping",haloid
+            continue
         for hpath in hpathlist:
             ictype,levelmax,nrvir = get_zoom_params(hpath)
             if (int(levelmax) in levellist and int(nrvir) in nrvirlist and ictype in ictypelist):
