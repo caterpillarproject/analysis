@@ -10,6 +10,49 @@ import os, subprocess
 import pandas
 
 
+"""
+hid = 'H1631506'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 148923 # this is a sub-sub halo!! And its parent is not in the merger tree....
+
+mass = 2.13e8
+sub_rank = 46
+flags = 9
+
+its hostID is:  162183, which is a subhalo. So it is a sub-sub halo.
+162183 is also not found in the merger tree
+1.06 kpc away from center of host, mgrav is 3.032336896e9. mvir is 4.8e9
+
+162185 is the main host
+
+hid = 'H581141'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 118959
+its hostID is 119299
+main hostID is 155162
+--> it is a sub-sub again
+its first host is found in the merger tree. at a distance of 130.7 kpc
+
+hid = 'H1387186'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 119955
+its host id is: 150793
+real main halo id: 150793
+This halo is in the merger tree as a destroyed halo
+it is dataD[682]
+infall snap is 175.
+backsnap is 19
+infall scale is 0.4473
+
+
+hid = 'H581180'
+hpath = haloutils.get_hpath_lx(hid,14)
+subRSID = 166360
+its host is 166371
+main host is 166371
+flags = 9. same as the subhalos that do work
+"""
+
 # for quick testing:
 #hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
 
@@ -33,11 +76,71 @@ import pandas
 # halostars = getStars(dataE, idsE, row)
 # halostarmass - getStarMass(dataE, massE,row)
 ########################################
+
+
+# tagging 1% - because start_pos is not sequential,
+# might want to 
+# quick solution - use TagMass to get ids, mass for getStars_1
+# but use TagMass_1 to get ids1, etc.
+
+# better - re-run AllExtantData
+# use 'nstars_1', 'start_pos_1'
+# instead of writing to file, use generate ids, mass
+
+# make it possible to get any fraction of 3%
+
+
+
 def getStars(data, ids, row):
-    return ids[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
+    sp = data['start_pos'][row]
+    nstars = data['nstars'][row]
+    return ids[sp:sp+nstars]
+
+def getStars_x(data,ids,row, fmb=1):
+    if fmb  > 3:
+        print "ERROR fmb cannot be > 3"
+        return None
+    sp = data['start_pos'][row]
+    nstars = np.round(data['nstars'][row]/(3./fmb))
+    if nstars==0 and data['nstars'][row]>0:
+        nstars=1
+    return ids[sp:sp+nstars]
 
 def getStarMass(data, mass, row):
-    return mass[int(data['start_pos']):int(data['start_pos']+data['nstars'])]
+    sp = data['start_pos'][row]
+    nstars = data['nstars'][row]
+    return mass[sp:sp+nstars]
+
+def getStarMass_x(data, mass, row, fmb=1):
+    if fmb  > 3:
+        print "ERROR fmb cannot be > 3"
+        return None
+    sp = data['start_pos'][row]
+    nstars = np.round(data['nstars'][row]/(3./fmb))
+    if nstars==0 and data['nstars'][row]>0:
+        nstars=1
+    return mass[sp:sp+nstars]
+
+
+def getIdsMass_x(hpath, fmb=1):
+    TM = TagMass()
+    idsE,massE,idsD,massD = TM.read(hpath)
+    AE = AllExtantData()
+    AD = AllDestroyedData()
+    dataE = AE.read(hpath)
+    dataD = AD.read(hpath)
+    
+    idsE_1 = []; mper_arrE = []
+    for row in xrange(len(dataE)):
+        idsE_1 = np.r_[idsE_1, getStars_x(dataE,idsE,row,fmb)]
+        mper_arrE = np.r_[mper_arrE, getStarMass_x(dataE,massE,row,fmb)]
+
+    idsD_1 = []; mper_arrD = []
+    for row in xrange(len(dataD)):
+        idsD_1 = np.r_[idsD_1, getStars_x(dataD,idsD,row,fmb)]
+        mper_arrD = np.r_[mper_arrD, getStarMass_x(dataD,massD,row,fmb)]
+    return np.array(idsE_1), np.array(mper_arrE), np.array(idsD_1), np.array(mper_arrD)
+
 
 def distance(posA, posB,boxsize=100.):
     dist = abs(posA-posB)
@@ -129,12 +232,12 @@ class ExtantDataFirstPass(PluginBase):
             sub_rank+=1
             sub = getSubTree(mtc,subRSID)
             if sub==None:
-                print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e' %cat.ix[subRSID]['mvir'], 'Time = ', (time.time()-start_time)/60., 'minutes'
+                print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax']), 'Time = ', (time.time()-start_time)/60., 'minutes'
                 sys.stdout.flush()
                 continue
             sub_mb = sub.getMainBranch(0)
             if sub_mb == None:
-                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e' %cat.ix[subRSID]['mvir']
+                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax'])
                 sys.stdout.flush()
                 continue # skip to next subhalo
 
@@ -326,7 +429,6 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['start_pos'] = start_pos
                         allstars=np.r_[allstars,star_pids]
                         start_pos+=len(star_pids)
-
                 
         fulldataE = pandas.concat((dataE,data_newE),axis=1)
         fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
@@ -707,3 +809,87 @@ class TagMass(PluginBase):
         idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat')
         massD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedMass_moster.dat')
         return np.array(idsE,dtype=np.int64), massE, np.array(idsD,dtype=np.int64), massD
+
+"""
+class TagMass_1(PluginBase):
+    def __init__(self):
+        super(TagMass_1,self).__init__()
+        self.filename='destroyedMass_moster_1.dat'
+        self.xmin=1;     self.xmax=400
+        self.ymin=10**-5; self.ymax=10*6
+        self.xlog= True; self.ylog = True
+        self.xlabel='' ; self.ylabel=r''
+        self.autofigname=''
+
+    def _analyze(self,hpath):
+        # RetagExtant
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
+        Extant = AllExtantData()
+        dataE = Extant.read(hpath)
+        idsE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat')
+        # re-write idsE
+        idsE_1 = []; mper_arr = []
+        for row in xrange(len(dataE)):
+            idsE_1 = np.r_[idsE_1, getStars_1(dataE,idsE,row)]
+            mper_arr = get
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs_1.dat','wb')
+        np.array(idsE_1).tofile(g)
+        g.close()
+        # done rewriting idsE
+
+        fracs = getFraction(dataE['infall_mvir']/cat.h0, haloutils.get_scale_snap(hpath, np.array(dataE['infall_snap'],dtype=np.int32)) )
+        nstars = np.array(np.round(dataE['nstars']/3.),dtype=np.int32)
+        mask0 = np.array(dataE['nstars'])==0
+        mask = nstars==0
+        nstars[mask]=1
+        nstars[mask0]=0
+        mper=(dataE['infall_mvir']/cat.h0*fracs)/nstars
+        sp = np.array(dataE['start_pos'],dtype=np.int32) # THIS IS WRONG
+
+        # must initialize mper_arr as same length as ids
+        mper_arr = np.zeros(len(idsE_1))
+        for i in xrange(len(dataE)):
+            mper_arr[sp[i]:sp[i]+nstars[i]] = [mper[i]]*nstars[i]
+        # rewrite data properly here
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantMass_moster_1.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+        # Now retag destroyed data
+        Destroyed = AllDestroyedData()
+        dataD = Destroyed.read(hpath)
+        idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat')
+        # re-write idsD
+        idsD_1 = []
+        for row in xrange(len(dataD)):
+            idsD_1 = np.r_[idsD_1, getStars_1(dataD,idsD,row)]
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs_1.dat','wb')
+        np.array(idsD_1).tofile(g)
+        g.close()
+        # done rewriting idsD
+        mper_arr=np.zeros(len(idsD))
+        fracs = getFraction(dataD['infall_mvir']/cat.h0, haloutils.get_scale_snap(hpath, np.array(dataD['infall_snap'],dtype=np.int32)) )
+        nstars = np.array(np.round(dataD['nstars']/3.),dtype=np.int32)
+        mask0 = np.array(dataD['nstars'])==0
+        mask = nstars==0
+        nstars[mask]=1
+        nstars[mask0]=0
+
+        mper=(dataD['infall_mvir']/cat.h0*fracs)/nstars
+        sp = np.array(dataD['start_pos'],dtype=np.int32) # THIS IS WRONG
+        for i in xrange(len(dataD)):
+            mper_arr[sp[i]:sp[i]+nstars[i]] = [mper[i]]*nstars[i]
+        g=open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedMass_moster_1.dat','wb')
+        mper_arr.tofile(g)
+        g.close()
+
+    def _read(self,hpath):
+        # extant data
+        idsE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs_1.dat')
+        massE = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantMass_moster_1.dat')
+        # destroyed data
+        idsD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs_1.dat')
+        massD = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedMass_moster_1.dat')
+        return np.array(idsE,dtype=np.int64), massE, np.array(idsD,dtype=np.int64), massD
+"""
