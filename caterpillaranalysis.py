@@ -676,19 +676,19 @@ class ProfilePlugin(PluginBase):
         r = r*1000. # kpc
         rho = rho/1.e9 #Msun/Mpc^3 to Msun/kpc^3
         eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        ii2 = r >= p03r
         rbin=np.concatenate(([0],r))
         rmid = 10**((np.log10(rbin[1:])+np.log10(rbin[:-1]))/2.)
+        ii1 = rmid >= eps
+        ii2 = rmid >= p03r
         if lx != None:
             color = self.colordict[lx]
-            ax.plot(r[ii1], rho[ii1], color=color, lw=1, **kwargs)
-            ax.plot(r[ii2], rho[ii2], color=color, lw=lw, **kwargs)
+            ax.plot(rmid[ii1], rho[ii1], color=color, lw=1, **kwargs)
+            ax.plot(rmid[ii2], rho[ii2], color=color, lw=lw, **kwargs)
             #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
             ax.plot(rmid,profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]),':',color=color,lw=1,**kwargs)
         else:
-            ax.plot(r[ii1], rho[ii1], lw=1, **kwargs)
-            ax.plot(r[ii2], rho[ii2], lw=lw, **kwargs)
+            ax.plot(rmid[ii1], rho[ii1], lw=1, **kwargs)
+            ax.plot(rmid[ii2], rho[ii2], lw=lw, **kwargs)
             #ax.plot(r,profilefit.NFWprofile(r,pNFW[0],pNFW[1]),':',color=color,lw=1,**kwargs)
             ax.plot(rmid,profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2]),':',lw=1,**kwargs)
 class R2ProfilePlugin(ProfilePlugin):
@@ -711,21 +711,23 @@ class R2ProfilePlugin(ProfilePlugin):
         r = r*1000. # kpc
         rho = rho/10**10 #10^10 Msun/Mpc^3
         eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        ii2 = r >= p03r
+        rbin=np.concatenate(([0],r))
+        rmid = 10**((np.log10(rbin[1:])+np.log10(rbin[:-1]))/2.)
+        ii1 = rmid >= eps
+        ii2 = rmid >= p03r
         r2,rho2,alpha = pEIN
         if lx != None:
             color = self.colordict[lx]
-            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
-            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
+            ax.plot(rmid[ii1], (rmid[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
+            ax.plot(rmid[ii2], (rmid[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
             if plotEIN:
-                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
+                ax.plot(rmid,rmid**2 * profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
                 if labelalpha: self._label_alpha(ax,pEIN,normtohost)
         else:
-            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
-            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
+            ax.plot(rmid[ii1], (rmid[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
+            ax.plot(rmid[ii2], (rmid[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
             if plotEIN:
-                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
+                ax.plot(rmid,rmid**2 * profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
                 if labelalpha: self._label_alpha(ax,pEIN,normtohost)
     def _label_alpha(self,ax,pEIN,normtohost):
         xmin,xmax,ymin,ymax,xlog,ylog,xlabel,ylabel = self.get_plot_params(normtohost)
@@ -767,21 +769,23 @@ class BoundR2ProfilePlugin(BoundProfilePlugin):
         r = r*1000. # kpc
         rho = rho/10**10 #10^10 Msun/Mpc^3
         eps = 1000*haloutils.load_soft(hpath)
-        ii1 = r >= eps
-        ii2 = r >= p03r
+        rbin=np.concatenate(([0],r))
+        rmid = 10**((np.log10(rbin[1:])+np.log10(rbin[:-1]))/2.)
+        ii1 = rmid >= eps
+        ii2 = rmid >= p03r
 
         r2,rho2,alpha = pEIN
         if lx != None:
             color = self.colordict[lx]
-            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
-            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
+            ax.plot(rmid[ii1], (rmid[ii1]/1000.)**2 * rho[ii1], color=color, lw=1, **kwargs)
+            ax.plot(rmid[ii2], (rmid[ii2]/1000.)**2 * rho[ii2], color=color, lw=3, **kwargs)
             if plotEIN:
-                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
+                ax.plot(rmid,rmid**2 * profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',color=color,lw=1,**kwargs)
         else:
-            ax.plot(r[ii1], (r[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
-            ax.plot(r[ii2], (r[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
+            ax.plot(rmid[ii1], (rmid[ii1]/1000.)**2 * rho[ii1], lw=1, **kwargs)
+            ax.plot(rmid[ii2], (rmid[ii2]/1000.)**2 * rho[ii2], lw=3, **kwargs)
             if plotEIN:
-                ax.plot(r,r**2 * profilefit.EINprofile(r,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
+                ax.plot(rmid,rmid**2 * profilefit.EINprofile(rmid,pEIN[0],pEIN[1],pEIN[2])*10**-7,':',lw=1,**kwargs)
 
 class VelocityProfilePlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,vmin=10**1,vmax=10**2.5):
