@@ -10,48 +10,6 @@ import os, subprocess
 import pandas
 
 
-"""
-hid = 'H1631506'
-hpath = haloutils.get_hpath_lx(hid,14)
-subRSID = 148923 # this is a sub-sub halo!! And its parent is not in the merger tree....
-
-mass = 2.13e8
-sub_rank = 46
-flags = 9
-
-its hostID is:  162183, which is a subhalo. So it is a sub-sub halo.
-162183 is also not found in the merger tree
-1.06 kpc away from center of host, mgrav is 3.032336896e9. mvir is 4.8e9
-
-162185 is the main host
-
-hid = 'H581141'
-hpath = haloutils.get_hpath_lx(hid,14)
-subRSID = 118959
-its hostID is 119299
-main hostID is 155162
---> it is a sub-sub again
-its first host is found in the merger tree. at a distance of 130.7 kpc
-
-hid = 'H1387186'
-hpath = haloutils.get_hpath_lx(hid,14)
-subRSID = 119955
-its host id is: 150793
-real main halo id: 150793
-This halo is in the merger tree as a destroyed halo
-it is dataD[682]
-infall snap is 175.
-backsnap is 19
-infall scale is 0.4473
-
-
-hid = 'H581180'
-hpath = haloutils.get_hpath_lx(hid,14)
-subRSID = 166360
-its host is 166371
-main host is 166371
-flags = 9. same as the subhalos that do work
-"""
 
 # for quick testing:
 #hpath = '/bigbang/data/AnnaGroup/caterpillar/halos/H1599988/H1599988_EX_Z127_P7_LN7_LX14_O4_NV4'
@@ -193,7 +151,7 @@ def getSubTree(mtc,rsid, hostrow=0):
 class ExtantDataFirstPass(PluginBase):
     def __init__(self):
         super(ExtantDataFirstPass,self).__init__()
-        self.filename='ExtantDataFirstPass.dat'
+        self.filename='ExtantMiniHalosFirstPass.dat'
         self.xmin=0;     self.xmax=256
         self.ymin=10**8; self.ymax=5*10**11
         self.xlog= False; self.ylog = True
@@ -240,28 +198,29 @@ class ExtantDataFirstPass(PluginBase):
                 sys.stdout.flush()
                 continue # skip to next subhalo
 
-            # Get maximal mass. Use this to ignore the small halos.
-            max_mass = np.max(sub_mb['mvir'])
-            if max_mass/cat.h0 < self.min_mass: 
-                #print sub_rank, 'subhalo too small'
-                sys.stdout.flush()
-                toosmall+=1
+
+            #########   ADD CODE HERE to find when it passes threshold
+            # thresh_loc, thresh_snap = get_mini_halo_formation(sub_mb)
+            # thresh_loc is index of sub_mb where this first happens
+            # return None if it never happens
+            # index = np.where(sub_mb['mvir']/cat.h0 > 10**6 and sub_mb['phantom']==0 )[0]
+            # if len(index)==0:
+            #     return None
+            # else:
+            #     return index[0]
+            # check for phantoms
+            # mask = np.where(sub_mb['phantom']==0)[0]
+            # special case: if main branch starts above 10**6. what to do?
+
+            
+            if thresh_loc == None:
                 continue
+            
+            rsid = sub_mb[thresh_loc]['origid']
 
-
-            # get infall time, if possible
-            iLoc, iSnap = getInfall(sub_mb, host_mb, max_mass)
-            if iLoc==None:
-                # within getInfall, print how it errored
-                continue
-
-            # get max_mass values.
-            max_mass_loc = np.argmax(sub_mb['mvir'])
-            if sub_mb[max_mass_loc]['phantom']!=0:
-                # phantom halo in merger tree. Find peak of non phantom values
-                mask = np.where(sub_mb['phantom']==0)[0]
-                tmploc = np.argmax(sub_mb[mask]['mvir'])
-                max_mass_loc = mask[tmploc]
+            # need to recursively search for destroyed subs of 
+            # extant halos
+            ##############
 
             max_mass_vmax = sub_mb[max_mass_loc]['vmax']
             max_mass_snap = sub_mb[max_mass_loc]['snap']
@@ -283,61 +242,8 @@ class ExtantDataFirstPass(PluginBase):
             max_mass_Jy = sub_mb[max_mass_loc]['Jy']
             max_mass_Jz = sub_mb[max_mass_loc]['Jz']
             max_mass_xoff = sub_mb[max_mass_loc]['xoff']
-            
 
-            # get all peak values. Peak values all based on when vmax reaches its peak.
-            peak_loc = np.argmax(sub_mb['vmax'])
-            if sub_mb[peak_loc]['phantom']!=0:
-                # phantom halo in merger tree. Find peak of non phantom values
-                mask = np.where(sub_mb['phantom']==0)[0]
-                tmploc = np.argmax(sub_mb[mask]['vmax'])
-                peak_loc = mask[tmploc]
-
-            peak_vmax = sub_mb[peak_loc]['vmax']
-            peak_snap = sub_mb[peak_loc]['snap']
-            peak_rsid = sub_mb[peak_loc]['origid']
-            peak_mvir = sub_mb[peak_loc]['mvir']
-            peak_posx = sub_mb[peak_loc]['posX']
-            peak_posy = sub_mb[peak_loc]['posY']
-            peak_posz = sub_mb[peak_loc]['posZ']
-            peak_pecvx = sub_mb[peak_loc]['pecVX']
-            peak_pecvy = sub_mb[peak_loc]['pecVY']
-            peak_pecvz = sub_mb[peak_loc]['pecVZ']
-            peak_virialratio = sub_mb[peak_loc]['T/|U|']
-            peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
-            peak_rvir = sub_mb[peak_loc]['rvir']
-            peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
-            peak_rs = sub_mb[peak_loc]['rs']
-            peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
-            peak_Jx = sub_mb[peak_loc]['Jx']
-            peak_Jy = sub_mb[peak_loc]['Jy']
-            peak_Jz = sub_mb[peak_loc]['Jz']
-            peak_xoff = sub_mb[peak_loc]['xoff']
-            
-            # Get infall parameters
-            infall_snap = sub_mb[iLoc]['snap']
-            #infall_scale = sub_mb[iLoc]['scale']
-            infall_rsid = sub_mb[iLoc]['origid']
-            infall_vmax = sub_mb[iLoc]['vmax']
-            infall_mvir = sub_mb[iLoc]['mvir']
-            infall_posx = sub_mb[iLoc]['posX']
-            infall_posy = sub_mb[iLoc]['posY']
-            infall_posz = sub_mb[iLoc]['posZ']
-            infall_pecvx = sub_mb[iLoc]['pecVX']
-            infall_pecvy = sub_mb[iLoc]['pecVY']
-            infall_pecvz = sub_mb[iLoc]['pecVZ']
-            infall_virialratio = sub_mb[iLoc]['T/|U|']
-            infall_hostid_MT = sub_mb[iLoc]['pid']
-            infall_rvir = sub_mb[iLoc]['rvir']
-            infall_spinbullock = sub_mb[iLoc]['spin_bullock']
-            infall_rs = sub_mb[iLoc]['rs']
-            infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
-            infall_Jx = sub_mb[iLoc]['Jx']
-            infall_Jy = sub_mb[iLoc]['Jy']
-            infall_Jz = sub_mb[iLoc]['Jz']
-            infall_xoff = sub_mb[iLoc]['xoff']
-
-            otherdata=np.r_[otherdata,sub_rank,subRSID, max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff,peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
+            otherdata=np.r_[otherdata,sub_rank,subRSID, max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff]
             if sub_rank%100==0:
                 print sub_rank, '/', len(subs), 'finished. Time = ', (time.time()-start_time)/60., 'minutes'
             sys.stdout.flush()
@@ -347,20 +253,11 @@ class ExtantDataFirstPass(PluginBase):
         g.close()
 # to test, use haloutils.get_hpath_lx(hid,lx)
         print good, 'halos good out of', len(subs)
-        print toosmall, 'num halos too small'
-        print len(subs)-good-toosmall, 'number of subhalo failures'
+
 
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        #dt = "float64"
-        #dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt)]
-        #n = len(dtype)
-        #holder = np.ndarray( (len(data)/n,n), dtype=dtype )
-        #data2 = data.reshape(len(data)/n,n)
-        #for i in range(data2.shape[0]):
-        #    holder[i]=data2[i]
-        #return holder
-        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff','peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
+        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -369,10 +266,13 @@ class ExtantDataFirstPass(PluginBase):
         return
 
 
+
+
+
 class AllExtantData(PluginBase):
     def __init__(self):
         super(AllExtantData,self).__init__()
-        self.filename='AllExtantData.dat'
+        self.filename='MiniHaloAllExtantData.dat'
         self.xmin=0;     self.xmax=256
         self.ymin=10**8; self.ymax=5*10**11
         self.xlog= False; self.ylog = True
@@ -383,11 +283,9 @@ class AllExtantData(PluginBase):
     def _analyze(self,hpath):
         ED = ExtantDataFirstPass()
         dataE = ED.read(hpath)
-        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos']
+        # any values in RSCatalog you want that are not in MT
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos'] # nstars and start_pos should stay
         data_newE = pandas.DataFrame(np.zeros((len(dataE),len(dtype)))-1,columns=dtype)
-        peak_dataE = {}
-        for peaksnap,line in zip(dataE['peak_snap'],dataE.index):
-            peak_dataE.setdefault(peaksnap, []).append(line)
 
         infall_dataE = {}
         for infallsnap,line in zip(dataE['infall_snap'],dataE.index):
@@ -401,19 +299,10 @@ class AllExtantData(PluginBase):
             sys.stdout.flush()
             if peak_dataE.has_key(snap) or infall_dataE.has_key(snap):
                 cat=haloutils.load_rscat(hpath,snap,rmaxcut=False)
-
-                if peak_dataE.has_key(snap):
-                    for line in peak_dataE[snap]:
-                        peak_rsid = int(dataE.ix[line]['peak_rsid'])
-                        data_newE.ix[line]['peak_mgrav'] = cat.ix[peak_rsid]['mgrav']
-                        data_newE.ix[line]['peak_hostid_RS'] = cat.ix[peak_rsid]['hostID']
-                        data_newE.ix[line]['peak_rvmax'] = cat.ix[peak_rsid]['rvmax']
-                        data_newE.ix[line]['peak_corevelx'] = cat.ix[peak_rsid]['corevelx']
-                        data_newE.ix[line]['peak_corevely'] = cat.ix[peak_rsid]['corevely']
-                        data_newE.ix[line]['peak_corevelz'] = cat.ix[peak_rsid]['corevelz']
                         
                 if infall_dataE.has_key(snap):
                     for line in infall_dataE[snap]:
+                        # extract data from rs catalog here
                         infall_rsid = int(dataE.ix[line]['infall_rsid'])
                         data_newE.ix[line]['infall_mgrav'] = cat.ix[infall_rsid]['mgrav']
                         data_newE.ix[line]['infall_hostid_RS'] = cat.ix[infall_rsid]['hostID']
@@ -422,8 +311,9 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
                         data_newE.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
                         
+                        # collect most bound particle
                         iPids = cat.get_all_particles_from_halo(infall_rsid)
-                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        star_pids = iPids[0:1]
                         data_newE.ix[line]['nstars'] = len(star_pids)
                         data_newE.ix[line]['start_pos'] = start_pos
                         allstars=np.r_[allstars,star_pids]
@@ -431,7 +321,7 @@ class AllExtantData(PluginBase):
                 
         fulldataE = pandas.concat((dataE,data_newE),axis=1)
         fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
-        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat', 'wb')
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'MiniHalos_extantPIDs.dat', 'wb')
         np.array(allstars).tofile(f)
         f.close()
 
@@ -447,6 +337,8 @@ class AllExtantData(PluginBase):
 # must make j, ii values passed properly
 # also need sub_mb, iLoc, max_mass_loc, peak_loc
 
+
+#### NOTE - make backsnap instead the real snap of the root of the mb of the tree
 def add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank,backsnap):
     max_mass_vmax = sub_mb[max_mass_loc]['vmax']
     max_mass_snap = sub_mb[max_mass_loc]['snap']
@@ -469,59 +361,8 @@ def add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank,backsnap):
     max_mass_Jz = sub_mb[max_mass_loc]['Jz']
     max_mass_xoff = sub_mb[max_mass_loc]['xoff']    
 
-    # get all peak values. Peak values all based on when vmax reaches its peak.
-    peak_loc = np.argmax(sub_mb['vmax'])
-    if sub_mb[peak_loc]['phantom']!=0:
-        # phantom halo in merger tree. Find peak of non phantom values
-        mask = np.where(sub_mb['phantom']==0)[0]
-        tmploc = np.argmax(sub_mb[mask]['vmax'])
-        peak_loc = mask[tmploc]
-    peak_vmax = sub_mb[peak_loc]['vmax']
-    peak_snap = sub_mb[peak_loc]['snap']
-    peak_rsid = sub_mb[peak_loc]['origid']
-    peak_mvir = sub_mb[peak_loc]['mvir']
-    peak_posx = sub_mb[peak_loc]['posX']
-    peak_posy = sub_mb[peak_loc]['posY']
-    peak_posz = sub_mb[peak_loc]['posZ']
-    peak_pecvx = sub_mb[peak_loc]['pecVX']
-    peak_pecvy = sub_mb[peak_loc]['pecVY']
-    peak_pecvz = sub_mb[peak_loc]['pecVZ']
-    peak_virialratio = sub_mb[peak_loc]['T/|U|']
-    peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
-    peak_rvir = sub_mb[peak_loc]['rvir']
-    peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
-    peak_rs = sub_mb[peak_loc]['rs']
-    peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
-    peak_Jx = sub_mb[peak_loc]['Jx']
-    peak_Jy = sub_mb[peak_loc]['Jy']
-    peak_Jz = sub_mb[peak_loc]['Jz']
-    peak_xoff = sub_mb[peak_loc]['xoff']
-
-    # Get infall parameters
-    infall_snap = sub_mb[iLoc]['snap']
-    #infall_scale = sub_mb[iLoc]['scale']
-    infall_rsid = sub_mb[iLoc]['origid']
-    infall_vmax = sub_mb[iLoc]['vmax']
-    infall_mvir = sub_mb[iLoc]['mvir']
-    infall_posx = sub_mb[iLoc]['posX']
-    infall_posy = sub_mb[iLoc]['posY']
-    infall_posz = sub_mb[iLoc]['posZ']
-    infall_pecvx = sub_mb[iLoc]['pecVX']
-    infall_pecvy = sub_mb[iLoc]['pecVY']
-    infall_pecvz = sub_mb[iLoc]['pecVZ']
-    infall_virialratio = sub_mb[iLoc]['T/|U|']
-    infall_hostid_MT = sub_mb[iLoc]['pid']
-    infall_rvir = sub_mb[iLoc]['rvir']
-    infall_spinbullock = sub_mb[iLoc]['spin_bullock']
-    infall_rs = sub_mb[iLoc]['rs']
-    infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
-    infall_Jx = sub_mb[iLoc]['Jx']
-    infall_Jy = sub_mb[iLoc]['Jy']
-    infall_Jz = sub_mb[iLoc]['Jz']
-    infall_xoff = sub_mb[iLoc]['xoff']
-
     # j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
-    otherdata=np.r_[otherdata,subrank,sub_mb['origid'][0],max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,backsnap]
+    otherdata=np.r_[otherdata,subrank,sub_mb['origid'][0],max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff,backsnap]
     return otherdata
 
 
@@ -552,20 +393,12 @@ def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, snap_z0, end, m
             #print subline, 'value of subline'
             
             # get infall time, if possible
-            iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)
-            if iLoc == None:
-                print 'subhalo', j, 'is bad in MT. Reason to follow.'
-                sys.stdout.flush()
-                continue
+            ##### ADD CODE HERE
+            #  ADD the threshold minihalo identifying code again
+            
 
-            # get all max_mass values
-            max_mass_loc = np.argmax(sub_mb['mvir'])
-            if sub_mb[max_mass_loc]['phantom']!=0:
-                # phantom halo in merger tree. Find peak of non phantom values
-                mask = np.where(sub_mb['phantom']==0)[0]
-                tmploc = np.argmax(sub_mb[mask]['mvir'])
-                max_mass_loc = mask[tmploc]
-
+            ####
+            
             otherdata = add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank=-j,backsnap=ii)
             print 'sub-sub in halo in host level', ii, 'added'
             sys.stdout.flush()
@@ -577,8 +410,6 @@ def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, snap_z0, end, m
     return otherdata
 
 
-# This currently does not identify sub-subs in merger tree
-# need to port over code from auxiliary_add in tagDestroyed.py on Odyssey TagCode4.0 folder
 # Scenario 1: sub-sub enters main host on its own, then falls into sub, then merges with sub
 # Secenario 2: sub-sub falls into sub, then sub and sub-sub system fall into main host together,
 # then sub-sub merges with sub
@@ -586,8 +417,8 @@ def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, snap_z0, end, m
 class DestroyedDataFirstPass(PluginBase):
     def __init__(self):
         super(DestroyedDataFirstPass,self).__init__()
-        self.filename='DestroyedDataFirstPass.dat'
-        self.filestring='DestroyedDataFirstPass'
+        self.filename='MiniHaloDestroyedDataFirstPass.dat'
+        self.filestring='MiniHaloDestroyedDataFirstPass'
         self.xmin=0;     self.xmax=256
         self.ymin=10**8; self.ymax=5*10**11
         self.xlog= False; self.ylog = True
@@ -628,27 +459,11 @@ class DestroyedDataFirstPass(PluginBase):
             for subline in merged_subs:
                 j+=1
                 sub_mb = host.getMainBranch(subline)
+                
+                #### ADD THreshold passing code again here
 
-                # Get maximal mass. Use this to ignore the small halos.
-                max_mass = np.max(sub_mb['mvir'])
-                if max_mass/cat.h0 < self.min_mass: 
-                    sys.stdout.flush()
-                    continue
-
-                # get infall time, if possible
-                iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)
-                if iLoc == None:
-                    print 'subhalo', j, 'is bad in MT. Reason to follow.'
-                    sys.stdout.flush()
-                    continue
-
-                # get all max_mass values
-                max_mass_loc = np.argmax(sub_mb['mvir'])
-                if sub_mb[max_mass_loc]['phantom']!=0:
-                    # phantom halo in merger tree. Find peak of non phantom values
-                    mask = np.where(sub_mb['phantom']==0)[0]
-                    tmploc = np.argmax(sub_mb[mask]['mvir'])
-                    max_mass_loc = mask[tmploc]
+                # instead of iLoc, max_mass_loc
+                # you want thresh_loc
 
                 otherdata = add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank=j,backsnap=i)
                 #print j, 'halo in host level', i
@@ -680,7 +495,7 @@ class DestroyedDataFirstPass(PluginBase):
                 data = np.r_[data,tmp]
                 i+=1
             dt = "float64"
-            dtype = [('sub_rank',dt),('rsid',dt), ('max_mass_rsid',dt), ('max_mass_snap',dt), ('max_mass_vmax',dt),('max_mass',dt),('max_mass_posx',dt),('max_mass_posy',dt),('max_mass_posz',dt),('max_mass_pecvx',dt),('max_mass_pecvy',dt),('max_mass_pecvz',dt),('max_mass_virialratio',dt),('max_mass_hostid_MT',dt),('max_mass_rvir',dt),('max_mass_spinbullock',dt),('max_mass_rs',dt),('max_mass_scale_of_last_MM',dt),('max_mass_Jx',dt),('max_mass_Jy',dt),('max_mass_Jz',dt),('max_mass_xoff',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('peak_rs',dt),('peak_scale_of_last_MM',dt),('peak_Jx',dt),('peak_Jy',dt),('peak_Jz',dt),('peak_xoff',dt), ('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('infall_rs',dt),('infall_scale_of_last_MM',dt),('infall_Jx',dt),('infall_Jy',dt),('infall_Jz',dt),('infall_xoff',dt),('backsnap',dt)]
+            dtype = [('sub_rank',dt),('rsid',dt), ('max_mass_rsid',dt), ('max_mass_snap',dt), ('max_mass_vmax',dt),('max_mass',dt),('max_mass_posx',dt),('max_mass_posy',dt),('max_mass_posz',dt),('max_mass_pecvx',dt),('max_mass_pecvy',dt),('max_mass_pecvz',dt),('max_mass_virialratio',dt),('max_mass_hostid_MT',dt),('max_mass_rvir',dt),('max_mass_spinbullock',dt),('max_mass_rs',dt),('max_mass_scale_of_last_MM',dt),('max_mass_Jx',dt),('max_mass_Jy',dt),('max_mass_Jz',dt),('max_mass_xoff',dt),('backsnap',dt)]
             n = len(dtype)
             holder = np.ndarray( (len(data)/n,), dtype=dtype )
             data2 = data.reshape(len(data)/n,n)
@@ -694,22 +509,11 @@ class DestroyedDataFirstPass(PluginBase):
    
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff', 'peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff','backsnap']
+        pdtype = ['sub_rank','rsid','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff','backsnap']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
     
-        """
-        dt = "float64"
-        dtype = [('sub_rank',dt),('rsid',dt),('max_mass',dt),('max_mass_snap',dt), ('peak_rsid',dt), ('peak_snap',dt), ('peak_vmax',dt),('peak_mvir',dt),('peak_posx',dt),('peak_posy',dt),('peak_posz',dt),('peak_pecvx',dt),('peak_pecvy',dt),('peak_pecvz',dt),('peak_virialratio',dt),('peak_hostid_MT',dt),('peak_rvir',dt),('peak_spinbullock',dt),('infall_rsid',dt),('infall_snap',dt),('infall_vmax',dt),('infall_mvir',dt),('infall_posx',dt),('infall_posy',dt),('infall_posz',dt),('infall_pecvx',dt),('infall_pecvy',dt),('infall_pecvz',dt),('infall_virialratio',dt),('infall_hostid_MT',dt),('infall_rvir',dt),('infall_spinbullock',dt),('backsnap',dt)]
-        n = len(dtype)
-        holder = np.ndarray( (len(data)/n,n), dtype=dtype )
-        data2 = data.reshape(len(data)/n,n)
-        for i in range(data2.shape[0]):
-            holder[i]=data2[i]
-        return holder
-        """
-   
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
 
@@ -730,10 +534,8 @@ class AllDestroyedData(PluginBase):
         dataD = DD.read(hpath)
         dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz','nstars','start_pos']
         data_newD = pandas.DataFrame(np.zeros((len(dataD),len(dtype)))-1,columns=dtype)
-        peak_dataD = {}
-        for peaksnap,line in zip(dataD['peak_snap'],dataD.index):
-            peak_dataD.setdefault(peaksnap, []).append(line)
-
+        
+        # replace infall data with the minihalo data
         infall_dataD = {}
         for infallsnap,line in zip(dataD['infall_snap'],dataD.index):
             infall_dataD.setdefault(infallsnap, []).append(line)       
@@ -746,16 +548,6 @@ class AllDestroyedData(PluginBase):
             sys.stdout.flush()
             if peak_dataD.has_key(snap) or infall_dataD.has_key(snap):
                 cat=haloutils.load_rscat(hpath,snap,rmaxcut=False)
-
-                if peak_dataD.has_key(snap):
-                    for line in peak_dataD[snap]:
-                        peak_rsid = int(dataD.ix[line]['peak_rsid'])
-                        data_newD.ix[line]['peak_mgrav'] = cat.ix[peak_rsid]['mgrav']
-                        data_newD.ix[line]['peak_hostid_RS'] = cat.ix[peak_rsid]['hostID']
-                        data_newD.ix[line]['peak_rvmax'] = cat.ix[peak_rsid]['rvmax']
-                        data_newD.ix[line]['peak_corevelx'] = cat.ix[peak_rsid]['corevelx']
-                        data_newD.ix[line]['peak_corevely'] = cat.ix[peak_rsid]['corevely']
-                        data_newD.ix[line]['peak_corevelz'] = cat.ix[peak_rsid]['corevelz']
                         
                 if infall_dataD.has_key(snap):
                     for line in infall_dataD[snap]:
@@ -776,7 +568,7 @@ class AllDestroyedData(PluginBase):
                 
         fulldataD = pandas.concat((dataD,data_newD),axis=1)
         fulldataD.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
-        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'destroyedPIDs.dat', 'wb')
+        f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'MiniHalo_destroyedPIDs.dat', 'wb')
         np.array(allstars).tofile(f)
         f.close()
 
@@ -785,6 +577,9 @@ class AllDestroyedData(PluginBase):
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
+
+
+
 
 
 
