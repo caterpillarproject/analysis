@@ -90,7 +90,6 @@ flags = 9. same as the subhalos that do work
 # make it possible to get any fraction of 3%
 
 
-
 def getStars(data, ids, row):
     sp = data['start_pos'][row]
     nstars = data['nstars'][row]
@@ -443,10 +442,139 @@ class AllExtantData(PluginBase):
         return
 
 
+# put all the code to get parameters and otherdata_append into
+# a function that is called in 3 places.
+# must make j, ii values passed properly
+# also need sub_mb, iLoc, max_mass_loc, peak_loc
+
+def add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank,backsnap):
+    max_mass_vmax = sub_mb[max_mass_loc]['vmax']
+    max_mass_snap = sub_mb[max_mass_loc]['snap']
+    max_mass_rsid = sub_mb[max_mass_loc]['origid']
+    max_mass_mvir = sub_mb[max_mass_loc]['mvir']
+    max_mass_posx = sub_mb[max_mass_loc]['posX']
+    max_mass_posy = sub_mb[max_mass_loc]['posY']
+    max_mass_posz = sub_mb[max_mass_loc]['posZ']
+    max_mass_pecvx = sub_mb[max_mass_loc]['pecVX']
+    max_mass_pecvy = sub_mb[max_mass_loc]['pecVY']
+    max_mass_pecvz = sub_mb[max_mass_loc]['pecVZ']
+    max_mass_virialratio = sub_mb[max_mass_loc]['T/|U|']
+    max_mass_hostid_MT = sub_mb[max_mass_loc]['pid'] # merger tree ID of host, one level up
+    max_mass_rvir = sub_mb[max_mass_loc]['rvir']
+    max_mass_spinbullock = sub_mb[max_mass_loc]['spin_bullock']
+    max_mass_rs = sub_mb[max_mass_loc]['rs']
+    max_mass_scale_of_last_MM = sub_mb[max_mass_loc]['scale_of_last_MM']
+    max_mass_Jx = sub_mb[max_mass_loc]['Jx']
+    max_mass_Jy = sub_mb[max_mass_loc]['Jy']
+    max_mass_Jz = sub_mb[max_mass_loc]['Jz']
+    max_mass_xoff = sub_mb[max_mass_loc]['xoff']    
+
+    # get all peak values. Peak values all based on when vmax reaches its peak.
+    peak_loc = np.argmax(sub_mb['vmax'])
+    if sub_mb[peak_loc]['phantom']!=0:
+        # phantom halo in merger tree. Find peak of non phantom values
+        mask = np.where(sub_mb['phantom']==0)[0]
+        tmploc = np.argmax(sub_mb[mask]['vmax'])
+        peak_loc = mask[tmploc]
+    peak_vmax = sub_mb[peak_loc]['vmax']
+    peak_snap = sub_mb[peak_loc]['snap']
+    peak_rsid = sub_mb[peak_loc]['origid']
+    peak_mvir = sub_mb[peak_loc]['mvir']
+    peak_posx = sub_mb[peak_loc]['posX']
+    peak_posy = sub_mb[peak_loc]['posY']
+    peak_posz = sub_mb[peak_loc]['posZ']
+    peak_pecvx = sub_mb[peak_loc]['pecVX']
+    peak_pecvy = sub_mb[peak_loc]['pecVY']
+    peak_pecvz = sub_mb[peak_loc]['pecVZ']
+    peak_virialratio = sub_mb[peak_loc]['T/|U|']
+    peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
+    peak_rvir = sub_mb[peak_loc]['rvir']
+    peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
+    peak_rs = sub_mb[peak_loc]['rs']
+    peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
+    peak_Jx = sub_mb[peak_loc]['Jx']
+    peak_Jy = sub_mb[peak_loc]['Jy']
+    peak_Jz = sub_mb[peak_loc]['Jz']
+    peak_xoff = sub_mb[peak_loc]['xoff']
+
+    # Get infall parameters
+    infall_snap = sub_mb[iLoc]['snap']
+    #infall_scale = sub_mb[iLoc]['scale']
+    infall_rsid = sub_mb[iLoc]['origid']
+    infall_vmax = sub_mb[iLoc]['vmax']
+    infall_mvir = sub_mb[iLoc]['mvir']
+    infall_posx = sub_mb[iLoc]['posX']
+    infall_posy = sub_mb[iLoc]['posY']
+    infall_posz = sub_mb[iLoc]['posZ']
+    infall_pecvx = sub_mb[iLoc]['pecVX']
+    infall_pecvy = sub_mb[iLoc]['pecVY']
+    infall_pecvz = sub_mb[iLoc]['pecVZ']
+    infall_virialratio = sub_mb[iLoc]['T/|U|']
+    infall_hostid_MT = sub_mb[iLoc]['pid']
+    infall_rvir = sub_mb[iLoc]['rvir']
+    infall_spinbullock = sub_mb[iLoc]['spin_bullock']
+    infall_rs = sub_mb[iLoc]['rs']
+    infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
+    infall_Jx = sub_mb[iLoc]['Jx']
+    infall_Jy = sub_mb[iLoc]['Jy']
+    infall_Jz = sub_mb[iLoc]['Jz']
+    infall_xoff = sub_mb[iLoc]['xoff']
+
+    # j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
+    otherdata=np.r_[otherdata,subrank,sub_mb['origid'][0],max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,backsnap]
+    return otherdata
 
 
 
+# this tags sub-subs that have merged with their host subhalo.
+# Scenario 1: sub-sub enters main host on its own, then falls into sub, then merges with sub
+# Secenario 2: sub-sub falls into sub, then sub and sub-sub system fall into main host together,
+# then sub-sub merges with sub
+# In both cases, I am currently tagging sub-sub when it first enters the main host.
+# j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
+def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, snap_z0, end, min_mass):
+    print end-ii, 'iterations in auxiliary_add'
+    while ii!=end:  # ii is backsnap
+        merged_subs = host.getNonMMPprogenitors(subline) # merged_subs are one step up
+        host_mb = host_mb[1:] # main branch of our main host
+        for subsubline in merged_subs:
+            # now get main branch of this halo
+            sub_mb = host.getMainBranch(subsubline)
+            # Get maximal mass. Use this to ignore the small halos.
+            max_mass = np.max(sub_mb['mvir'])
+            if max_mass/cat.h0 < min_mass: 
+                sys.stdout.flush()
+                continue
 
+            print 'adding sub-sub with mass', np.log10(max_mass/cat.h0)
+            print ii, 'value of ii', end, 'value of end', j, 'value of subrank'
+            #print subsubline, 'value of subsubline'
+            #print subline, 'value of subline'
+            
+            # get infall time, if possible
+            iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)
+            if iLoc == None:
+                print 'subhalo', j, 'is bad in MT. Reason to follow.'
+                sys.stdout.flush()
+                continue
+
+            # get all max_mass values
+            max_mass_loc = np.argmax(sub_mb['mvir'])
+            if sub_mb[max_mass_loc]['phantom']!=0:
+                # phantom halo in merger tree. Find peak of non phantom values
+                mask = np.where(sub_mb['phantom']==0)[0]
+                tmploc = np.argmax(sub_mb[mask]['mvir'])
+                max_mass_loc = mask[tmploc]
+
+            otherdata = add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank=-j,backsnap=ii)
+            print 'sub-sub in halo in host level', ii, 'added'
+            sys.stdout.flush()
+
+            # go recursively deep
+            otherdata = auxiliary_add(cat,host_mb, otherdata,host,subsubline,ii, 10000+j, snap_z0, end=ii+iLoc,min_mass=min_mass)
+        ii+=1
+        subline = host.getMMP(subline)
+    return otherdata
 
 
 # This currently does not identify sub-subs in merger tree
@@ -465,7 +593,7 @@ class DestroyedDataFirstPass(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
-        self.min_mass = 10**6.0
+        self.min_mass = 10**7.5 # used to be 6.0
         # corresponds to 10**7.776 Msun
        
     def _analyze(self,hpath):
@@ -507,14 +635,12 @@ class DestroyedDataFirstPass(PluginBase):
                     sys.stdout.flush()
                     continue
 
-
                 # get infall time, if possible
                 iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)
                 if iLoc == None:
                     print 'subhalo', j, 'is bad in MT. Reason to follow.'
                     sys.stdout.flush()
                     continue
-
 
                 # get all max_mass values
                 max_mass_loc = np.argmax(sub_mb['mvir'])
@@ -524,84 +650,14 @@ class DestroyedDataFirstPass(PluginBase):
                     tmploc = np.argmax(sub_mb[mask]['mvir'])
                     max_mass_loc = mask[tmploc]
 
-                max_mass_vmax = sub_mb[max_mass_loc]['vmax']
-                max_mass_snap = sub_mb[max_mass_loc]['snap']
-                max_mass_rsid = sub_mb[max_mass_loc]['origid']
-                max_mass_mvir = sub_mb[max_mass_loc]['mvir']
-                max_mass_posx = sub_mb[max_mass_loc]['posX']
-                max_mass_posy = sub_mb[max_mass_loc]['posY']
-                max_mass_posz = sub_mb[max_mass_loc]['posZ']
-                max_mass_pecvx = sub_mb[max_mass_loc]['pecVX']
-                max_mass_pecvy = sub_mb[max_mass_loc]['pecVY']
-                max_mass_pecvz = sub_mb[max_mass_loc]['pecVZ']
-                max_mass_virialratio = sub_mb[max_mass_loc]['T/|U|']
-                max_mass_hostid_MT = sub_mb[max_mass_loc]['pid'] # merger tree ID of host, one level up
-                max_mass_rvir = sub_mb[max_mass_loc]['rvir']
-                max_mass_spinbullock = sub_mb[max_mass_loc]['spin_bullock']
-                max_mass_rs = sub_mb[max_mass_loc]['rs']
-                max_mass_scale_of_last_MM = sub_mb[max_mass_loc]['scale_of_last_MM']
-                max_mass_Jx = sub_mb[max_mass_loc]['Jx']
-                max_mass_Jy = sub_mb[max_mass_loc]['Jy']
-                max_mass_Jz = sub_mb[max_mass_loc]['Jz']
-                max_mass_xoff = sub_mb[max_mass_loc]['xoff']
-
-
-                # get all peak values. Peak values all based on when vmax reaches its peak.
-                peak_loc = np.argmax(sub_mb['vmax'])
-                if sub_mb[peak_loc]['phantom']!=0:
-                    # phantom halo in merger tree. Find peak of non phantom values
-                    mask = np.where(sub_mb['phantom']==0)[0]
-                    tmploc = np.argmax(sub_mb[mask]['vmax'])
-                    peak_loc = mask[tmploc]
-                peak_vmax = sub_mb[peak_loc]['vmax']
-                peak_snap = sub_mb[peak_loc]['snap']
-                peak_rsid = sub_mb[peak_loc]['origid']
-                peak_mvir = sub_mb[peak_loc]['mvir']
-                peak_posx = sub_mb[peak_loc]['posX']
-                peak_posy = sub_mb[peak_loc]['posY']
-                peak_posz = sub_mb[peak_loc]['posZ']
-                peak_pecvx = sub_mb[peak_loc]['pecVX']
-                peak_pecvy = sub_mb[peak_loc]['pecVY']
-                peak_pecvz = sub_mb[peak_loc]['pecVZ']
-                peak_virialratio = sub_mb[peak_loc]['T/|U|']
-                peak_hostid_MT = sub_mb[peak_loc]['pid'] # merger tree ID of host, one level up
-                peak_rvir = sub_mb[peak_loc]['rvir']
-                peak_spinbullock = sub_mb[peak_loc]['spin_bullock']
-                peak_rs = sub_mb[peak_loc]['rs']
-                peak_scale_of_last_MM = sub_mb[peak_loc]['scale_of_last_MM']
-                peak_Jx = sub_mb[peak_loc]['Jx']
-                peak_Jy = sub_mb[peak_loc]['Jy']
-                peak_Jz = sub_mb[peak_loc]['Jz']
-                peak_xoff = sub_mb[peak_loc]['xoff']
-
-                # Get infall parameters
-                infall_snap = sub_mb[iLoc]['snap']
-                #infall_scale = sub_mb[iLoc]['scale']
-                infall_rsid = sub_mb[iLoc]['origid']
-                infall_vmax = sub_mb[iLoc]['vmax']
-                infall_mvir = sub_mb[iLoc]['mvir']
-                infall_posx = sub_mb[iLoc]['posX']
-                infall_posy = sub_mb[iLoc]['posY']
-                infall_posz = sub_mb[iLoc]['posZ']
-                infall_pecvx = sub_mb[iLoc]['pecVX']
-                infall_pecvy = sub_mb[iLoc]['pecVY']
-                infall_pecvz = sub_mb[iLoc]['pecVZ']
-                infall_virialratio = sub_mb[iLoc]['T/|U|']
-                infall_hostid_MT = sub_mb[iLoc]['pid']
-                infall_rvir = sub_mb[iLoc]['rvir']
-                infall_spinbullock = sub_mb[iLoc]['spin_bullock']
-                infall_rs = sub_mb[iLoc]['rs']
-                infall_scale_of_last_MM = sub_mb[iLoc]['scale_of_last_MM']
-                infall_Jx = sub_mb[iLoc]['Jx']
-                infall_Jy = sub_mb[iLoc]['Jy']
-                infall_Jz = sub_mb[iLoc]['Jz']
-                infall_xoff = sub_mb[iLoc]['xoff']
-
-
-                otherdata=np.r_[otherdata,j,sub_mb['origid'][0],max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff,i]
+                otherdata = add_data(otherdata,sub_mb, iLoc,max_mass_loc,subrank=j,backsnap=i)
                 #print j, 'halo in host level', i
                 good+=1
                 sys.stdout.flush()
+                
+                # line added here must be adapted
+                otherdata = auxiliary_add(cat,host_mb, otherdata,host,subline,i, j, snap_z0, end=i+iLoc,min_mass=self.min_mass)
+
             print i, 'host level finished. Time = ', (time.time()-start_time)/60., 'minutes'
             print good,'/',j+1,'were tagged'
             sys.stdout.flush()
