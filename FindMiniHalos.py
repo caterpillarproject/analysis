@@ -315,7 +315,7 @@ def add_data(otherdata,sub_mb, minihalo_loc,subrank,flag):
 # In both cases, I am currently tagging sub-sub when it first enters the main host.
 # j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
 def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, end, min_mass,start_big,flag):
-    print end-ii, 'iterations in auxiliary_add'
+    #print end-ii, 'iterations in auxiliary_add'
     while ii!=end:  # ii is backsnap
         merged_subs = host.getNonMMPprogenitors(subline) # merged_subs are one step up
         host_mb = host_mb[1:] # main branch of our main host
