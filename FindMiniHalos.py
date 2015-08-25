@@ -539,7 +539,7 @@ class AllDestroyedData(PluginBase):
                         data_newD.ix[line]['minihalo_corevelz'] = cat.ix[minihalo_rsid]['corevelz']
  
                         iPids = cat.get_all_particles_from_halo(minihalo_rsid)
-                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        star_pids = iPids[0:1]
                         data_newD.ix[line]['nstars'] = len(star_pids)
                         data_newD.ix[line]['start_pos'] = start_pos
                         allstars=np.r_[allstars,star_pids]
