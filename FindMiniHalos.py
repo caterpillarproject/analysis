@@ -9,8 +9,11 @@ from scipy.integrate import quad
 import os, subprocess
 import pandas
  
- 
+
 Tvir = 2000
+append_time = 0.0
+main_branch_time = 0.0
+mini_halo_time = 0.0
  
  
 def mcrit(T,z):
@@ -18,7 +21,6 @@ def mcrit(T,z):
     omega_m = 0.3125
     M = 1e8/h * (T/z)**1.5 * (0.6*10/1.22/1.98e4)**1.5 * (18*3.14*3.14/178/omega_m)**0.5 #in solar masses
     return M
- 
  
 def getStars(data, ids, row):
     sp = data['start_pos'][row]
@@ -129,7 +131,7 @@ class ExtantDataFirstPass(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
-        self.min_mass = 10**5.99
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
@@ -149,10 +151,10 @@ class ExtantDataFirstPass(PluginBase):
         otherdata=[]
         print 'loading mtc'
          
-        sys.stdout.flush()
+        #sys.stdout.flush()
         mtc = haloutils.load_mtc(hpath,haloids=[hostID])
         print 'loaded mtc'
-        sys.stdout.flush()
+        #sys.stdout.flush()
         host = mtc.Trees[0]
         host_mb = host.getMainBranch(0)
          
@@ -160,14 +162,17 @@ class ExtantDataFirstPass(PluginBase):
         for subRSID in np.array(subs['id']):
             sub_rank+=1; flag=0
             sub = getSubTree(mtc,subRSID)
+            mmp_map = sub.get_mmp_map()
+            non_mmp_map = sub.get_non_mmp_map()
+
             if sub==None:
-                print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax']), 'Time = ', (time.time()-start_time)/60., 'minutes'
-                sys.stdout.flush()
+                #print sub_rank, 'subhalo not found in MTCatalogue. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax']), 'Time = ', (time.time()-start_time)/60., 'minutes'
+                #sys.stdout.flush()
                 continue
-            sub_mb = sub.getMainBranch(0)
+            sub_mb = sub.getMainBranch(0,mmp_map)
             if sub_mb == None:
-                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax'])
-                sys.stdout.flush()
+                #print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(cat.ix[subRSID]['mgrav'], cat.ix[subRSID]['vmax'])
+                #sys.stdout.flush()
                 continue # skip to next subhalo
 
             # minihalo_loc is index of sub_mb where this first happens
@@ -187,7 +192,7 @@ class ExtantDataFirstPass(PluginBase):
                 start_big += 1
                 flag = 10
 
-            otherdata, start_big = auxiliary_add(cat,host_mb,otherdata,host=sub,subline=0,ii=0, j=sub_rank, end=len(sub_mb)-1,min_mass=self.min_mass,start_big=start_big,flag=-1)
+            otherdata, start_big = auxiliary_add(cat,host_mb,otherdata,host=sub,subline=0,ii=0, j=sub_rank, end=len(sub_mb)-1,min_mass=self.min_mass,start_big=start_big,flag=-1,mmp_map=mmp_map, non_mmp_map=non_mmp_map)
             if minihalo_loc == None:
                 continue
             otherdata = add_data(otherdata,sub_mb, minihalo_loc,sub_rank,flag)
@@ -225,7 +230,7 @@ class AllExtantData(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='' ; self.ylabel=''  # want these to be adjustable
         self.autofigname=''
-        self.min_mass = 10**6.0
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         ED = ExtantDataFirstPass()
@@ -281,6 +286,8 @@ class AllExtantData(PluginBase):
  
 # get parameters and append to otherdata 
 def add_data(otherdata,sub_mb, minihalo_loc,subrank,flag):
+    global main_branch_time,append_time, mini_halo_time
+
     mb_root_snap = sub_mb['snap'][0]
     minihalo_vmax = sub_mb[minihalo_loc]['vmax']
     minihalo_snap = sub_mb[minihalo_loc]['snap']
@@ -304,7 +311,9 @@ def add_data(otherdata,sub_mb, minihalo_loc,subrank,flag):
     minihalo_xoff = sub_mb[minihalo_loc]['xoff']    
  
     # j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
+    tt=time.time()
     otherdata=np.r_[otherdata,subrank,sub_mb['origid'][0],minihalo_rsid, minihalo_snap, minihalo_vmax,minihalo_mvir,minihalo_posx,minihalo_posy,minihalo_posz,minihalo_pecvx,minihalo_pecvy,minihalo_pecvz,minihalo_virialratio,minihalo_hostid_MT,minihalo_rvir,minihalo_spinbullock,minihalo_rs,minihalo_scale_of_last_MM,minihalo_Jx,minihalo_Jy,minihalo_Jz,minihalo_xoff,mb_root_snap,flag]
+    append_time+=time.time()-tt
     return otherdata
  
   
@@ -314,24 +323,34 @@ def add_data(otherdata,sub_mb, minihalo_loc,subrank,flag):
 # then sub-sub merges with sub
 # In both cases, I am currently tagging sub-sub when it first enters the main host.
 # j is the position of the subhalo i the whole list of subs. As a sub of j, we will report it as -j.
-def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, end, min_mass,start_big,flag):
+def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, end, min_mass,start_big,flag,mmp_map,non_mmp_map):
     #print end-ii, 'iterations in auxiliary_add'
+    global main_branch_time,append_time, mini_halo_time
+
     while ii!=end:  # ii is backsnap
-        merged_subs = host.getNonMMPprogenitors(subline) # merged_subs are one step up
+        tt=time.time()
+        merged_subs = host.getNonMMPprogenitors(subline,non_mmp_map) # merged_subs are one step up
+        main_branch_time+=time.time()-tt
+
         host_mb = host_mb[1:] # main branch of our main host
         for subsubline in merged_subs:
             flag_add=0
             # now get main branch of this halo
-            sub_mb = host.getMainBranch(subsubline)
+            tt=time.time()
+            sub_mb = host.getMainBranch(subsubline,mmp_map)
+            main_branch_time+=time.time()-tt
+
             # Get maximal mass. Use this to ignore the small halos.
             max_mass = np.max(sub_mb['mvir'])
             if max_mass/cat.h0 < min_mass: 
                 sys.stdout.flush()
                 continue
-             
+
             # get infall time, if possible
             ##### ADD CODE HERE
             #  ADD the threshold minihalo identifying code again
+
+            tt=time.time()
             sub_redshifts = (1./sub_mb['scale']) - 1
             mcut = mcrit(Tvir,sub_redshifts)
             # check for phantoms
@@ -340,12 +359,15 @@ def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, end, min_mass,s
                  minihalo_loc = None
             else:
                  minihalo_loc = index[0]
+            mini_halo_time+=time.time()-tt
+
 
             # go recursively deep
-            otherdata, start_big = auxiliary_add(cat,host_mb, otherdata,host,subsubline,ii, 10000+j, end=ii+len(sub_mb)-1,min_mass=min_mass,start_big=start_big,flag=flag-1)
+            otherdata, start_big = auxiliary_add(cat,host_mb, otherdata,host,subsubline,ii, 10000+j, end=ii+len(sub_mb)-1,min_mass=min_mass,start_big=start_big,flag=flag-1,mmp_map=mmp_map, non_mmp_map=non_mmp_map)
             
             #mask = np.where(sub_mb['phantom']==0)[0]
             # special case: if main branch starts above 10**6. what to do?
+            tt=time.time()
             mcut_last = mcrit(Tvir,sub_redshifts[-1])
             if sub_mb['mvir'][-1]/cat.h0 > mcut_last:
                 start_big += 1
@@ -354,15 +376,18 @@ def auxiliary_add(cat, host_mb, otherdata, host, subline, ii, j, end, min_mass,s
              
             if minihalo_loc == None:
                 continue
+            mini_halo_time+=time.time()-tt
             ####            
-            print 'adding sub-sub with mass', np.log10(max_mass/cat.h0)
-            print ii, 'value of ii', end, 'value of end', j, 'value of subrank'
+            #print 'adding sub-sub with mass', np.log10(max_mass/cat.h0)
+            #print ii, 'value of ii', end, 'value of end', j, 'value of subrank'
 
             otherdata = add_data(otherdata,sub_mb,minihalo_loc,subrank=-j,flag=flag+flag_add)
-            sys.stdout.flush()
+            #sys.stdout.flush()
  
         ii+=1
-        subline = host.getMMP(subline)
+        tt=time.time()
+        subline = host.getMMP(subline,mmp_map)
+        main_branch_time+=time.time()-tt
     return otherdata,start_big
  
  
@@ -380,9 +405,11 @@ class DestroyedDataFirstPass(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
-        self.min_mass = 10**5.99 
+        self.min_mass = 10**5.5 
         
     def _analyze(self,hpath):
+        global main_branch_time,append_time, mini_halo_time 
+        
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         start = 0
@@ -394,31 +421,39 @@ class DestroyedDataFirstPass(PluginBase):
         if hostID != hostID1:
             print 'host IDs do not match!!'
         hosthalo = cat.ix[hostID]
-        mtc = haloutils.load_mtc(hpath,haloids=[hostID])
-        print 'loaded MTC'
+        mtc = haloutils.load_zoom_mtc(hpath) #,haloids=[hostID])
         host = mtc.Trees[0]
+        mmp_map = host.get_mmp_map()
+        non_mmp_map = host.get_non_mmp_map()
+        print 'loaded MTC', time.time()-start_time, 'time to load'
         #### determine end ahead of time.
-        host_mb = host.getMainBranch(0)
+        tt=time.time()
+        host_mb = host.getMainBranch(0,mmp_map)
+        main_branch_time+=time.time()-tt
         end = len(host_mb)-1
         ####
         cur_host_line = 0
         i=start # skip to ith level in MT to start
         for k in range(i):
-            cur_host_line = host.getMMP(cur_host_line)
+            cur_host_line = host.getMMP(cur_host_line,mmp_map)
          
         while i!=end:
-            merged_subs = host.getNonMMPprogenitors(cur_host_line)
+            tt=time.time()
+            merged_subs = host.getNonMMPprogenitors(cur_host_line,non_mmp_map)
+            main_branch_time+=time.time()-tt
             j=-1; start_pos=0; good=0; start_big=0; too_small=0
  
             otherdata=[]
-            host_mb = host.getMainBranch(host.getMMP(cur_host_line)) 
+            host_mb = host.getMainBranch(host.getMMP(cur_host_line,mmp_map),mmp_map) 
             for subline in merged_subs:
                 j+=1; flag=0
-                sub_mb = host.getMainBranch(subline)
-                 
+                tt=time.time()
+                sub_mb = host.getMainBranch(subline,mmp_map)
+                main_branch_time+=time.time()-tt 
                 ##### ADD CODE HERE
                 #  ADD the threshold minihalo identifying code again
-             
+                
+                tt=time.time()
                 sub_redshifts = (1./sub_mb['scale']) - 1
                 mcut = mcrit(Tvir,sub_redshifts)
                 # check for phantoms
@@ -429,31 +464,39 @@ class DestroyedDataFirstPass(PluginBase):
                      too_small+=1
                 else:
                      minihalo_loc = index[0]
+                mini_halo_time+=time.time()-tt
 
                 # even if current branch doesn't start as a minihalo, need to 
                 # search all of its progenitors tracing all the way back
-                otherdata, start_big = auxiliary_add(cat,host_mb, otherdata,host,subline,i, j, end=i+len(sub_mb)-1,min_mass=self.min_mass,start_big=start_big,flag=-1)
+                otherdata, start_big = auxiliary_add(cat,host_mb, otherdata,host,subline,i, j, end=i+len(sub_mb)-1,min_mass=self.min_mass,start_big=start_big,flag=-1,mmp_map=mmp_map, non_mmp_map=non_mmp_map)
             
                 # special case: if main branch starts above 10**6. what to do?
+                tt=time.time()
                 mcut_last = mcrit(Tvir,sub_redshifts[-1])
                 if sub_mb['mvir'][-1]/cat.h0 > mcut_last:
-                    print 'main branch started while already a minihalo'
+                    #print 'main branch started while already a minihalo'
                     start_big += 1
                     flag = 10
             
                 if minihalo_loc == None:
                     continue
+                mini_halo_time+=time.time()-tt
  
                 otherdata = add_data(otherdata,sub_mb, minihalo_loc,subrank=j,flag=flag)
                 #print j, 'halo in host level', i
                 good+=1
-                sys.stdout.flush()
+                #sys.stdout.flush()
+                print j, 'subrank'
                   
             print i, 'host level finished. Time = ', (time.time()-start_time)/60., 'minutes'
             print good,'/',j+1,'had mini halos'
             print too_small,'/',j+1,'always too small'
             print start_big, "number of halos above the threshold to begin with"
-            
+            print mini_halo_time/60., 'mini halo time (minutes)'
+            print main_branch_time/60., 'main branch time (minutes)'
+            print append_time/60., 'append time (minutes)'
+
+
             sys.stdout.flush()
             if not os.path.exists(hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed'):
                 subprocess.call("mkdir -p "+hpath+'/'+self.OUTPUTFOLDERNAME+'/Destroyed',shell=True)
@@ -506,7 +549,7 @@ class AllDestroyedData(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='' ; self.ylabel=''  # want these to be adjustable
         self.autofigname=''
-        self.min_mass = 10**5.99
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         DD = DestroyedDataFirstPass()
@@ -557,9 +600,7 @@ class AllDestroyedData(PluginBase):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
  
- 
- 
- 
+  
 # Moster et al stellar mass to halo mass relationship
 def getFraction(M, a):
     M10 = 11.590
