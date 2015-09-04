@@ -131,7 +131,7 @@ class ExtantDataFirstPass(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
-        self.min_mass = 10**5.99
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
@@ -230,7 +230,7 @@ class AllExtantData(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='' ; self.ylabel=''  # want these to be adjustable
         self.autofigname=''
-        self.min_mass = 10**6.0
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         ED = ExtantDataFirstPass()
@@ -405,7 +405,7 @@ class DestroyedDataFirstPass(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='scale factor' ; self.ylabel='Mass Accreted'    # want these to be adjustable
         self.autofigname='MergerHistory'
-        self.min_mass = 10**5.99 
+        self.min_mass = 10**5.5 
         
     def _analyze(self,hpath):
         global main_branch_time,append_time, mini_halo_time 
@@ -549,7 +549,7 @@ class AllDestroyedData(PluginBase):
         self.xlog= False; self.ylog = True
         self.xlabel='' ; self.ylabel=''  # want these to be adjustable
         self.autofigname=''
-        self.min_mass = 10**5.99
+        self.min_mass = 10**5.5
  
     def _analyze(self,hpath):
         DD = DestroyedDataFirstPass()
