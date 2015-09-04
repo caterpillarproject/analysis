@@ -19,7 +19,7 @@ mini_halo_time = 0.0
 def mcrit(T,z):
     h = 0.6711
     omega_m = 0.3125
-    M = 1e8/h * (T/z)**1.5 * (0.6*10/1.22/1.98e4)**1.5 * (18*3.14*3.14/178/omega_m)**0.5 #in solar masses
+    M = 1e8/h * (T/(1.+z))**1.5 * (0.6*10/1.22/1.98e4)**1.5 * (18*3.14*3.14/178/omega_m)**0.5 #in solar masses
     return M
  
 def getStars(data, ids, row):

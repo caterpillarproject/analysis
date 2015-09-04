@@ -1,7 +1,7 @@
 import numpy as np
 import haloutils
 import FindMiniHalos
-import time
+import time,sys
 from numpy.lib.recfunctions import append_fields
 from caterpillaranalysis import PluginBase
 
@@ -52,3 +52,13 @@ class MinihaloFinderPlugin(PluginBase):
     
     def _read(self,hpath):
         return np.load(self.get_outfname(hpath))
+
+if __name__=="__main__":
+    assert len(sys.argv)==3
+    hid = int(sys.argv[1])
+    lx = int(sys.argv[2])
+    assert lx==14
+    plug = MinihaloFinderPlugin(verbose=True)
+    hpath = haloutils.get_hpath_lx(hid,lx)
+    MHs = plug.read(hpath,recalc=True)
+    
