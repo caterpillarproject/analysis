@@ -6,17 +6,20 @@ from numpy.lib.recfunctions import append_fields
 from caterpillaranalysis import PluginBase
 
 class MinihaloFinderPlugin(PluginBase):
-    def __init__(self,verbose=False):
+    def __init__(self,verbose=False,Tvir=2000):
         super(MinihaloFinderPlugin,self).__init__()
         self.filename = 'minihalo_array.npy'
+        if Tvir != 2000:
+            self.filename = 'minihalo_array_{}.npy'.format(int(Tvir))
         self.verbose = verbose
+        self.Tvir = Tvir
 
-    def is_above_threshold(self,scale,mass,Tvir=2000.):
+    def is_above_threshold(self,scale,mass):
         z = 1./scale-1.0
-        mcrit = FindMiniHalos.mcrit(Tvir,z)
+        mcrit = FindMiniHalos.mcrit(self.Tvir,z)
         return mass > mcrit
-    def is_above_threshold_and_not_phantom(self,scale,mass,phantom,Tvir=2000.):
-        threshold = self.is_above_threshold(scale,mass,Tvir=Tvir)
+    def is_above_threshold_and_not_phantom(self,scale,mass,phantom):
+        threshold = self.is_above_threshold(scale,mass)
         not_phantom = phantom == 0
         return threshold * not_phantom
     
