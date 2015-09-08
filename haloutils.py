@@ -44,7 +44,8 @@ cdict = {'red'  :  ((0., 0., 0.),     (0.3,0,0),     (0.6, 0.8, 0.8), (1., 1., 1
 'green':  ((0., 0., 0.),     (0.3,0.3,0.3), (0.6, 0.4, 0.4), (1., 1.0, 1.0)),
 'blue' :  ((0., 0.05, 0.05), (0.3,0.5,0.5), (0.6, 0.6, 0.6), (1.0, 1.0, 1.0))}
 
-plt.cm.register_cmap(name='caterpillar', cmap=cdict)
+cmap = plt.matplotlib.colors.LinearSegmentedColormap('dmdens_cmap', cdict, 1024)
+plt.cm.register_cmap(name='caterpillar', cmap=cmap)
 
 
 global_basepath = os.path.normpath(determinebasepath(platform.node()))
