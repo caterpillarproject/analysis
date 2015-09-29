@@ -162,14 +162,14 @@ if __name__=="__main__":
             plug = AllFirstGalFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
             MHs = plug.read(hpath,recalc=True)
-        elif sys.argv[4] == "LW":
+        elif sys.argv[3] == "LW":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
             assert lx==14
             plug = LWMinihaloFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
             MHs = plug.read(hpath,recalc=True)
-        elif sys.argv[4] == "AllLW":
+        elif sys.argv[3] == "AllLW":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
             assert lx==14
