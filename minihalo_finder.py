@@ -13,6 +13,7 @@ class MinihaloFinderPlugin(PluginBase):
             self.filename = 'minihalo_array_{}.npy'.format(int(Tvir))
         self.verbose = verbose
         self.Tvir = Tvir
+        self.use_all_trees = False
 
     def is_above_threshold(self,scale,mass):
         z = 1./scale-1.0
@@ -42,7 +43,10 @@ class MinihaloFinderPlugin(PluginBase):
         return minihalos
 
     def _analyze(self,hpath):
-        mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
+        if self.use_all_trees:
+            mtc = haloutils.load_mtc(hpath,indexbyrsid=True)
+        else:
+            mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
         all_minihalos = []
         start = time.time()
         for base_rsid,mt in mtc.Trees.iteritems():
@@ -56,12 +60,59 @@ class MinihaloFinderPlugin(PluginBase):
     def _read(self,hpath):
         return np.load(self.get_outfname(hpath))
 
+class AllMinihaloFinderPlugin(MinihaloFinderPlugin):
+    """
+    Identical to MinihaloFinderPlugin,
+    except uses load_mtc instead of load_zoom_mtc
+    (and has a different output file)
+    """
+    def __init__(self,verbose=False,Tvir=2000):
+        super(AllMinihaloFinderPlugin,self).__init__()
+        self.filename = 'all_minihalo_array.npy'
+        if Tvir != 2000:
+            self.filename = 'all_minihalo_array_{}.npy'.format(int(Tvir))
+        self.verbose = verbose
+        self.Tvir = Tvir
+        self.use_all_trees = True
+
+class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
+    """
+    Identical to MinihaloFinderPlugin,
+    except uses load_mtc instead of load_zoom_mtc,
+    has a 10^4K cutoff by default,
+    and has a different output file
+    """
+    def __init__(self,verbose=False,Tvir=10000.):
+        super(AllFirstGalFinderPlugin,self).__init__()
+        self.filename = 'all_firstgal_array.npy'
+        if Tvir != 10000:
+            self.filename = 'all_firstgal_array_{}.npy'.format(int(Tvir))
+        self.verbose = verbose
+        self.Tvir = Tvir
+        self.use_all_trees = True
+
 if __name__=="__main__":
-    assert len(sys.argv)==3
-    hid = int(sys.argv[1])
-    lx = int(sys.argv[2])
-    assert lx==14
-    plug = MinihaloFinderPlugin(verbose=True)
-    hpath = haloutils.get_hpath_lx(hid,lx)
-    MHs = plug.read(hpath,recalc=True)
-    
+    if len(sys.argv) == 3:
+        hid = int(sys.argv[1])
+        lx = int(sys.argv[2])
+        assert lx==14
+        plug = MinihaloFinderPlugin(verbose=True)
+        hpath = haloutils.get_hpath_lx(hid,lx)
+        MHs = plug.read(hpath,recalc=True)
+    elif len(sys.argv) == 4:
+        if sys.argv[3] == "All":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14
+            plug = AllMinihaloFinderPlugin(verbose=True)
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[3] == "AllFirstGal":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14
+            plug = AllFirstGalFinderPlugin(verbose=True)
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            MHs = plug.read(hpath,recalc=True)
+        else:
+            raise ValueError("Only accepts \"All\" and \"AllFirstGal\"")
