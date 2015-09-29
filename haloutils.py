@@ -181,7 +181,8 @@ def get_available_hpaths(hid,contam=False,
                          onlychecklastsnap=True,
                          checkallblocks=False,
                          hdf5=True,verbose=False,
-                         basepath=global_halobase):
+                         basepath=global_halobase,
+                         hires=False):
     hidpath = basepath+'/'+hidstr(hid)
     if contam: hidpath += '/contamination_suite'
     if not os.path.exists(hidpath):
@@ -193,7 +194,8 @@ def get_available_hpaths(hid,contam=False,
         if not os.path.isdir(hpath): continue
         try:
             if checkgadget and not gadget_finished(hpath,onlychecklastsnap=onlychecklastsnap,
-                                                   checkallblocks=checkallblocks,hdf5=hdf5,verbose=verbose):
+                                                   checkallblocks=checkallblocks,hdf5=hdf5,
+                                                   verbose=verbose,hires=hires):
                 continue
         except IOError:
             continue
@@ -262,9 +264,13 @@ def check_is_sorted(outpath,snap=0,hdf5=True):
 def gadget_finished(outpath,
                     onlychecklastsnap=False,
                     checkallblocks=False,
-                    hdf5=True,verbose=False):
+                    hdf5=True,verbose=False,
+                    hires=False):
     numsnaps = get_numsnaps(outpath)
     gadgetpath = outpath+'/outputs'
+    if hires: 
+        numsnaps = 320
+        gadgetpath = outpath+'/outputs_hires'
     if (not os.path.exists(gadgetpath)):
         if verbose: print "  Gadget folder not present in "+get_foldername(outpath)
         return False
@@ -337,7 +343,7 @@ def find_halo_paths(basepath=global_halobase,
                     require_sorted=False,
                     checkallblocks=False,
                     onlychecklastsnap=False,verbose=False,hdf5=True,
-                    use_fullbin_rockstar=False):
+                    use_fullbin_rockstar=False,hires=False):
     """ Returns a list of paths to halos that have gadget completed/rsynced
         with the specified nrvirlist/levellist/ictype """
     if verbose:
@@ -365,7 +371,8 @@ def find_halo_paths(basepath=global_halobase,
                     if gadget_finished(hpath,
                                        onlychecklastsnap=onlychecklastsnap,
                                        checkallblocks=checkallblocks,
-                                       hdf5=hdf5,verbose=verbose):
+                                       hdf5=hdf5,verbose=verbose,
+                                       hires=hires):
                         halopathlist.append(hpath)
                 except IOError as e:
                     print "ERROR: skipping",hpath
