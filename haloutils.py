@@ -13,12 +13,14 @@ import warnings
 import glob
 from multiprocessing import Pool
 import time,subprocess,itertools
+#import seaborn as sns
 
 import readsnapshots.readsnapHDF5_greg as rsg
 import readhalos.RSDataReader as RDR
 import readhalos.readsubf as RSF
 import mergertrees.MTCatalogue as MTC
 import brendanlib.conversions as bconversions
+import pylab as plt
 
 def determinebasepath(node):
     if node == "csr-dyn-150.mit.edu":
@@ -37,6 +39,14 @@ def determinebasepath(node):
         raise ValueError(node+" is not a valid node")
         
     return basepath
+
+cdict = {'red'  :  ((0., 0., 0.),     (0.3,0,0),     (0.6, 0.8, 0.8), (1., 1., 1.)),
+'green':  ((0., 0., 0.),     (0.3,0.3,0.3), (0.6, 0.4, 0.4), (1., 1.0, 1.0)),
+'blue' :  ((0., 0.05, 0.05), (0.3,0.5,0.5), (0.6, 0.6, 0.6), (1.0, 1.0, 1.0))}
+
+cmap = plt.matplotlib.colors.LinearSegmentedColormap('dmdens_cmap', cdict, 1024)
+plt.cm.register_cmap(name='caterpillar', cmap=cmap)
+
 
 global_basepath = os.path.normpath(determinebasepath(platform.node()))
 global_halobase = global_basepath+'/caterpillar/halos'
@@ -66,8 +76,8 @@ cid2hid = {1:1631506,
            21:1232164,
            22:1422331,
            23:196589,
-           24:1268839,
-           25:1599988}
+           24:1268839}
+#           25:1599988}
 
 hid2name = {}
 hid2catnum = {}
@@ -141,7 +151,8 @@ def get_hpath_lx(hid,do_lx):
     return None
 
 def get_paper_paths_lx(do_lx):
-    return [get_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
+    return [get_hpath_lx(cid2hid[i+1],do_lx) for i in np.arange(24)] #[get_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
+
 def get_paper_paths():
     return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
 def get_good_paper_paths():
@@ -181,7 +192,8 @@ def get_available_hpaths(hid,contam=False,
                          onlychecklastsnap=True,
                          checkallblocks=False,
                          hdf5=True,verbose=False,
-                         basepath=global_halobase):
+                         basepath=global_halobase,
+                         hires=False):
     hidpath = basepath+'/'+hidstr(hid)
     if contam: hidpath += '/contamination_suite'
     if not os.path.exists(hidpath):
@@ -193,7 +205,8 @@ def get_available_hpaths(hid,contam=False,
         if not os.path.isdir(hpath): continue
         try:
             if checkgadget and not gadget_finished(hpath,onlychecklastsnap=onlychecklastsnap,
-                                                   checkallblocks=checkallblocks,hdf5=hdf5,verbose=verbose):
+                                                   checkallblocks=checkallblocks,hdf5=hdf5,
+                                                   verbose=verbose,hires=hires):
                 continue
         except IOError:
             continue
@@ -262,9 +275,13 @@ def check_is_sorted(outpath,snap=0,hdf5=True):
 def gadget_finished(outpath,
                     onlychecklastsnap=False,
                     checkallblocks=False,
-                    hdf5=True,verbose=False):
+                    hdf5=True,verbose=False,
+                    hires=False):
     numsnaps = get_numsnaps(outpath)
     gadgetpath = outpath+'/outputs'
+    if hires: 
+        numsnaps = 320
+        gadgetpath = outpath+'/outputs_hires'
     if (not os.path.exists(gadgetpath)):
         if verbose: print "  Gadget folder not present in "+get_foldername(outpath)
         return False
@@ -337,7 +354,7 @@ def find_halo_paths(basepath=global_halobase,
                     require_sorted=False,
                     checkallblocks=False,
                     onlychecklastsnap=False,verbose=False,hdf5=True,
-                    use_fullbin_rockstar=False):
+                    use_fullbin_rockstar=False,hires=False):
     """ Returns a list of paths to halos that have gadget completed/rsynced
         with the specified nrvirlist/levellist/ictype """
     if verbose:
@@ -365,7 +382,8 @@ def find_halo_paths(basepath=global_halobase,
                     if gadget_finished(hpath,
                                        onlychecklastsnap=onlychecklastsnap,
                                        checkallblocks=checkallblocks,
-                                       hdf5=hdf5,verbose=verbose):
+                                       hdf5=hdf5,verbose=verbose,
+                                       hires=hires):
                         halopathlist.append(hpath)
                 except IOError as e:
                     print "ERROR: skipping",hpath
@@ -627,13 +645,33 @@ def get_colors(ncolors=12):
 
     return colors
 
+def get_halo_colors(cmap='jet',nhalos=24):
+    _numfirstbatch = 24
+    #colors = sns.color_palette("husl",_numfirstbatch)
+    #print cm
+    cm = plt.cm.get_cmap(cmap)
+    ncolors = 24
+    colors=[]
+    for i in range(ncolors):
+        colors.append(cm(1.*i/float(ncolors)))
+
+    index = {}
+#    for i in range(nhalos):
+    for i,haloi in cid2hid.iteritems():
+#        index[hid2name.keys()[i]] = colors[i]
+	index[haloi] = colors[i-1]
+
+    return index
+    
+
 def get_colors_for_halos(nhalos=len(hid2name)):
     colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),  
               (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),  
               (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),  
               (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),  
               (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229),
-              (32, 159, 117), (43, 166, 241),  (6, 115,   1), (203,  56,  62), (255,255,255)] 
+              (32, 159, 117), (43, 166, 241),  (6, 115,   1), (203,  56,  62)]
+#, (255,255,255)] 
     assert len(colors)==len(hid2name)
     
     for i in range(nhalos):  
