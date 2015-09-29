@@ -1,6 +1,5 @@
 import numpy as np
 import haloutils
-import FindMiniHalos
 import time,sys
 from numpy.lib.recfunctions import append_fields
 from caterpillaranalysis import PluginBase
@@ -15,9 +14,15 @@ class MinihaloFinderPlugin(PluginBase):
         self.Tvir = Tvir
         self.use_all_trees = False
 
+    def mcrit(self,T,z):
+        h = 0.6711
+        omega_m = 0.3125
+        M = 1e8/h * (T/(1.+z))**1.5 * (0.6*10/1.22/1.98e4)**1.5 * (18*3.14*3.14/178/omega_m)**0.5 #in solar masses
+        return M
+
     def is_above_threshold(self,scale,mass):
         z = 1./scale-1.0
-        mcrit = FindMiniHalos.mcrit(self.Tvir,z)
+        mcrit = self.mcrit(self.Tvir,z)
         return mass > mcrit
     def is_above_threshold_and_not_phantom(self,scale,mass,phantom):
         threshold = self.is_above_threshold(scale,mass)
@@ -91,6 +96,49 @@ class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
         self.Tvir = Tvir
         self.use_all_trees = True
 
+class LWMinihaloFinderPlugin(MinihaloFinderPlugin):
+    def __init__(self,verbose=False,lwimf='kroupa',Tvir=2000):
+        super(LWMinihaloFinderPlugin,self).__init__()
+        assert lwimf in ['kroupa','chabrier','salpeter']
+        self.lwimf = lwimf
+        self.lw_data_dir = '/bigbang/data/bgriffen/crosby2013'
+        ffit,x = self.get_imf_func(self.lwimf)
+        self.ffit = ffit
+        self.mlwmin = 7e4
+
+        self.Tvir = Tvir
+        if Tvir != 2000:
+            self.filename = 'lw_minihalo_array_{}_{}.npy'.format(self.lwimf,self.Tvir)
+        else:
+            self.filename = 'lw_minihalo_array_'+self.lwimf+'.npy'
+        self.verbose = verbose
+        self.use_all_trees = False
+
+    def get_poly(self,data):
+        import numpy.polynomial.polynomial as poly
+        x = data[:,0]
+        y = data[:,1]
+        mask = (x < 26)
+        coefs = poly.polyfit(x[mask], y[mask], 4)
+        x_new = np.linspace(x[mask][0], x[mask][-1], num=len(x[mask])*11)
+        ffit = poly.Polynomial(coefs)
+        return ffit,x_new
+    def get_imf_func(self,imf):
+        data = np.loadtxt(self.lw_data_dir+'/'+imf+'.txt',delimiter=',')
+        ffit,x = self.get_poly(data)
+        return ffit,x
+    def is_above_threshold(self,scale,mass):
+        z = 1./scale-1.0
+        mcrit = self.mcrit(self.Tvir,z)
+        mlw = self.ffit(z)
+        return (mass > mcrit) & (mass > self.mlwmin) & (mass > mlw)
+
+class AllLWMinihaloFinderPlugin(LWMinihaloFinderPlugin):
+    def __init__(self,verbose=False,lwimf='kroupa',Tvir=2000):
+        super(AllLWMinihaloFinderPlugin,self).__init__()
+        self.filename = 'all_'+self.filename
+        self.use_all_trees = True
+
 if __name__=="__main__":
     if len(sys.argv) == 3:
         hid = int(sys.argv[1])
@@ -114,5 +162,19 @@ if __name__=="__main__":
             plug = AllFirstGalFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
             MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[4] == "LW":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14
+            plug = LWMinihaloFinderPlugin(verbose=True)
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[4] == "AllLW":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14
+            plug = AllLWMinihaloFinderPlugin(verbose=True)
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            MHs = plug.read(hpath,recalc=True)
         else:
-            raise ValueError("Only accepts \"All\" and \"AllFirstGal\"")
+            raise ValueError("Only accepts \"LW\", \"AllLW\", \"All\", and \"AllFirstGal\"")
