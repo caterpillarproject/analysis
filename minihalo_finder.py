@@ -169,6 +169,13 @@ if __name__=="__main__":
             plug = LWMinihaloFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
             MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[3] == "LWsalpeter":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14
+            plug = LWMinihaloFinderPlugin(verbose=True,lwimf='salpeter')
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            MHs = plug.read(hpath,recalc=True)
         elif sys.argv[3] == "AllLW":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
