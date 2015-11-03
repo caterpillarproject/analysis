@@ -11,7 +11,8 @@ from caterpillaranalysis import *
 
 class SubProfileSoftPlugin(ProfilePlugin):
     def __init__(self,rmin=10**-2,rmax=10**3,ymin=10**-1.5,ymax=10**1.5):
-        self.filename='subprofilesoft.npz'
+        #self.filename='subprofilesoft.npz'
+        self.filename='subprofilesoft_alpha.npz' #TODO this will make duplicate data
         self.nr = 50
         self.nrfit = 20
         #self.rminfit = .291  #kpc, Draco rvmax
@@ -43,6 +44,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
         allmltrarr  = np.zeros((nsubs,nr))
         allmltrsoftarr  = np.zeros((nsubs,nr))
         Q2arr = np.zeros(nsubs)
+        alphaarr = np.zeros(nsubs)
 
         snapstr = str(snap).zfill(3)
         snapfile = hpath+'/outputs/snapdir_'+snapstr+'/snap_'+snapstr
@@ -67,7 +69,7 @@ class SubProfileSoftPlugin(ProfilePlugin):
             allmltrarr[i,:] = mltr
             Marr = self.mltr_to_Marr(mltr)
             if i_rvmax >= .5:
-                EINmltr,Q2 = self.compute_mltr_soft(dr,i_rvir,i_rvmax,mpart,lx) 
+                EINmltr,Q2,alpha = self.compute_mltr_soft(dr,i_rvir,i_rvmax,mpart,lx) 
                 if Q2==None: Q2=-1
                 elif Q2 < .1:
                     ii = (rarr < self.rminfit[lx])
@@ -77,9 +79,10 @@ class SubProfileSoftPlugin(ProfilePlugin):
                     mltr[~ii] = np.cumsum(Marr[~ii])+mltrlast
             else: Q2 = -1
             Q2arr[i] = Q2
+            alphaarr[i] = alpha
             allmltrsoftarr[i,:] = mltr
         np.savez(self.get_outfname(hpath),rsid=idarr,rvir=rvirarr,rvmax=rvmaxarr,
-                 mgrav=mgravarr,mltr=allmltrarr,mltrsoft=allmltrsoftarr,Q2=Q2arr)
+                 mgrav=mgravarr,mltr=allmltrarr,mltrsoft=allmltrsoftarr,Q2=Q2arr,alpha=alphaarr)
             
     def compute_rho_soft(self,dr,rvir,rvmax,mpart,lx):
         rbin = self.get_fit_rarr(rvmax,lx) #kpc
@@ -87,30 +90,32 @@ class SubProfileSoftPlugin(ProfilePlugin):
         try:
             p0,p1,p2,Q2 = profilefit.fitEIN(rbin,rhoarr,[.5,10,.2],retQ2=True)
             EINprof = lambda r: profilefit.EINprofile(r,p0,p1,p2)
+            alpha = p2
         except RuntimeError as e:
             # if 'maxfev' in error msg
-            EINprof=None; Q1=-1
+            EINprof=None; Q2=-1; alpha = np.nan
             # else raise e
-        return EINprof,Q2
+        return EINprof,Q2,alpha
     def compute_mltr_soft(self,dr,rvir,rvmax,mpart,lx):
         rbin = self.get_fit_rarr(rvmax,lx) #kpc
         rhoarr = profilefit.calc_rhoarr(rbin,dr,mpart) #Msun/kpc^3
         try:
             p0,p1,p2,Q2 = profilefit.fitEIN(rbin,rhoarr,[.5,10,.2],retQ2=True)
             EINmltr = lambda r: profilefit.EINmltr(r,p0,p1,p2)
+            alpha = p2
         except RuntimeError as e:
             # if 'maxfev' in error msg
-            EINmltr=None; Q1=-1
+            EINmltr=None; Q2=-1; alpha=np.nan
             # else raise e
-        return EINmltr,Q2
+        return EINmltr,Q2,alpha
 
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         d = np.load(thisfilename) #d['rsid']
         rarr = self.get_scaled_rarr(d['rvir'])
-        return rarr,d['rsid'],d['rvir'],d['rvmax'],d['mgrav'],d['mltr'],d['mltrsoft'],d['Q2']
+        return rarr,d['rsid'],d['rvir'],d['rvmax'],d['mgrav'],d['mltr'],d['mltrsoft'],d['Q2'],d['alpha']
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,numlines=10,**kwargs):
-        rarr, rsid, rvir, rvmax, mgrav, mltr, mltrsoft, Q2 = data
+        rarr, rsid, rvir, rvmax, mgrav, mltr, mltrsoft, Q2, alpha = data
         mltr /= 1e10; mltrsoft /= 1e10
         rhoarr = np.zeros(mltr.shape)
         rhosoftarr = np.zeros(mltrsoft.shape)

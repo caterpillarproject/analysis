@@ -10,7 +10,8 @@ from caterpillaranalysis import *
 class SubhaloRadialPlugin(PluginBase):
     def __init__(self,rmin=1,rmax=1000,ymin=10**-2,ymax=10**2):
         super(SubhaloRadialPlugin,self).__init__()
-        self.filename='subradial.dat'
+        #self.filename='subradial.dat'
+        self.filename='subradial2.dat'
 
         self.xmin = rmin; self.xmax = rmax
         self.ymin = ymin; self.ymax = ymax
@@ -25,6 +26,7 @@ class SubhaloRadialPlugin(PluginBase):
         rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
         hpos = np.array(rscat.ix[zoomid][['posX','posY','posZ']])
         subs = self.get_rssubs(rscat,zoomid)
+        subs['directsub'] = (subs['hostID'] == zoomid) #new in 2
         spos = np.array(subs[['posX','posY','posZ']])
         dist = 1000*self.distance(spos,hpos)/rscat.h0 #kpc
         iisort = np.argsort(dist)
@@ -33,20 +35,21 @@ class SubhaloRadialPlugin(PluginBase):
         submass = np.array(subs.ix[sortedids]['mvir'])
         submgrav= np.array(subs.ix[sortedids]['mgrav'])
         subrvir = np.array(subs.ix[sortedids]['rvir'])
+        subofhost = np.array(subs.ix[sortedids]['directsub']).astype(int) #new in 2
         
-        names = ['id','dist','mass','mgrav','rvir']
-        outdict=dict(zip(names,[sortedids,sorteddist,submass,submgrav,subrvir]))
+        names = ['id','dist','mass','mgrav','rvir','directsub']
+        outdict=dict(zip(names,[sortedids,sorteddist,submass,submgrav,subrvir,subofhost]))
         asciitable.write(outdict,self.get_outfname(hpath),names=names)
     def _read(self,hpath):
         thisfilename = self.get_filename(hpath)
         tab = asciitable.read(thisfilename,header_start=0)
-        return tab['id'],tab['dist'],tab['mass'],tab['mgrav'],tab['rvir']
+        return tab['id'],tab['dist'],tab['mass'],tab['mgrav'],tab['rvir'],tab['directsub'] #new in 2
     def get_Varr(self,rarr):
         rarr = np.concatenate(([0],rarr))
         return 4*np.pi/3 * (rarr[1:]**3 - rarr[:-1]**3)
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
         # TODO refactor histogramming into read?
-        subid,dist,submass,submgrav,subrvir = data
+        subid,dist,submass,submgrav,subrvir,directsub = data
         ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
@@ -76,7 +79,7 @@ class SubhaloRadialByMassPlugin(SubhaloRadialPlugin):
         self.bincolors = ['b','r','g','y','c','m','k']
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,legendon=True,**kwargs):
         assert lx != None
-        subid,dist,submass,submgrav,subrvir = data
+        subid,dist,submass,submgrav,subrvir,directsub = data
         ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
@@ -107,7 +110,7 @@ class IntegrableSubhaloRadialPlugin(SubhaloRadialPlugin):
         self.ylog=False
         self.autofigname = 'integrablesubrad'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,**kwargs):
-        subid,dist,submass,submgrav,subrvir = data
+        subid,dist,submass,submgrav,subrvir,directsub = data
         ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
@@ -134,7 +137,7 @@ class IntegrableSubhaloRadialByMassPlugin(SubhaloRadialByMassPlugin):
         self.autofigname = 'integrablesubradbymass'
     def _plot(self,hpath,data,ax,lx=None,labelon=False,normtohost=False,legendon=True,**kwargs):
         assert lx != None
-        subid,dist,submass,submgrav,subrvir = data
+        subid,dist,submass,submgrav,subrvir,directsub = data
         ii = submgrav/submass > 0.0
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
@@ -177,8 +180,8 @@ class SubhaloRadialSubmassFracPlugin(MultiPlugin):
         subdata = datalist[1]
         r,mltr,p03r,rvir,r200c,pNFW,pEIN = alldata        
         rbin = np.concatenate(([0],r))
-        subid,dist,submass,submgrav,subrvir = subdata
-        ii = submgrav/submass > 0.0
+        subid,dist,submass,submgrav,subrvir,directsub = subdata
+        ii = np.logical_and(submgrav/submass > 0.0, directsub) #NEW in 2
         dist = dist[ii]; submass = submass[ii]; submgrav = submgrav[ii]; subrvir = subrvir[ii]
 
         dist /= 1000. #kpc to Mpc
