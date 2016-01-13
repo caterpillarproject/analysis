@@ -44,20 +44,32 @@ import pandas
 # use 'nstars_1', 'start_pos_1'
 # instead of writing to file, use generate ids, mass
 
-# make it possible to get any fraction of 3%
+# make it possible to get any fraction of 5%
+h0 = .6711
+
+def load_idsE(hpath):
+    return np.fromfile(hpath+'/'+'analysis'+'/'+'extantPIDs.dat') 
+
+def load_idsD(hpath):
+    return np.fromfile(hpath+'/'+'analysis'+'/'+'destroyedPIDs.dat') 
+
+def mass_per_particle(hpath,data, row):
+    frac = getFraction(data[row:row+1]['infall_mvir']/h0, haloutils.get_scale_snap(hpath, int(data[row:row+1]['infall_snap'])))
+    nstars = int(data['nstars'][row:row+1])
+    return float((data['infall_mvir'][row:row+1]/h0*frac)/nstars)
 
 
 def getStars(data, ids, row):
     sp = data['start_pos'][row]
     nstars = data['nstars'][row]
-    return ids[sp:sp+nstars]
+    return np.array(ids[sp:sp+nstars],dtype=np.int64)
 
 def getStars_x(data,ids,row, fmb=1):
-    if fmb  > 3:
-        print "ERROR fmb cannot be > 3"
+    if fmb  > 5:
+        print "ERROR fmb cannot be > 5"
         return None
     sp = data['start_pos'][row]
-    nstars = np.round(data['nstars'][row]/(3./fmb))
+    nstars = np.round(data['nstars'][row]/(5./fmb))
     if nstars==0 and data['nstars'][row]>0:
         nstars=1
     return ids[sp:sp+nstars]
@@ -208,7 +220,9 @@ class AllExtantData(PluginBase):
         super(AllExtantData,self).__init__()
         self.filename='AllExtantData.dat'
 
+    # tag 5% of particles
     def _analyze(self,hpath):
+        frac_to_tag = .05
         ED = ExtantDataFirstPass()
         dataE = ED.read(hpath)
         dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos']
@@ -251,7 +265,7 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
                         
                         iPids = cat.get_all_particles_from_halo(infall_rsid)
-                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        star_pids = iPids[0:int(np.round(len(iPids)*frac_to_tag))]
                         data_newE.ix[line]['nstars'] = len(star_pids)
                         data_newE.ix[line]['start_pos'] = start_pos
                         allstars=np.r_[allstars,star_pids]
@@ -444,6 +458,7 @@ class AllDestroyedData(PluginBase):
         self.filename='AllDestroyedData.dat'
 
     def _analyze(self,hpath):
+        frac_to_tag = .05
         DD = DestroyedDataFirstPass()
         dataD = DD.read(hpath)
         dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz','nstars','start_pos']
@@ -486,7 +501,7 @@ class AllDestroyedData(PluginBase):
                         data_newD.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
 
                         iPids = cat.get_all_particles_from_halo(infall_rsid)
-                        star_pids = iPids[0:int(np.round(len(iPids)*.03))]
+                        star_pids = iPids[0:int(np.round(len(iPids)*frac_to_tag))]
                         data_newD.ix[line]['nstars'] = len(star_pids)
                         data_newD.ix[line]['start_pos'] = start_pos
                         allstars=np.r_[allstars,star_pids]
