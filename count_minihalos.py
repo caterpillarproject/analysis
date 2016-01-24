@@ -1,7 +1,7 @@
 import numpy as np
 import pylab as plt
 
-from minihalo_finder import MinihaloFinderPlugin
+from minihalo_finder import MinihaloFinderPlugin, LWMinihaloFinderPlugin
 import haloutils
 
 def count_minihalos(hpath):
@@ -13,7 +13,8 @@ def count_minihalos(hpath):
     apos = rscat[['posX','posY','posZ']]
     subids = set(subs['id'].astype(int))
 
-    plug = MinihaloFinderPlugin()
+    #plug = MinihaloFinderPlugin()
+    plug = LWMinihaloFinderPlugin()
     MHs = plug.read(hpath,autocalc=False)
     if MHs == None:
         return None

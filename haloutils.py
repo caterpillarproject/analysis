@@ -482,19 +482,19 @@ def load_scat(hpath):
     else: 
         return RSF.subfind_catalog(hpath+'/outputs',snap)
 
-def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None,rmaxcut=True):
+def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,minboundpart=None,version=None,rmaxcut=True,AllParticles=False):
     if version != None:
-        rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+        rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart,AllParticles=AllParticles)
     else:
         try:
-            rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+            rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=10,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart,AllParticles=AllParticles)
         except IOError as e: #try to identify a unique valid rockstar version
             print e
             versionlist = [2,3,4,5,6,7,8,9]
             testlist = []
             for version in versionlist:
                 try:
-                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart,AllParticles=AllParticles)
                     testlist.append(True)
                 except KeyError:
                     testlist.append(False)
@@ -506,7 +506,7 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
                 version = np.array(versionlist)[np.array(testlist)][0]
                 if verbose:
                     print "Using version "+str(version)+" for "+get_foldername(hpath)
-                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart)
+                    rscat = RDR.RSDataReader(hpath+'/'+halodir,snap,version=version,digits=1,unboundfrac=unboundfrac,minboundpart=minboundpart,AllParticles=AllParticles)
 
     if rmaxcut:
         zoomid = load_zoomid(hpath,snap=snap)
