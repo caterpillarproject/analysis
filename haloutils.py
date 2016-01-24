@@ -77,13 +77,17 @@ cid2hid = {1:1631506,
            22:1422331,
            23:196589,
            24:1268839}
-#           25:1599988}
 
 hid2name = {}
 hid2catnum = {}
 for k,v in cid2hid.items():
     hid2name[v] = 'Cat-'+str(k)
     hid2catnum[v] = k
+
+def get_hpath(catnum,lx):
+    hid = cid2hid[catnum]
+    hpath = hid2hpath
+    return 
 
 def hid_name(hid):
     return hid2name[hidint(hid)]
