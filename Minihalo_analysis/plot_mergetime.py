@@ -15,7 +15,7 @@ merge_snap = np.load(hpath+'/analysis/merge_snap.npy')
 
 mask = merge_snap != 320
 diff = merge_snap[mask]-form_snap[mask]
-plt.hist(diff,bins=np.arange(310)+1)
+plt.hist(diff,bins=np.arange(310))
 plt.xlabel('Num Snaps')
 plt.ylabel('Num halos')
 plt.savefig('merge_time')
