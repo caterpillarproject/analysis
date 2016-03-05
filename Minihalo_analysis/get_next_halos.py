@@ -4,7 +4,7 @@ import numpy as np
 import pylab as plt
 import pandas as pd
 import subprocess as sub
-import MTanalysis2 as MTA
+
  
 hpaths = htils.get_paper_paths_lx(14)
 N=20
