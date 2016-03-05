@@ -1,4 +1,5 @@
 import os,sys,platform
+from collections import defaultdict
 # Allow plot creation on antares
 if 'compute-0-' in platform.node():
     import matplotlib
@@ -53,42 +54,111 @@ global_halobase = global_basepath+'/caterpillar/halos'
 global_prntbase = global_basepath+'/caterpillar/parent/gL100X10'
 
 
+#cid2hid = {1:1631506,
+#           2:264569,
+#           3:1725139,
+#           4:447649,
+#           5:5320,
+#           6:581141,
+#           7:94687,
+#           8:1130025,
+#           9:1387186,
+#           10:581180,
+#           11:1725372,
+#           12:1354437,
+#           13:1725272,
+#           14:1195448,
+#           15:1292085,
+#           16:796175,
+#           17:388476,
+#           18:1079897,
+#           19:94638,
+#           20:95289,
+#           21:1232164,
+#           22:1422331,
+#           23:196589,
+#           24:1268839}
+#           
 cid2hid = {1:1631506,
-           2:264569,
-           3:1725139,
-           4:447649,
-           5:5320,
-           6:581141,
-           7:94687,
-           8:1130025,
-           9:1387186,
-           10:581180,
-           11:1725372,
-           12:1354437,
-           13:1725272,
-           14:1195448,
-           15:1292085,
-           16:796175,
-           17:388476,
-           18:1079897,
-           19:94638,
-           20:95289,
-           21:1232164,
-           22:1422331,
-           23:196589,
-           24:1268839}
-
+2:264569,
+3:1725139,
+4:447649,
+5:5320,
+6:581141,
+7:94687,
+8:1130025,
+9:1387186,
+10:581180,
+11:1725372,
+12:1354437,
+13:1725272,
+14:1195448,
+25:1599988,
+16:796175,
+17:388476,
+18:1079897,
+19:94638,
+20:95289,
+21:1232164,
+22:1422331,
+23:196589,
+24:1268839,
+15:1292085,
+26:1195075,
+27:1631582,
+28:831159,
+29:1422429,
+30:1848643,
+31:65777,
+32:1269057,
+33:1232423,
+34:94629,
+35:1232313,
+36:196078,
+37:1599902,
+38:1161351,
+39:1232127,
+40:795802,
+41:1161558,
+42:616647,
+43:795912,
+44:1080116,
+45:1354579,
+46:94105,
+47:94562,
+48:581380,
+49:650016,
+50:795405,
+51:795648,
+52:831279,
+53:1104787,
+54:1105005,
+55:1161589,
+56:1194734,
+57:1194785,
+58:1354730,
+59:1422249,
+60:1476003,
+61:1507285,
+62:1697899,
+63:1725470,
+64:1764462,
+65:1940047}
+#hid2hpath = {}
 hid2name = {}
 hid2catnum = {}
 for k,v in cid2hid.items():
     hid2name[v] = 'Cat-'+str(k)
     hid2catnum[v] = k
 
-def get_hpath(catnum,lx):
-    hid = cid2hid[catnum]
-    hpath = hid2hpath
-    return 
+#for k, v in cid2hid.iteritems():
+#    hid2hpath[v].append(k)
 
+# functions for switching between hid,hpath,catnum
+def catnum_hpath(catnum,lx):
+    hid = cid2hid[catnum]
+    hpath = hid_hpath_lx(hid,lx)
+    return hpath
 def hid_name(hid):
     return hid2name[hidint(hid)]
 def hpath_name(hpath):
@@ -97,6 +167,28 @@ def hid_catnum(hid):
     return hid2catnum[hidint(hid)]
 def hpath_catnum(hpath):
     return hid_catnum(get_parent_hid(hpath))
+def hid_hpath_lx(hid,do_lx):
+    lxpaths = get_lxlist(hid,gethpaths=True)
+    for hpath in lxpaths:
+        if 'LX'+str(do_lx) in hpath: return hpath
+    return None
+def get_paper_paths_lx(do_lx):
+    return [hid_hpath_lx(cid2hid[i+1],do_lx) for i in np.arange(24)] #[hid_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
+def get_all_halo_paths_lx(lx):
+    hpaths = []
+    for i in np.arange(60):
+        try:
+            path = hid_hpath_lx(cid2hid[i+1],lx)
+            if path != None: hpaths.append(path)
+        except KeyError:
+            pass
+    return hpaths
+def get_paper_paths():
+    return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
+def get_good_paper_paths():
+    hpaths = [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
+    hpaths.remove(global_halobase+"/H95289")
+    return hpaths
 
 def hidint(hid):
     """ converts halo ID to int """
@@ -147,22 +239,6 @@ def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,che
     return outpath
 def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
     return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=check)
-
-def get_hpath_lx(hid,do_lx):
-    lxpaths = get_lxlist(hid,gethpaths=True)
-    for hpath in lxpaths:
-        if 'LX'+str(do_lx) in hpath: return hpath
-    return None
-
-def get_paper_paths_lx(do_lx):
-    return [get_hpath_lx(cid2hid[i+1],do_lx) for i in np.arange(24)] #[get_hpath_lx(hid,do_lx) for hid in hid2name.keys()]
-
-def get_paper_paths():
-    return [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
-def get_good_paper_paths():
-    hpaths = [global_halobase+"/H"+str(hid) for hid in hid2name.keys()]
-    hpaths.remove(global_halobase+"/H95289")
-    return hpaths
 
 def get_scale_snap(hpath,snaps):
     snaps = np.ravel(snaps)
@@ -709,10 +785,10 @@ def tabulate(tabfn,lx=14,hids=None,exclude_hids=None,savefile=None,numprocs=1,us
                 print "WARNING: H{0} not in hids, not removing"
 
     if numprocs==1:
-        datalist = map(tabfn,[get_hpath_lx(hid,lx) for hid in hids])
+        datalist = map(tabfn,[hid_hpath_lx(hid,lx) for hid in hids])
     else:
         pool = Pool(numprocs)
-        datalist = pool.map(tabfn,[get_hpath_lx(hid,lx) for hid in hids])
+        datalist = pool.map(tabfn,[hid_hpath_lx(hid,lx) for hid in hids])
         pool.close()
 
     for item in datalist:
