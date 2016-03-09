@@ -240,6 +240,14 @@ def get_outpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,che
 def get_hpath(haloid,ictype,lx,nv,contamtype=None,halobase=global_halobase,check=True):
     return get_outpath(haloid,ictype,lx,nv,contamtype=contamtype,halobase=global_halobase,check=check)
 
+
+def get_hpath_lx(hid,do_lx):
+    lxpaths = get_lxlist(hid,gethpaths=True)
+    for hpath in lxpaths:
+        if 'LX'+str(do_lx) in hpath: return hpath
+    return None
+
+
 def get_scale_snap(hpath,snaps):
     snaps = np.ravel(snaps)
     if type(snaps[0]) == np.float64 or type(snaps[0])==np.float:
