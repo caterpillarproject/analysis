@@ -72,7 +72,7 @@ def load_next_halos(hpath,suffix):
     next_ids = np.load(hpath+"/analysis/minihalo_descendants_"+suffix+'.npy')
     form_snap = np.load(hpath+'/analysis/form_snap_'+suffix+'.npy')
     merge_snap = np.load(hpath+'/analysis/merge_snap_'+suffix+'.npy')
-    return minihalos, next_ids, form_snap, merge_snap
+    return minihalos, next_ids, np.array(form_snap), np.array(merge_snap)
 
 
 
