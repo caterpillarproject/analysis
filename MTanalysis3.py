@@ -118,6 +118,71 @@ def distance(posA, posB,boxsize=100.):
     else:
         return np.sqrt(np.sum(dist**2,axis=1))
 
+
+def Hubble(cat):
+    to_inv_sec = 3.241*10**-20
+    a = cat.scale
+    Ok = 1-cat.Om-cat.Ol
+    return to_inv_sec * 100*cat.h0*(cat.Om*(1/a)**3 + Ok*(1/a)**2 + cat.Ol)**.5 # value in 1/sec
+
+def m_enclNFW(r,rs,rho_0):
+    return rho_0*4*np.pi*rs**3 *( np.log((rs+r)/rs) - r/(r+rs) )
+
+def rho_enlcNWF(r,rs,rho_0):
+    mencl = rho_0*4*np.pi*rs**3 *( np.log((rs+r)/rs) - r/(r+rs) )
+    return mencl / (4/3. * np.pi * r**3)
+
+# this will likely be a slight underestimate of what rockstar would determine
+# this is due to not including the unbound particles
+def getM_xcrit(hpath,pids,cat,rsid,delta=350):
+    # delta*rho_crit
+    G = 4.157e-39  # kpc^3/Msun/s^2
+    H = Hubble(cat) # in 1/s
+    rho_crit = (3*H**2)/(8*np.pi*G) # in Msun/kpc^3
+
+    # get mltr interpolating function
+    pids = np.sort(pids)
+    halo = cat.ix[rsid]
+    halo_center = np.array(halo[['posX','posY','posZ']])
+    part_pos = haloutils.load_partblock(hpath,cat.snap_num,'POS ',parttype=1,ids=pids)
+    dr = distance(part_pos,halo_center,cat.boxsize)*cat.scale/cat.h0*1000  # in kpc
+    maxr = 1.1*float(halo['rvir'])*cat.scale/cat.h0
+    minr = 0.1
+    binwidth = 0.04
+    nbins = np.ceil((np.log10(maxr)-np.log10(minr))/binwidth)
+    rarr = 10**np.linspace(np.log10(minr), np.log10(minr)+nbins*binwidth,nbins+1)
+    h_r, x_r = np.histogram(dr, bins=np.concatenate(([0],rarr)))
+    m_lt_r = np.cumsum(h_r)*cat.particle_mass/cat.h0
+    rho = m_lt_r / (4/3. * np.pi * rarr**3)
+    tck_mltr = interpolate.splrep(rarr,m_lt_r)
+    tck_rho = interpolate.splrep(rarr,rho)
+
+    # also solve assuming NFW with r_scale
+    rs_NFW = halo['rs']*cat.scale/cat.h0 # in kpc
+    m200 = halo['altm2']/cat.h0 # in Msun
+    r200 = (m200*3/(4*np.pi*200*rho_crit))**(1/3.) # in kpc
+    rho_0 = m200/ (4*np.pi*rs_NFW**3 *( np.log((rs_NFW+r200)/rs_NFW) - r200/(r200+rs_NFW) )) # msun/kpc^3
+    
+    from scipy.optimize import fsolve
+    def func(x):
+        return interpolate.splev(x,tck_rho)/(rho_crit) - delta
+    rvir = fsolve(func,1)
+    mvir = interpolate.splev(rvir,tck_mltr)
+    
+    def funcNFW(x):
+        return rho_enlcNWF(x,rs_NFW,rho_0)/(rho_crit) - delta
+    rvirNFW = fsolve(funcNFW,1)
+    mvirNFW = 4./3 * np.pi * rvirNFW**3 * rho_crit * 350
+    #print rvir, rvirNFW, 'rvir350 and rvir350 NFW'
+    return mvir[0]*cat.h0, mvirNFW[0]*cat.h0
+    
+
+
+
+
+
+
+
 def getInfall(sub_mb, host_mb, maxmass=''):
     assert(host_mb[0]['snap']==sub_mb[0]['snap']), "ERROR: Mismatch in alignment of host_mb and sub_mb"
 
@@ -128,10 +193,10 @@ def getInfall(sub_mb, host_mb, maxmass=''):
     else:
         still_sub = np.where(host_ids[0:len(sub_upids)] == sub_upids)[0]
     if len(still_sub) ==0:
-        print 'ERROR: "subhalo" never actually a subhalo. Mass is '+str(maxmass)
+        #print 'ERROR: "subhalo" never actually a subhalo. Mass is '+str(maxmass)
         return None, None
     if still_sub[-1] == len(sub_upids)-1:
-        print 'subhalo began as a subhalo. Mass is '+str(maxmass)
+        #print 'subhalo began as a subhalo. Mass is '+str(maxmass)
         return None, None # "subhalo" began as a subhalo
     else:
         loc = still_sub[-1]+1 #position of infall in array
@@ -143,10 +208,11 @@ def getInfall(sub_mb, host_mb, maxmass=''):
         loc-=phantom
         iSnap+=phantom
         if loc<0 or sub_mb[loc]['phantom']!=0:
-            print 'subhalo is phantom too much. Mass is '+str(maxmass)
+            #print 'subhalo is phantom too much. Mass is '+str(maxmass)
             return None, None
         else:
-            print 'encountered phantom, but ok'
+            dummy=1
+            #print 'encountered phantom, but ok'
     return loc, iSnap
 
 # for just getting extant data
@@ -206,7 +272,7 @@ class ExtantDataFirstPass(PluginBase):
 
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
-        pdtype = ['sub_rank','rsid','backsnap','depth','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff', 'peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
+        pdtype = ['sub_rank','rsid','pid', 'backsnap','depth','max_mass_rsid','max_mass_snap','max_mass_vmax','max_mass','max_mass_posx','max_mass_posy','max_mass_posz','max_mass_pecvx','max_mass_pecvy','max_mass_pecvz','max_mass_virialratio','max_mass_hostid_MT','max_mass_rvir','max_mass_spinbullock','max_mass_rs','max_mass_scale_of_last_MM','max_mass_Jx','max_mass_Jy','max_mass_Jz','max_mass_xoff', 'peak_rsid','peak_snap','peak_vmax','peak_mvir','peak_posx','peak_posy','peak_posz','peak_pecvx','peak_pecvy','peak_pecvz','peak_virialratio','peak_hostid_MT','peak_rvir','peak_spinbullock','peak_rs','peak_scale_of_last_MM','peak_Jx','peak_Jy','peak_Jz','peak_xoff','infall_rsid','infall_snap','infall_vmax','infall_mvir','infall_posx','infall_posy','infall_posz','infall_pecvx','infall_pecvy','infall_pecvz','infall_virialratio','infall_hostid_MT','infall_rvir','infall_spinbullock','infall_rs','infall_scale_of_last_MM','infall_Jx','infall_Jy','infall_Jz','infall_xoff']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -218,14 +284,16 @@ class ExtantDataFirstPass(PluginBase):
 class AllExtantData(PluginBase):
     def __init__(self):
         super(AllExtantData,self).__init__()
-        self.filename='AllExtantData.dat'
+        #self.filename='AllExtantData.dat'
+        self.filename='ExtantDataSecondPass.dat'
 
     # tag 5% of particles
     def _analyze(self,hpath):
         frac_to_tag = .05
         ED = ExtantDataFirstPass()
         dataE = ED.read(hpath)
-        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos']
+        # adding alternate mass definitions at the end
+        dtype = ['peak_mgrav','infall_mgrav','peak_hostid_RS','infall_hostid_RS','peak_rvmax','infall_rvmax','peak_corevelx','peak_corevely','peak_corevelz','infall_corevelx','infall_corevely','infall_corevelz', 'nstars', 'start_pos', 'max_mass350','max_mass350NFW','infall_mass200','max_mass200']
         data_newE = pandas.DataFrame(np.zeros((len(dataE),len(dtype)))-1,columns=dtype)
         peak_dataE = {}
         for peaksnap,line in zip(dataE['peak_snap'],dataE.index):
@@ -234,6 +302,11 @@ class AllExtantData(PluginBase):
         infall_dataE = {}
         for infallsnap,line in zip(dataE['infall_snap'],dataE.index):
             infall_dataE.setdefault(infallsnap, []).append(line)       
+
+        maxmass_dataE = {}
+        for maxmass_snap,line in zip(dataE['max_mass_snap'],dataE.index):
+            maxmass_dataE.setdefault(maxmass_snap, []).append(line)       
+
 
         # initialize arrays for tagging
         allstars=[]; start_pos=0     
@@ -253,7 +326,16 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['peak_corevelx'] = cat.ix[peak_rsid]['corevelx']
                         data_newE.ix[line]['peak_corevely'] = cat.ix[peak_rsid]['corevely']
                         data_newE.ix[line]['peak_corevelz'] = cat.ix[peak_rsid]['corevelz']
-                        
+
+                if maxmass_dataE.has_key(snap):
+                    for line in maxmass_dataE[snap]:
+                        maxmass_rsid = int(dataE.ix[line]['max_mass_rsid'])
+                        data_newE.ix[line]['max_mass200'] = cat.ix[maxmass_rsid]['altm2']
+                        pids = cat.get_all_particles_from_halo(maxmass_rsid)
+                        m350,m350NFW = getM_xcrit(hpath,pids,cat,maxmass_rsid,delta=350)
+                        data_newE.ix[line]['max_mass350'] = m350
+                        data_newE.ix[line]['max_mass350NFW'] = m350NFW
+
                 if infall_dataE.has_key(snap):
                     for line in infall_dataE[snap]:
                         infall_rsid = int(dataE.ix[line]['infall_rsid'])
@@ -264,6 +346,8 @@ class AllExtantData(PluginBase):
                         data_newE.ix[line]['infall_corevely'] = cat.ix[infall_rsid]['corevely']
                         data_newE.ix[line]['infall_corevelz'] = cat.ix[infall_rsid]['corevelz']
                         
+                        data_newE.ix[line]['infall_mass200'] = cat.ix[infall_rsid]['altm2']
+
                         iPids = cat.get_all_particles_from_halo(infall_rsid)
                         star_pids = iPids[0:int(np.round(len(iPids)*frac_to_tag))]
                         data_newE.ix[line]['nstars'] = len(star_pids)
@@ -271,18 +355,62 @@ class AllExtantData(PluginBase):
                         allstars=np.r_[allstars,star_pids]
                         start_pos+=len(star_pids)
                 
-        fulldataE = pandas.concat((dataE,data_newE),axis=1)
-        fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+        #fulldataE = pandas.concat((dataE,data_newE),axis=1)
+        #fulldataE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+        data_newE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
         f = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+'extantPIDs.dat', 'wb')
         np.array(allstars).tofile(f)
         f.close()
 
     def _read(self,hpath):
-        return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+        ED = ExtantDataFirstPass()
+        dataE = ED.read(hpath)
+        data_newE = pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t', index_col=0)
+        fulldataE = pandas.concat((dataE,data_newE),axis=1)
+        return fulldataE        
+        #return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
 
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
 
+
+# only valid with AllExtantData in original form
+class extract_dataE(PluginBase):
+    def __init__(self):
+        super(extract_dataE,self).__init__()
+        self.filename='ExtantDataSecondPass.dat'
+
+    def _analyze(self,hpath):
+        # load up the full catalog, split it off, and re-write just the new data
+        AE = AllExtantData()
+        data = AE.read(hpath)
+        data_newE = data.ix[:,-18:]
+        data_newE.to_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+
+    def _read(self,hpath):
+        ED = ExtantDataFirstPass()
+        dataE = ED.read(hpath)
+        data_newE = pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t', index_col=0)
+        print data_newE.columns
+        fulldataE = pandas.concat((dataE,data_newE),axis=1)
+        return fulldataE        
+        #return pandas.read_csv(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,sep='\t')
+
+        # In AllExtantData, write out EDSP to file, and combine first pass and second pass in the read function
+
+
+
+#### will need to add in this function to get vmax at z=11,10,9,8 etc.
+## can it be done without having to re-run AllExtantData??
+# I could copy the code, and write out an entirely new dataset with just the info needed for reionization
+# make it the same order as the original data set so that they can be aligned for more info
+# reionization values needed: vmax at all reionization redshifts. vmax at peak, snap at peak. mass at peak.
+# mass at infall, m200 at infall, m350 at peak. those are slow, don't want to re-compute, so I have to load
+# old catalog anyway. make a new catalog with just the 4 new values
+# then do the pandas.concat((dataE,data_reion),axis=1) in dwarf methods, get extant data.
+# make one overlapping column to be sure its correct. like depth, sub_rank, rsid. but name them
+# depth_reion, sub_rank_reion, rsid_reion.
+# first pass should be fast. wake up early have it run before I meet Anna.
 
 def add_data(mto,sub_mb,iLoc,subrank,depth):
     # get all max_mass values
@@ -371,16 +499,33 @@ def add_data(mto,sub_mb,iLoc,subrank,depth):
         infall_hostid_MT, infall_rvir, infall_spinbullock, infall_rs = [-1]*4
         infall_scale_of_last_MM, infall_Jx, infall_Jy, infall_Jz, infall_xoff = [-1]*5
         
-    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0], sub_mb['snap'][0],depth,max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
+    if depth ==0:
+        RSID = int(sub_mb['origid'][0])
+        PID = int(mto.cat.ix[RSID]['hostID'])
+    else:
+        PID = -100
+
+    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0], PID, sub_mb['snap'][0],depth,max_mass_rsid, max_mass_snap, max_mass_vmax,max_mass_mvir,max_mass_posx,max_mass_posy,max_mass_posz,max_mass_pecvx,max_mass_pecvy,max_mass_pecvz,max_mass_virialratio,max_mass_hostid_MT,max_mass_rvir,max_mass_spinbullock,max_mass_rs,max_mass_scale_of_last_MM,max_mass_Jx,max_mass_Jy,max_mass_Jz,max_mass_xoff, peak_rsid, peak_snap, peak_vmax,peak_mvir,peak_posx,peak_posy,peak_posz,peak_pecvx,peak_pecvy,peak_pecvz,peak_virialratio,peak_hostid_MT,peak_rvir,peak_spinbullock,peak_rs,peak_scale_of_last_MM,peak_Jx,peak_Jy,peak_Jz,peak_xoff,infall_rsid,infall_snap,infall_vmax,infall_mvir,infall_posx,infall_posy,infall_posz,infall_pecvx,infall_pecvy,infall_pecvz,infall_virialratio,infall_hostid_MT,infall_rvir,infall_spinbullock,infall_rs,infall_scale_of_last_MM,infall_Jx,infall_Jy,infall_Jz,infall_xoff]
     return
 
 
 class MT_Object(object):
     def __init__(self,hpath):
         print 'creating MT object'
-        snap_z0 = haloutils.get_numsnaps(hpath)-1
-        self.cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
-        self.hostID = haloutils.load_zoomid(hpath)
+        if hpath=="/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4":
+            self.cat = haloutils.load_rscat(hpath,165,rmaxcut=False)
+            print int(self.cat['id'][0:1]), 'what biggest halo is?'
+            print self.cat.ix[int(self.cat['id'][0:1])]['mgrav']/1.e12, 'mass of this halo e12'
+            self.hostID = 648070
+            print '648070 what brendan says host halo is'
+            print self.cat.ix[648070]['mgrav']/1.e12, 'mass of brendans selection e12'
+            
+        else:
+            print 'hpath not the level 15 run'
+            snap_z0 = haloutils.get_numsnaps(hpath)-1
+            self.cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
+            self.hostID = haloutils.load_zoomid(hpath)
+        
         self.hosthalo = self.cat.ix[self.hostID]
         self.mtc = haloutils.load_mtc(hpath,haloids=[self.hostID],indexbyrsid=True)
         print 'loaded mtc'
@@ -435,9 +580,13 @@ class DestroyedDataFirstPass(PluginBase):
             raise IOError("No rockstar")
         mto = MT_Object(hpath)
         host_mb = mto.hosttree.getMainBranch(0, mto.mmp_map)
+        print len(host_mb), 'lengh of host main branch'
         auxiliary_add(mto,host_mb[1:],cur_line=0,level=0,end_level=len(host_mb), subrank=0.5,depth=1, destr=True)
+        print 'about to write data to file'
         g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
+        print 'opened file'
         np.array(mto.otherdata).tofile(g)
+        print 'wrote data, file still open'
         g.close()    
         print 'Finished Destroyed First Pass'
         
