@@ -101,10 +101,19 @@ class ExtantDataReionization(PluginBase):
 
     # try for reionization redshifts at 9.31,10.71,11.97,13.50  (Sawala did 11.5)
     # closest snapshots are: 9.33- 59,   10.73 - 50,  12.1 - 43,  13.57 - 37
+        
+    # now I want 14.25, 13.25, 12.25, 11.25, 10.25, 9.25
+    # closest snapshots are: 
+
+    # add_data is where these snapshot numbers are specified.
+    # to get a list of snapshots and redshifts: hpaths = dm.get_hpaths(field=False)
+    # snaps = np.arange(20,90)
+    # a = zip(htils.get_z_snap(hpaths[0], snaps), snaps)
+    # try for new snapshots
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
         #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13']
-        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13', 'm200_9', 'm200_11', 'm200_12', 'm200_13', 'tvir_9', 'tvir_11', 'tvir_12', 'tvir_13', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth']
+        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -180,6 +189,25 @@ def add_data(mto,sub_mb,iLoc,subrank,depth):
 
     h0 = 0.6711
     snaps = sub_mb['snap']  # sub mb counts from snap = 200 to snap = 0
+    zsnaps = [59,53,47,42,38,34]  # corresponds to z = 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
+    vmaxes = [0]*len(zsnaps); tvirs = [0]*len(zsnaps); m200s = [0]*len(zsnaps)
+    
+    for i in range(len(zsnaps)):
+        cursnap = zsnaps[i]
+        if snaps[-1] > cursnap or snaps[0]<cursnap:
+            vmaxes[i] = 0; tvirs[i] = 0; m200s[i] = 0
+        else:
+            loc = np.where(snaps==cursnap)[0][0]
+            vmaxes[i] = np.max(sub_mb[loc:]['vmax'])
+            m200 = sub_mb[loc:]['m200c_all']    #['altm2']
+            mvir = sub_mb[loc:]['mvir']  
+            snapshots = sub_mb[loc:]['snap']
+            scales = haloutils.get_scale_snap(mto.hpath,snapshots)
+            z = 1.0/scales - 1
+            tvirs[i] = np.max(Tvir(mvir/h0, z))  # need to test that this functions and gets reasonable values. So far it does not
+            m200s[i] = np.max(m200)
+            
+    """
     if snaps[-1] > 37 or snaps[0]<37:
         vmax_13 = 0; tvir_13 = 0; m200_13 = 0
     else:
@@ -192,56 +220,16 @@ def add_data(mto,sub_mb,iLoc,subrank,depth):
         z = 1.0/scales - 1
         tvir_13 = np.max(Tvir(mvir/h0, z))  # need to test that this functions and gets reasonable values. So far it does not
         m200_13 = np.max(m200)
-        
-
-    if snaps[-1] > 43 or snaps[0]<43:
-        vmax_12 = 0; tvir_12 = 0; m200_12 = 0
-    else:
-        loc43 = np.where(snaps==43)[0][0]
-        vmax_12 = np.max(sub_mb[loc43:]['vmax'])
-        m200 = sub_mb[loc43:]['m200c_all']
-        mvir = sub_mb[loc43:]['mvir']  
-        snapshots = sub_mb[loc43:]['snap']
-        scales = haloutils.get_scale_snap(mto.hpath,snapshots)
-        z = 1.0/scales - 1
-        tvir_12 = np.max(Tvir(mvir/h0, z))  # need to test that this functions and gets reasonable values
-        m200_12 = np.max(m200)
-
-
-    if snaps[-1] > 50 or snaps[0]<50:
-        vmax_11 = 0; tvir_11 = 0; m200_11 = 0
-    else:
-        loc50 = np.where(snaps==50)[0][0]
-        vmax_11 = np.max(sub_mb[loc50:]['vmax'])
-        m200 = sub_mb[loc50:]['m200c_all']
-        mvir = sub_mb[loc50:]['mvir']  
-        snapshots = sub_mb[loc50:]['snap']
-        scales = haloutils.get_scale_snap(mto.hpath,snapshots)
-        z = 1.0/scales - 1
-        tvir_11 = np.max(Tvir(mvir/h0, z))  # need to test that this functions and gets reasonable values
-        m200_11 = np.max(m200)
-
-
-    if snaps[-1] > 59 or snaps[0]<59:
-        vmax_9 = 0; tvir_9 = 0; m200_9 = 0
-    else:
-        loc59 = np.where(snaps==59)[0][0]
-        vmax_9 = np.max(sub_mb[loc59:]['vmax'])
-        m200 = sub_mb[loc59:]['m200c_all']
-        mvir = sub_mb[loc59:]['mvir']  
-        snapshots = sub_mb[loc59:]['snap']
-        scales = haloutils.get_scale_snap(mto.hpath,snapshots)
-        z = 1.0/scales - 1
-        tvir_9 = np.max(Tvir(mvir/h0, z))  # need to test that this functions and gets reasonable values
-        m200_9 = np.max(m200)
-
+    """ 
     #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13', 'm200_9', 'm200_11', 'm200_12', 'm200_13', 'tvir_9', 'tvir_11', 'tvir_12', 'tvir_13']        
     # all values should be the mx on the merger tree before the fixed redshift
     # 'vmax_9','vmax_11','vmax_12','vmax_13'
     # 'm200_9', 'm200_11', 'm200_12', 'm200_13'     # from madau, m200 = 10^6 is about H2 cooling level.
     # 'Tvir_9', 'Tvir_11', 'Tvir_12','Tvir_13' 10^3 Kelvin is about H2 cooling level for the first halos
     
-    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmax_9,vmax_11,vmax_12,vmax_13, m200_9, m200_11, m200_12, m200_13, tvir_9, tvir_11, tvir_12, tvir_13, max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4]
+    #I can just looop over vmax, m, t arrays. vmax[0], vmax[1], etc.
+
+    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5], max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4]
     return
 
 
@@ -258,6 +246,9 @@ def auxiliary_add(mto, host_mb, cur_line, level, end_level, subrank,depth,destr=
             
             # get infall time, if possible
             iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)# if None, still write it
+
+            # can use sub_mb and host_mb to get pericenter here. I have code in my SIDM folders somewhere.
+
             add_data(mto,sub_mb, iLoc,subrank,depth)
             #print 'halo',subrank,', in host level', level, ', added of depth', depth
             sys.stdout.flush()
