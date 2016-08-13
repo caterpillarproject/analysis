@@ -9,6 +9,65 @@ from scipy.integrate import quad
 import os, subprocess
 import pandas
 
+
+# compute distance from posA to posB.       
+ # posA can be an array. boxsize must be in same units as positions. 
+def distance(posA, posB,boxsize=100.):
+    dist = abs(posA-posB)
+    tmp = dist > boxsize/2.0
+    dist[tmp] = boxsize-dist[tmp]
+    if dist.shape == (3,):
+        return np.sqrt(np.sum(dist**2))
+    else:
+        return np.sqrt(np.sum(dist**2,axis=1))
+
+# functions for pericenter
+def get_pericenter(sub_mb, iSnap, host_mb,cat):
+    """
+    rsid: value of rockstar id at z=0                    
+    """
+    orbit_pos = trackPosition(sub_mb,host_mb,iSnap)*1000
+    scale_list = sub_mb['scale'][0:len(orbit_pos)][::-1]
+    orbital_dist = distance(orbit_pos, np.array([0,0,0]),boxsize=cat.boxsize*1000)*scale_list/cat.h0
+    perisnap, min_peridist, mean_peridist = getPericenterInfo(orbital_dist,sub_mb)
+    #print perisnap, min_peridist, mean_peridist, 'snap, peri, mean peri'                 
+    return min_peridist, mean_peridist
+
+def trackPosition(sub_mb,host_mb,iSnap,verbose=False):
+    """                                                                                                              
+    @param sub: MTCatalogueTree of the main branch of the subhalo 
+    @param host: MTCatalogueTree of the main branch of the host halo                    
+    @return: position of subhalo relative to host over time. 
+    starting with position at infall, ending with z=0 
+    """
+    if len(sub_mb) < len(host_mb):
+        mask = sub_mb['snap']>=iSnap
+    else:
+        mask = host_mb['snap']>=iSnap
+    # need to change list of tuples into list of lists. use map              
+    sub_pos = np.array(map(list,sub_mb[mask][['posX','posY','posZ']]))[::-1]
+    host_pos = np.array(map(list,host_mb[mask][['posX','posY','posZ']]))[::-1]
+    return sub_pos-host_pos
+
+def getPericenterInfo(orbital_dist,sub_mb,nsnaps=320):
+    localMins = np.r_[True, orbital_dist[1:] < orbital_dist[:-1]] & np.r_[orbital_dist[:-1] < orbital_dist[1:], True]
+    snap_list = sub_mb['snap'][0:len(orbital_dist)][::-1]
+    perisnaps = snap_list[localMins]
+    peridists = orbital_dist[localMins]
+
+    perisnap = perisnaps[-1]
+    peridist = peridists[-1]
+    # if perisnap is z=0 snapshot, instead choose the one true minimum before it   
+    # but what if z=0 min is less than previous pericenter?    
+    if perisnap == nsnaps-1:
+        if len(perisnaps)>1:
+            if peridists[-2]<peridist:
+                perisnap = perisnaps[-2]
+                peridist = peridists[-2]
+    return perisnap, np.min(peridists), np.mean(peridists)
+
+
+
 # 1232164  this halo failed for some reason on analyze. this is halo 20, hpaths[19]
 
 def getInfall(sub_mb, host_mb, maxmass=''):
@@ -79,7 +138,7 @@ class ExtantDataReionization(PluginBase):
 
             # get infall time, if possible
             iLoc, iSnap = getInfall(sub_mb, host_mb, max_mass) 
-            add_data(mto,sub_mb,iLoc,subrank,depth=0)
+            add_data(mto,sub_mb,iLoc,subrank,depth=0, host_mb=host_mb, iSnap=iSnap)
             # now get all things that merged into this extant sub
             #print 'halo',subrank,'in host level 0, added of depth 0'
             if iLoc is None:
@@ -113,7 +172,7 @@ class ExtantDataReionization(PluginBase):
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
         #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13']
-        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth']
+        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -165,7 +224,11 @@ def Tvir(Mvir,z, delta=200):
 
 
 
-def add_data(mto,sub_mb,iLoc,subrank,depth):
+def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
+    # can use sub_mb and host_mb to get pericenter here
+    min_peri, mean_peri = get_pericenter(sub_mb, iSnap, host_mb,mto.cat)
+    print min_peri, mean_peri, 'min and mean peri'
+
     # need to get index loc of the snapshots  59, 50, 43, 37
     # do I care about phantom values?
     # z = 9.33, 10.73, 12.1, 13.57 at these snapshots
@@ -229,7 +292,7 @@ def add_data(mto,sub_mb,iLoc,subrank,depth):
     
     #I can just looop over vmax, m, t arrays. vmax[0], vmax[1], etc.
 
-    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5], max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4]
+    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5], max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4, min_peri, mean_peri]
     return
 
 
@@ -247,9 +310,7 @@ def auxiliary_add(mto, host_mb, cur_line, level, end_level, subrank,depth,destr=
             # get infall time, if possible
             iLoc, iSnap = getInfall(sub_mb,host_mb, max_mass)# if None, still write it
 
-            # can use sub_mb and host_mb to get pericenter here. I have code in my SIDM folders somewhere.
-
-            add_data(mto,sub_mb, iLoc,subrank,depth)
+            add_data(mto,sub_mb, iLoc,subrank,depth, host_mb, iSnap)
             #print 'halo',subrank,', in host level', level, ', added of depth', depth
             sys.stdout.flush()
 
