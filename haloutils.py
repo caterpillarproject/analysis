@@ -35,6 +35,8 @@ def determinebasepath(node):
         basepath = '/bigbang/data/AnnaGroup/'
     elif 'compute-0-' in node:
         basepath = '/bigbang/data/AnnaGroup/'
+    elif 'Griffs-Macbook.local' in node:
+        basepath = '-'
     else:
         raise ValueError(node+" is not a valid node")
         
@@ -520,7 +522,9 @@ def load_rscat(hpath,snap,verbose=True,halodir='halos_bound',unboundfrac=None,mi
 
 def load_rsboundindex(hpath,snap):
     return RDR.load_rsboundindex(hpath,snap)
-
+    
+def load_mtc_general(hpath,version,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
+    return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=version,**kwargs)
 def load_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
     return MTC.MTCatalogue(hpath+'/'+halodir+'/'+treedir,version=4,**kwargs)
 def load_zoom_mtc(hpath,verbose=True,halodir='halos_bound',treedir='trees',**kwargs):
