@@ -273,6 +273,15 @@ def get_z_snap(hpath,snap):
 def get_t_snap(hpath,snap,OmegaM=.3175,OmegaL=.6825,h=.6711):
     scale = get_scale_snap(hpath,snap)
     return bconversions.GetTime(scale,OmegaM=OmegaM,OmegaL=OmegaL,h=h)
+def get_snap_z(hpath, zs):
+    scales = get_scale_list(hpath)
+    snaps = [np.argmin(np.abs(scales-1./(1+z))) for z in np.ravel(zs)]
+    return np.array(snaps)
+def get_scale_list(hpath):
+    with open(hpath+'/ExpansionList','r') as f:
+        lines = f.readlines()
+    scales = np.array([float(line.split()[0]) for line in lines])
+    return scales
 
 def get_available_hpaths(hid,contam=False,
                          checkgadget=True,
