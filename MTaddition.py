@@ -40,6 +40,17 @@ def trackPosition(sub_mb,host_mb,iSnap,verbose=False):
     @return: position of subhalo relative to host over time. 
     starting with position at infall, ending with z=0 
     """
+    # make both masks start at 0 end at min(len(sub_mb), len(host_mb))
+    mask_sub = sub_mb['snap']>=iSnap
+    mask_host = host_mb['snap']>=iSnap
+    ll = min(np.sum(mask_sub), np.sum(mask_host))
+    assert(host_mb[0]['snap']==sub_mb[0]['snap']), "ERROR: Mismatch in alignment of host_mb and sub_mb"
+
+    sub_pos = np.array(map(list,sub_mb[mask_sub][0:ll][['posX','posY','posZ']]))[::-1]
+    host_pos = np.array(map(list,host_mb[mask_host][0:ll][['posX','posY','posZ']]))[::-1]
+    return sub_pos-host_pos
+
+    """
     if len(sub_mb) < len(host_mb):
         mask = sub_mb['snap']>=iSnap
     else:
@@ -48,6 +59,7 @@ def trackPosition(sub_mb,host_mb,iSnap,verbose=False):
     sub_pos = np.array(map(list,sub_mb[mask][['posX','posY','posZ']]))[::-1]
     host_pos = np.array(map(list,host_mb[mask][['posX','posY','posZ']]))[::-1]
     return sub_pos-host_pos
+    """
 
 def getPericenterInfo(orbital_dist,sub_mb,nsnaps=320):
     localMins = np.r_[True, orbital_dist[1:] < orbital_dist[:-1]] & np.r_[orbital_dist[:-1] < orbital_dist[1:], True]
@@ -165,14 +177,16 @@ class ExtantDataReionization(PluginBase):
     # closest snapshots are: 
 
     # add_data is where these snapshot numbers are specified.
-    # to get a list of snapshots and redshifts: hpaths = dm.get_hpaths(field=False)
-    # snaps = np.arange(20,90)
+    # to get a list of snapshots and redshifts: 
+    # hpaths = dm.get_hpaths(field=False)
+    # snaps = np.arange(20,95)
     # a = zip(htils.get_z_snap(hpaths[0], snaps), snaps)
     # try for new snapshots
     def _read(self,hpath):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
         #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13']
-        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
+        #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_8', 'vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14','m200_8', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14','tvir_8', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
+        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_6','vmax_7','vmax_8', 'vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14','m200_6','m200_7','m200_8', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14','tvir_6','tvir_7','tvir_8', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -227,7 +241,7 @@ def Tvir(Mvir,z, delta=200):
 def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
     # can use sub_mb and host_mb to get pericenter here
     min_peri, mean_peri = get_pericenter(sub_mb, iSnap, host_mb,mto.cat)
-    print min_peri, mean_peri, 'min and mean peri'
+    #print min_peri, mean_peri, 'min and mean peri'
 
     # need to get index loc of the snapshots  59, 50, 43, 37
     # do I care about phantom values?
@@ -252,7 +266,7 @@ def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
 
     h0 = 0.6711
     snaps = sub_mb['snap']  # sub mb counts from snap = 200 to snap = 0
-    zsnaps = [59,53,47,42,38,34]  # corresponds to z = 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
+    zsnaps = [90,78,67,59,53,47,42,38,34]  # corresponds to z = 6.33, 7.26, 8.346, 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
     vmaxes = [0]*len(zsnaps); tvirs = [0]*len(zsnaps); m200s = [0]*len(zsnaps)
     
     for i in range(len(zsnaps)):
@@ -292,7 +306,7 @@ def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
     
     #I can just looop over vmax, m, t arrays. vmax[0], vmax[1], etc.
 
-    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5], max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4, min_peri, mean_peri]
+    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5],vmaxes[6],vmaxes[7],vmaxes[8], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5],m200s[6],m200s[7],m200s[8], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5],tvirs[6],tvirs[7],tvirs[8],max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4, min_peri, mean_peri]
     return
 
 
