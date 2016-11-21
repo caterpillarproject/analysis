@@ -107,20 +107,31 @@ def tag_relics_as_merged(relic_rows, mtc, MX=None, verbose=False, nthreads=1):
         id2row = get_id2row_map(mt)
         for j,row in enumerate(this_relic_rows):
             rowlist = trace_descendants(row, mt, id2row=id2row)
+            lastid = mt[rowlist[0]]['id']
             rowlist = rowlist[1:]
             rows_where_experienced_merger = np.where(mt[rowlist]['num_prog'] > 1)[0]
             # Check each node with mergers to see if any mergers are larger than MX
             # In other words, if any non-mmp have M > MX, then there is a merger
             start2 = time.time()
-            for merger_row in rows_where_experienced_merger:
+            for _merger_row in rows_where_experienced_merger:
+                merger_row = rowlist[_merger_row]
+                if verbose:
+                    print "    row={} merger_row={}".format(row,merger_row)
                 ii_prog = mt['desc_id'] == mt[merger_row]['id']
                 progs = mt[ii_prog]
-                assert np.sum(progs['mmp'])==1 or len(progs)==0,np.sum(progs['mmp'])
+                #assert np.sum(progs['mmp'])==1 or len(progs)==0,np.sum(progs['mmp'])
+                if len(progs) != mt[merger_row]['num_prog'] or len(progs)==0:
+                    print "      MTERROR mtkey={} row={} merger_row={} progs={} num_prog={}".format(mtkey,row,merger_row,len(progs),mt[merger_row]['num_prog'])
+
                 # If has a large merger:
-                if np.any(progs[progs['mmp']==0]['mvir'] > MX):
+                max_mass = np.max(progs[progs['id'] != lastid]['mvir'])
+                if max_mass > MX:
                     # Only need one large merger to disqualify this guy
                     this_merged_flag[j] =True
+                    if verbose:
+                        print "      found merger: a={} M={}".format(mt[merger_row]['scale'],max_mass)
                     break
+                lastid = mt[merger_row]['id']
             if verbose:
                 print "    {:.2f} {}".format(time.time()-start2,len(rows_where_experienced_merger))
         merged_relics[mtkey] = this_merged_flag
@@ -129,7 +140,12 @@ def tag_relics_as_merged(relic_rows, mtc, MX=None, verbose=False, nthreads=1):
     return merged_relics
 
 def ufdsearch(hid,lx,z_r,MX):
+#if __name__=="__main__":
+#    hid=1387186;lx=14;z_r=8;MX=1e9
+#    hid=5320;lx=14;z_r=8;MX=1e9
+
     print "Running on {} LX{}".format(hid,lx)
+    sys.stdout.flush()
 
     hpath = haloutils.get_hpath_lx(hid, lx)
     reion_redshifts = [z_r]
@@ -140,6 +156,7 @@ def ufdsearch(hid,lx,z_r,MX):
     start = time.time()
     rscat_reion = haloutils.load_rscat(hpath, snap_r)
     print "Load rscat {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
     
     ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 8,
                              np.log10(rscat_reion['mgrav'] <= 8.5))
@@ -148,10 +165,12 @@ def ufdsearch(hid,lx,z_r,MX):
     start = time.time()
     mtc = haloutils.load_mtc(hpath,indexbyrsid=True)
     print "Load mtc {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
     
     start = time.time()
     relic_indices = search_mtc_for_relics(relic_candidates, mtc, snap_r)
     print "Search mtc for relics {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
 #    N_found = 0
 #    for key in relic_indices:
 #        _N = np.sum(relic_indices[key] != -1)
@@ -164,36 +183,49 @@ def ufdsearch(hid,lx,z_r,MX):
     for key in relic_rows:
         N_found += len(relic_rows[key])
     print "Lost {} candidates (not in MTC)".format(len(relic_candidates) -N_found)
+    sys.stdout.flush()
     
     start = time.time()
-    merged_relic_flags = tag_relics_as_merged(relic_rows, mtc, MX=MX)
+    merged_relic_flags = tag_relics_as_merged(relic_rows, mtc, MX=MX)#,verbose=True)
     print "Time to find merged relics {:.2f}".format(time.time()-start)
     N_merged = 0
     for key in merged_relic_flags:
         N_merged += np.sum(merged_relic_flags[key])
     print "{}/{} are merged with MX ({:.2f})".format(N_merged,N_found,float(N_merged)/N_found)
+    sys.stdout.flush()
 
     start = time.time()
-    merged_relic_flags_any = tag_relics_as_merged(relic_rows, mtc, MX=1.0)
+    merged_relic_flags_any = tag_relics_as_merged(relic_rows, mtc, MX=1.0)#,verbose=True)
     print "Time to find merged relics {:.2f}".format(time.time()-start)
     N_merged = 0
     for key in merged_relic_flags_any:
         N_merged += np.sum(merged_relic_flags_any[key])
     print "{}/{} are merged with anything ({:.2f})".format(N_merged,N_found,float(N_merged)/N_found)
+    sys.stdout.flush()
 
     with open("UFDSEARCHTMP/H{}.p".format(hid),'w') as f:
-        pickle.dump([relic_indices,relic_rows,merged_relic_flags],f)
+        pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
 
 if __name__=="__main__":
+#def tmp():
     #hid = 1387186
     lx = 14
     z_r = 8.0
     MX = 1.e9
-    #good_cids = [1,2,3,4,5,6,8,9,10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,29,31,33,36,37]
-    #for cid in good_cids:
-        #hid = haloutils.cid2hid[cid]
-    redo_hids = [1354437,796175,388476,196078,1599902]
-    for hid in redo_hids:
+
+    good_cids = [1,2,3,4,5,6,8,9,10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,29,31,33,36,37]
+    if len(sys.argv)==2:
+        num = int(sys.argv[1])
+        assert num in [1,2,3,4,5,6]
+        start = (num-1)*6 #ooooops should have been 5
+        if num==6: # oops messed up hahaha
+            good_cids = [good_cids[x] for x in [5+6*y for y in range(5)]]
+        else:
+            good_cids = good_cids[start:start+5]
+    print "CIDs",good_cids
+
+    for cid in good_cids:
+        hid = haloutils.cid2hid[cid]
         try:
             ufdsearch(hid,lx,z_r,MX)
         except Exception as e:

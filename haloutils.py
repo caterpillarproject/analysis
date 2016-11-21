@@ -32,6 +32,8 @@ def determinebasepath(node):
         basepath = '/bigbang/data/AnnaGroup/'
     elif node == "bigbang.mit.edu":
         basepath = '/bigbang/data/AnnaGroup/'
+    elif node == "blender.mit.edu":
+        basepath = '/bigbang/data/AnnaGroup/'
     elif node == "antares":
         basepath = '/bigbang/data/AnnaGroup/'
     elif 'compute-0-' in node:
