@@ -8,7 +8,7 @@ from scipy import interpolate
 from scipy.integrate import quad
 import os, subprocess
 import pandas
-
+import DwarfMethods as dm
 
 # compute distance from posA to posB.       
  # posA can be an array. boxsize must be in same units as positions. 
@@ -33,8 +33,19 @@ def get_pericenter(sub_mb, iSnap, host_mb,cat):
     #print perisnap, min_peridist, mean_peridist, 'snap, peri, mean peri'                 
     return min_peridist, mean_peridist
 
+def get_field_halos(cat,hpath,hostID,mlow=10,mhigh=11.5):
+    # get halos beyond host halo virial radius, but less than 
+    # contamination radius   
+    hosts = cat.get_hosts()
+    dists = dm.distance(cat.ix[hostID][['posX','posY','posZ']], hosts[['posX','posY','posZ']])
+    contam_dist = dm.get_contam_dist(hpath)
+    mask = (dists < contam_dist)&(dists > .001)
+    mass_mask = (10**mlow < hosts['mgrav']/cat.h0) &(10**mhigh > hosts['mgrav']/cat.h0)
+    return hosts[mask & mass_mask]
+
+
 def trackPosition(sub_mb,host_mb,iSnap,verbose=False):
-    """                                                                                                              
+    """      
     @param sub: MTCatalogueTree of the main branch of the subhalo 
     @param host: MTCatalogueTree of the main branch of the host halo                    
     @return: position of subhalo relative to host over time. 
@@ -116,51 +127,61 @@ def getInfall(sub_mb, host_mb, maxmass=''):
 
 
 # for just getting extant data
-class ExtantDataReionization(PluginBase):
+class ExtantDataReionizationField(PluginBase):
     def __init__(self):
-        super(ExtantDataReionization,self).__init__()
-        self.filename='ExtantDataReionizationVmax.dat'
+        super(ExtantDataReionizationField,self).__init__()
+        self.filename='ExtantDataFieldReionizationVmax.dat'
 
     def _analyze(self,hpath):
         if not haloutils.check_last_rockstar_exists(hpath):
             raise IOError("No rockstar")
         mto = MT_Object(hpath)
-        subs = mto.cat.get_all_subhalos_within_halo(mto.hostID)
-        host_mb = mto.hosttree.getMainBranch(0, mto.mmp_map)
-        good = 0; toosmall=0
-        for subRSID, subrank in zip(np.array(subs['id']),np.arange(1,len(subs)+1)):
-            if mto.mtc.Trees.has_key(subRSID):
-                mto.searchtree = mto.mtc.Trees[subRSID] # can it be none?
-            else:
-                #print 'subhalo',subRSID,'not in merger tree'
-                continue
-            mto.mmp_map = mto.searchtree.get_mmp_map()
-            mto.non_mmp_map = mto.searchtree.get_non_mmp_map()
-            sub_mb = mto.searchtree.getMainBranch(0,mto.mmp_map)      
-            if sub_mb is None:
-                print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(mto.cat.ix[subRSID]['mgrav'], mto.cat.ix[subRSID]['vmax'])
+        #print 'loaded MTObject'
+        for field_rsid, num in zip(mto.field_rsids, np.arange(1,len(mto.field_rsids)+1)):
+            mto.fieldid = field_rsid
+            subs = mto.cat.get_subhalos_within_halo(field_rsid)  
+            hosttree = mto.mtc.Trees[field_rsid] # host is the field halo  
+            host_mmp_map = hosttree.get_mmp_map()   
+            host_mb = hosttree.getMainBranch(0, host_mmp_map)  
+            good=0; toosmall=0  
+
+            for subRSID, subrank in zip(np.array(subs['id']),np.arange(1,len(subs)+1)):
+                if mto.mtc.Trees.has_key(subRSID):
+                    mto.searchtree = mto.mtc.Trees[subRSID]
+                else:
+                    if np.log10(mto.cat.ix[subRSID]['mgrav']/mto.cat.h0) > 7.0:
+                        print 'subhalo',subRSID,'not in merger tree. mass = ', np.log10(mto.cat.ix[subRSID]['mgrav']/mto.cat.h0)
+                    continue
+                mto.mmp_map = mto.searchtree.get_mmp_map()
+                mto.non_mmp_map = mto.searchtree.get_non_mmp_map()
+                sub_mb = mto.searchtree.getMainBranch(0,mto.mmp_map)
+                if sub_mb is None:
+                    print 'subhalo', sub_rank, 'main branch not found in MT. Skipping it. Z=0 Mass: %.4e, Vmax: %.4f' %(mto.cat.ix[subRSID]['mgrav'], mto.cat.ix[subRSID]['vmax'])
+                    sys.stdout.flush()
+                    continue # skip to next subhalo 
+                max_mass = np.max(sub_mb['mvir'])
+                if max_mass/mto.cat.h0 < mto.min_mass:
+                    toosmall+=1
+                    continue
+                #print 'about to get iLoc'
+                iLoc, iSnap = getInfall(sub_mb, host_mb, max_mass)
+                #print 'got iloc, about to do add data'
+                add_data(mto,sub_mb,iLoc,subrank,depth=0, host_mb=host_mb, iSnap=iSnap) #!! THIS HERE
+                #print 'finished add_data'
+                if iLoc is None:
+                    iLoc=len(sub_mb)-1 # only for deciding new end_level     
+                auxiliary_add(mto,host_mb[1:],cur_line=0,level=0, end_level=iLoc, subrank=-abs(subrank), depth=1)
+                if subrank%50==0 or subrank==1:
+                    print subrank, '/', len(subs), 'finished. Time = ', (time.time()-mto.start_time)/60., 'minutes'
                 sys.stdout.flush()
-                continue # skip to next subhalo
-
-            # Get maximal mass. Use this to ignore the small halos.
-            max_mass = np.max(sub_mb['mvir'])
-            if max_mass/mto.cat.h0 < mto.min_mass:
-                toosmall+=1
-                continue
-
-            # get infall time, if possible
-            iLoc, iSnap = getInfall(sub_mb, host_mb, max_mass) 
-            add_data(mto,sub_mb,iLoc,subrank,depth=0, host_mb=host_mb, iSnap=iSnap)
-            # now get all things that merged into this extant sub
-            #print 'halo',subrank,'in host level 0, added of depth 0'
-            if iLoc is None:
-                iLoc=len(sub_mb)-1 # only for deciding new end_level
-            auxiliary_add(mto,host_mb[1:],cur_line=0,level=0, end_level=iLoc, subrank=-abs(subrank), depth=1)
-
-            if subrank%50==0 or subrank==1:
-                print subrank, '/', len(subs), 'finished. Time = ', (time.time()-mto.start_time)/60., 'minutes'
+                good+=1
+            print 'Done with Field Halo', num,'/',len(mto.field_rsids), 'Time = ', (time.time()-mto.start_time)/60., 'minutes'
+            print good, 'halos good out of', len(subs)
+            print toosmall, 'num halos too small'
+            print len(subs)-good-toosmall, 'number of subhalo failures'
             sys.stdout.flush()
-            good+=1
+
+
         g = open(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename,'wb')
         np.array(mto.otherdata).tofile(g)
         g.close()
@@ -186,7 +207,7 @@ class ExtantDataReionization(PluginBase):
         data = np.fromfile(hpath+'/'+self.OUTPUTFOLDERNAME+'/'+self.filename)
         #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_9','vmax_11','vmax_12','vmax_13']
         #pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_8', 'vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14','m200_8', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14','tvir_8', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
-        pdtype = ['sub_rank_reion','rsid_reion','depth_reion','vmax_6','vmax_7','vmax_8', 'vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14','m200_6','m200_7','m200_8', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14','tvir_6','tvir_7','tvir_8', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
+        pdtype = ['field_rsid_reion', 'sub_rank_reion','rsid_reion','depth_reion','vmax_6','vmax_7','vmax_8', 'vmax_9','vmax_10','vmax_11','vmax_12','vmax_13','vmax_14','m200_6','m200_7','m200_8', 'm200_9','m200_10', 'm200_11', 'm200_12', 'm200_13','m200_14','tvir_6','tvir_7','tvir_8', 'tvir_9','tvir_10', 'tvir_11', 'tvir_12', 'tvir_13','tvir_14', 'max_mass_full', 'max_mass_half', 'max_mass_third', 'max_mass_fourth', 'min_peri', 'mean_peri']
         n = len(pdtype)
         import pandas
         return pandas.DataFrame(data.reshape(len(data)/n,n), columns=pdtype)
@@ -194,34 +215,24 @@ class ExtantDataReionization(PluginBase):
     def _plot(self,hpath,data,ax,lx=None,labelon=False,**kwargs):
         return
 
+
+
 class MT_Object(object):
     def __init__(self,hpath):
         print 'creating MT object'
-        if hpath=="/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4":
-            self.cat = haloutils.load_rscat(hpath,165,rmaxcut=False)
-            print int(self.cat['id'][0:1]), 'what biggest halo is?'
-            print self.cat.ix[int(self.cat['id'][0:1])]['mgrav']/1.e12, 'mass of this halo e12'
-            self.hostID = 648070
-            print '648070 what brendan says host halo is'
-            print self.cat.ix[648070]['mgrav']/1.e12, 'mass of brendans selection e12'
-            
-        else:
-            print 'hpath not the level 15 run'
-            snap_z0 = haloutils.get_numsnaps(hpath)-1
-            self.cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
-            self.hostID = haloutils.load_zoomid(hpath)
-        
+        snap_z0 = haloutils.get_numsnaps(hpath)-1
+        self.hpath = hpath
+        self.cat = haloutils.load_rscat(hpath,snap_z0,rmaxcut=False)
+        self.hostID = haloutils.load_zoomid(hpath)
+        self.field_halos = get_field_halos(self.cat,hpath,self.hostID,mlow=10,mhigh=12)
+        self.field_rsids = np.array(self.field_halos['id'])
         self.hosthalo = self.cat.ix[self.hostID]
-        self.mtc = haloutils.load_mtc(hpath,haloids=[self.hostID],indexbyrsid=True)
+        self.mtc = haloutils.load_mtc(hpath,haloids=self.field_rsids,indexbyrsid=True)
         print 'loaded mtc'
-        self.hosttree = self.mtc.Trees[self.hostID]
-        self.searchtree = self.hosttree
-        self.mmp_map = self.searchtree.get_mmp_map()
-        self.non_mmp_map = self.searchtree.get_non_mmp_map()
-        self.min_mass = 10**7.5
+        self.min_mass = 10**7.0
         self.otherdata = []
         self.start_time = time.time()
-        self.hpath = hpath
+
 
 def Tvir(Mvir,z, delta=200):
     # try to use m200 for this
@@ -241,6 +252,7 @@ def Tvir(Mvir,z, delta=200):
 def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
     # can use sub_mb and host_mb to get pericenter here
     min_peri, mean_peri = get_pericenter(sub_mb, iSnap, host_mb,mto.cat)
+    #print 'added peri in add_data'
     #print min_peri, mean_peri, 'min and mean peri'
 
     # need to get index loc of the snapshots  59, 50, 43, 37
@@ -263,12 +275,12 @@ def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
     max_mass_mvir_3 = sub_mb[max_mass_loc_3]['mvir']
     max_mass_mvir_4 = sub_mb[max_mass_loc_4]['mvir']
 
-
     h0 = 0.6711
     snaps = sub_mb['snap']  # sub mb counts from snap = 200 to snap = 0
     zsnaps = [90,78,67,59,53,47,42,38,34]  # corresponds to z = 6.33, 7.26, 8.346, 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
     vmaxes = [0]*len(zsnaps); tvirs = [0]*len(zsnaps); m200s = [0]*len(zsnaps)
     
+    #print 'beginning for loop in add data'
     for i in range(len(zsnaps)):
         cursnap = zsnaps[i]
         if snaps[-1] > cursnap or snaps[0]<cursnap:
@@ -306,7 +318,7 @@ def add_data(mto,sub_mb,iLoc,subrank,depth, host_mb, iSnap):
     
     #I can just looop over vmax, m, t arrays. vmax[0], vmax[1], etc.
 
-    mto.otherdata=np.r_[mto.otherdata,subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5],vmaxes[6],vmaxes[7],vmaxes[8], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5],m200s[6],m200s[7],m200s[8], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5],tvirs[6],tvirs[7],tvirs[8],max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4, min_peri, mean_peri]
+    mto.otherdata=np.r_[mto.otherdata, mto.fieldid, subrank,sub_mb['origid'][0],depth, vmaxes[0],vmaxes[1],vmaxes[2],vmaxes[3],vmaxes[4],vmaxes[5],vmaxes[6],vmaxes[7],vmaxes[8], m200s[0], m200s[1], m200s[2], m200s[3], m200s[4], m200s[5],m200s[6],m200s[7],m200s[8], tvirs[0],tvirs[1],tvirs[2],tvirs[3],tvirs[4],tvirs[5],tvirs[6],tvirs[7],tvirs[8],max_mass_mvir, max_mass_mvir_2, max_mass_mvir_3, max_mass_mvir_4, min_peri, mean_peri]
     return
 
 

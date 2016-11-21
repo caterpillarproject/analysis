@@ -2,15 +2,33 @@ import MTanalysis2 as MTA
 import haloutils
 import numpy as np
 
-hid = 'H1631506'
-subRSID = 148923
+#hid = 'H1631506'
+#subRSID = 148923
 
-#hid = 'H581180'
-#subRSID = 166360
+hid = 'H581180'
+subRSID = 166360
 
 # to find the correct row
 #hid = 'H1387186'
 #subRSID = 119955
+
+"""
+Make those bar plots of blue red yellow in lx 13. is it resolution dependent?
+Try linking all missing halos using below code.
+Make a re-plot of original diagrams with the red bars turned blue.
+Also record how many red bars turned blue, and the total number 
+of red bars out of all 24 halos.
+
+If linking is good, create a "Fixed" catalog for the halos that are actually
+extent, but in the destroyed catalog. Should be able to append this to the extant data system.
+
+use 
+
+halo_paths = haloutils.get_paper_paths_lx(13)
+
+if hpath:
+
+"""
 
 
 def get_link_to_row(hid, subRSID):

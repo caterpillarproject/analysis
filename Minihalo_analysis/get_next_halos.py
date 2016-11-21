@@ -49,6 +49,10 @@ for hpath in hpaths:
     print 'done'
 
 
+# accretion time of all minihalos 
+# merger of minihalos with the host
+
+
 #newdata=np.load(hpath+'/analysis/minihalo_descendants.npy')
 
 

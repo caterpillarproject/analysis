@@ -17,7 +17,7 @@ for hid in haloidlist[1:]:
     TagDestroyed.combinefiles(hpath)
     TagMass.analyze(hpath)
 
-
+"""
 lx = 12
 haloidlist = get_haloidlist(1)
 for hid in haloidlist:
@@ -26,3 +26,4 @@ for hid in haloidlist:
     TagDestroyed.analyze(hpath)
     TagDestroyed.combinefiles(hpath)
     TagMass.analyze(hpath)
+"""
