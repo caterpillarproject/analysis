@@ -158,8 +158,18 @@ def ufdsearch(hid,lx,z_r,MX):
     print "Load rscat {:.2f}".format(time.time()-start)
     sys.stdout.flush()
     
-    ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 8,
+    #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.5,
+    #                         np.log10(rscat_reion['mgrav'] <= 8.5))
+    ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.6,
                              np.log10(rscat_reion['mgrav'] <= 8.5))
+    #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.7,
+    #                         np.log10(rscat_reion['mgrav'] <= 8.5))
+    #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.8,
+    #                         np.log10(rscat_reion['mgrav'] <= 8.5))
+    #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 8,
+    #                         np.log10(rscat_reion['mgrav'] <= 8.5))
+    #ii_good = np.array(rscat_reion['vmax'] >= 9.48535156)
+
     relic_candidates = rscat_reion[ii_good]
     
     start = time.time()
@@ -203,14 +213,23 @@ def ufdsearch(hid,lx,z_r,MX):
     print "{}/{} are merged with anything ({:.2f})".format(N_merged,N_found,float(N_merged)/N_found)
     sys.stdout.flush()
 
-    with open("UFDSEARCHTMP/H{}.p".format(hid),'w') as f:
+    #with open("UFDSEARCHTMP/H{}_7585.p".format(hid),'w') as f:
+    #    pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
+    with open("UFDSEARCHTMP/H{}_7685.p".format(hid),'w') as f:
         pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
+    #with open("UFDSEARCHTMP/H{}_7785.p".format(hid),'w') as f:
+    #    pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
+    #with open("UFDSEARCHTMP/H{}_7885.p".format(hid),'w') as f:
+    #    pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
+    #with open("UFDSEARCHTMP/H{}_vmax12gd.p".format(hid),'w') as f:
+    #    pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
 
 if __name__=="__main__":
 #def tmp():
     #hid = 1387186
     lx = 14
     z_r = 8.0
+    #z_r = 12.0
     MX = 1.e9
 
     good_cids = [1,2,3,4,5,6,8,9,10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,29,31,33,36,37]
