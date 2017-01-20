@@ -160,8 +160,8 @@ def ufdsearch(hid,lx,z_r,MX):
     
     #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.5,
     #                         np.log10(rscat_reion['mgrav'] <= 8.5))
-    ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.6,
-                             np.log10(rscat_reion['mgrav'] <= 8.5))
+    #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.6,
+    #                         np.log10(rscat_reion['mgrav'] <= 8.5))
     #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.7,
     #                         np.log10(rscat_reion['mgrav'] <= 8.5))
     #ii_good = np.logical_and(np.log10(rscat_reion['mgrav']) >= 7.8,
@@ -177,6 +177,7 @@ def ufdsearch(hid,lx,z_r,MX):
     print "Load mtc {:.2f}".format(time.time()-start)
     sys.stdout.flush()
     
+    ## relic_indices matches rscat at z_r to mtc
     start = time.time()
     relic_indices = search_mtc_for_relics(relic_candidates, mtc, snap_r)
     print "Search mtc for relics {:.2f}".format(time.time()-start)
@@ -188,6 +189,7 @@ def ufdsearch(hid,lx,z_r,MX):
 #        #print key, _N
 #    print "Lost {} candidates (not in MTC)".format(len(relic_candidates) -N_found)
     
+    ## relic_rows is the rows of the MT that are relics (ignoring merging)
     relic_rows = get_relic_rows(relic_indices)
     N_found = 0
     for key in relic_rows:
@@ -195,6 +197,7 @@ def ufdsearch(hid,lx,z_r,MX):
     print "Lost {} candidates (not in MTC)".format(len(relic_candidates) -N_found)
     sys.stdout.flush()
     
+    ## merged_relic_flags is the objects that have merged with > MX
     start = time.time()
     merged_relic_flags = tag_relics_as_merged(relic_rows, mtc, MX=MX)#,verbose=True)
     print "Time to find merged relics {:.2f}".format(time.time()-start)

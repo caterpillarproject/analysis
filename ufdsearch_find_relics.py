@@ -18,19 +18,21 @@ sys.path.insert(0,"/bigbang/data/AnnaGroup/greg_backup/Dropbox/DwarfsOfDwarfs/co
 import abundance_matching as greg_am
 ## Added infall_times.py to my local directory
 
-logMbins = np.arange(6,12.1,.1)
-Htot = np.zeros(len(logMbins)-1)
+#logMbins = np.arange(6,12.1,.1)
+#Htot = np.zeros(len(logMbins)-1)
 numgreg = []
 numrelics = []
 
 #suffix = ""
 #suffix = "_7585"
-#suffix = "_7685"
+suffix = "_7685"
 #suffix = "_7785"
 #suffix = "_7885"
 #suffix = "_vmax12gd"
 
+## TODO gotta do a better way for grabbing the relevant files
 for fnames in glob.glob("UFDSEARCHTMP/*"+suffix+".p"):
+    if "MBs" in fnames: continue
     if suffix=="":
         if "_7585" in fnames or "_7885" in fnames or "_vmax12gd" in fnames: continue
         hid = os.path.basename(fnames)[:-2]
@@ -90,7 +92,6 @@ for fnames in glob.glob("UFDSEARCHTMP/*"+suffix+".p"):
     
     print "{}/{} relics are in main host".format(num_relics_in_host, num_total_relics)
     sys.stdout.flush()
-    numrelics.append(num_relics_in_host)
     
     ### Get Greg's extant data (based on DwarfMethods.py get_extant_data())
     dataE = AE.read(hpath)
@@ -129,18 +130,26 @@ for fnames in glob.glob("UFDSEARCHTMP/*"+suffix+".p"):
     mpeak_upper = am_model.stellar_to_halo_mass(2e5)
     mpeak_lower = am_model.stellar_to_halo_mass(1e3)
     
-    ## TODO Properties of Greg's satellites we did not get in our selection
+    ## This is Greg's satellites
     in_range = mask_pre | mask_post
     ii_ufd = np.logical_and(np.array(extant[in_range]['max_mass'] < mpeak_upper),
                             np.array(extant[in_range]['max_mass'] > mpeak_lower))
     ufds = extant[in_range][ii_ufd]
     
     numgreg.append(len(ufds))
+
+    ## This is my satellites
+    sub_relics_max_mass = extant.ix[sub_relics.index]['max_mass']
+    in_range = np.logical_and(sub_relics_max_mass < mpeak_upper,
+                              sub_relics_max_mass > mpeak_lower)
+    sub_relics = sub_relics[in_range]
+    numrelics.append(len(sub_relics))
+    
     print "We have {} vs Greg has {}".format(numrelics[-1],numgreg[-1])
     sys.stdout.flush()
 
-    h,x = np.histogram(np.log10(ufds['m200_8']),bins=logMbins)
-    Htot += h
+    #h,x = np.histogram(np.log10(ufds['m200_8']),bins=logMbins)
+    #Htot += h
     
     ## TODO Properties of our satellites not in Greg's catalog if any
     ## There are none in my test example so just count how many there are for now
@@ -178,7 +187,7 @@ for fnames in glob.glob("UFDSEARCHTMP/*"+suffix+".p"):
     ## End Loop
     sys.stdout.flush()
     
-print Htot
+#print Htot
 print numrelics
 print numgreg
 print np.array(numrelics).astype(float)/np.array(numgreg).astype(float)
