@@ -393,7 +393,7 @@ def ufdsearch_table(hid,lx,z_r, logMmin = 7.4):
                 biggest = branch[_biggest_ix]
                 _populate_arrays(biggest, ix, out_biggest_z, out_biggest_mass, out_biggest_vmax)
                 prev_biggest = branch[_biggest_ix - 1]
-                _populate_arrays(biggest, ix, out_biggest_prev_z, out_biggest_prev_mass, out_biggest_prev_vmax)
+                _populate_arrays(prev_biggest, ix, out_biggest_prev_z, out_biggest_prev_mass, out_biggest_prev_vmax)
             #print "   ",row,ix,time.time()-start2
         #print " ",mtkey, time.time()-start3
     print "Fill in data",time.time()-start
