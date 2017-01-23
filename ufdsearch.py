@@ -4,12 +4,13 @@ import time,sys
 from caterpillaranalysis import PluginBase
 import cPickle as pickle
 
+from astropy.table import Table
+
 import readhalos.RSDataReader as RDR
 import mergertrees.MTCatalogue as MTC
 import readsnapshots.readsnapHDF5_greg as rsg
 
 import multiprocessing
-
 
 # Py 2 and 3 dictionary iteration
 from six import iteritems
@@ -227,13 +228,190 @@ def ufdsearch(hid,lx,z_r,MX):
     #with open("UFDSEARCHTMP/H{}_vmax12gd.p".format(hid),'w') as f:
     #    pickle.dump([relic_indices,relic_rows,merged_relic_flags,merged_relic_flags_any],f)
 
+def _populate_arrays(row, ix, zarr, marr, varr):
+    zarr[ix] = 1./row['scale'] - 1.0
+    marr[ix] = row['mvir']
+    varr[ix] = row['vmax']
+
+def ufdsearch_table(hid,lx,z_r, logMmin = 7.4):
+
+    #hid = 1387186
+    #lx = 14
+    #z_r = 8.0
+    #logMmin = 7.4
+    
+    print "Running on {} LX{}".format(hid,lx)
+    sys.stdout.flush()
+
+    hpath = haloutils.get_hpath_lx(hid, lx)
+    reion_redshifts = [z_r]
+    reion_snaps = haloutils.get_snap_z(hpath, reion_redshifts)
+    snap_r = reion_snaps[0]
+
+    start = time.time()
+    rscat_reion = haloutils.load_rscat(hpath, snap_r)
+    print "Load rscat {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
+    
+    ## Put in a filter on mass of objects that are allowed to be considered relics
+    ii_good = np.log10(rscat_reion['mgrav']/rscat_reion.h0) > logMmin
+    zr_halos = rscat_reion[ii_good]
+    num_halos = len(zr_halos)
+    
+    #######################################################
+    #######################################################
+    ## Create empty output containers
+    colnames = ['hid','mtkey','row','zr','zr_mass','zr_vmax',
+                'z0_mass','z0_vmax','z0_rsid','z0_hostid',
+                'peak_z','peak_mass','peak_vmax',
+                'first_z', 'first_mass', 'first_vmax',
+                'first_prev_z', 'first_prev_mass', 'first_prev_vmax',
+                'last_z', 'last_mass', 'last_vmax',
+                'last_prev_z', 'last_prev_mass', 'last_prev_vmax',
+                'biggest_z', 'biggest_mass', 'biggest_vmax',
+                'biggest_prev_z', 'biggest_prev_mass', 'biggest_prev_vmax']
+                
+    ## Note all units are code units from rockstar/merger tree
+    out_hids   = np.zeros(num_halos, dtype=int) + hid
+    out_mtkeys = np.zeros(num_halos, dtype=int) - 1
+    out_rows   = np.zeros(num_halos, dtype=int) - 1
+    # Properties at zr
+    out_zr     = np.zeros(num_halos) + z_r
+    out_zrmass = np.array(zr_halos['mgrav'])
+    out_zrvmax = np.array(zr_halos['vmax'])
+    # Properties at z=0
+    out_z0mass = np.zeros(num_halos) + np.nan
+    out_z0vmax = np.zeros(num_halos) + np.nan
+    out_z0rsid = np.zeros(num_halos, dtype=int) - 1
+    out_z0hostid = np.zeros(num_halos, dtype=int) - 1
+    # Properties at Mpeak
+    out_zpeak      = np.zeros(num_halos) + np.nan
+    out_zpeak_mass = np.zeros(num_halos) + np.nan
+    out_zpeak_vmax = np.zeros(num_halos) + np.nan
+    
+    ## Merging properties
+    ## z, mass, vmax: z of merged object, mass and vmax after merger
+    ## prev_z, prev_mass, prev_vmax: z, mass and vmax one snapshot before merger
+    
+    # Properties at first merger
+    out_first_z    = np.zeros(num_halos) + np.nan
+    out_first_mass = np.zeros(num_halos) + np.nan
+    out_first_vmax = np.zeros(num_halos) + np.nan
+    out_first_prev_z    = np.zeros(num_halos) + np.nan
+    out_first_prev_mass = np.zeros(num_halos) + np.nan
+    out_first_prev_vmax = np.zeros(num_halos) + np.nan
+    # Properties at last merger
+    out_last_z    = np.zeros(num_halos) + np.nan
+    out_last_mass = np.zeros(num_halos) + np.nan
+    out_last_vmax = np.zeros(num_halos) + np.nan
+    out_last_prev_z    = np.zeros(num_halos) + np.nan
+    out_last_prev_mass = np.zeros(num_halos) + np.nan
+    out_last_prev_vmax = np.zeros(num_halos) + np.nan
+    # Properties at biggest merger
+    out_biggest_z    = np.zeros(num_halos) + np.nan
+    out_biggest_mass = np.zeros(num_halos) + np.nan
+    out_biggest_vmax = np.zeros(num_halos) + np.nan
+    out_biggest_prev_z    = np.zeros(num_halos) + np.nan
+    out_biggest_prev_mass = np.zeros(num_halos) + np.nan
+    out_biggest_prev_vmax = np.zeros(num_halos) + np.nan
+    #######################################################
+    #######################################################
+
+    start = time.time()
+    mtc = haloutils.load_mtc(hpath,indexbyrsid=True)
+    print "Load mtc {:.2f}".format(time.time()-start)
+    #mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
+    #print "Load zoom mtc for testing {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
+    
+    ## mtc_indices[mtkey] is array of len(zr_halos) 
+    ## where != -1 indicates it is in that row of mtc[mtkey]
+    start = time.time()
+    mtc_indices = search_mtc_for_relics(zr_halos, mtc, snap_r)
+    print "Search mtc for indices {:.2f}".format(time.time()-start)
+    sys.stdout.flush()
+    
+    ## mtc_rows[mtkey] is the rows of the MT that are in zr_halos
+    ## In the same order as nonzero entries of mtc_indices[mtkey]
+    mtc_rows = get_relic_rows(mtc_indices)
+    N_found = 0
+    for key in mtc_rows:
+        N_found += len(mtc_rows[key])
+    print "Lost {} candidates (not in MTC)".format(len(zr_halos) -N_found)
+    sys.stdout.flush()
+    
+    ## Fill in data
+    start = time.time()
+    for mtkey, indices in iteritems(mtc_indices):
+        start3 = time.time()
+        mt = mtc[mtkey]
+        id2row = get_id2row_map(mt)
+        
+        # These are the indices of zr_halos in this mt
+        zr_indexes = np.where(indices != -1)[0]
+        
+        rows = indices[indices != -1].astype(int)
+        assert len(rows) == len(zr_indexes), "{} {}".format(len(rows), len(zr_indexes))
+        
+        for row,ix in zip(rows,zr_indexes):
+            start2 = time.time()
+            out_mtkeys[ix] = mtkey
+            out_rows[ix] = row
+
+            # Trace from this row to z=0
+            rowlist = trace_descendants(row, mt, id2row)
+            branch = mt[rowlist] 
+            
+            # z=0 data
+            z0row = branch[-1]
+            if z0row['scale'] == 1.0:
+                out_z0mass[ix] = z0row['mvir']
+                out_z0vmax[ix] = z0row['vmax']
+                out_z0rsid[ix] = z0row['origid']
+                out_z0hostid[ix] = z0row['pid']
+            
+            # Mpeak data
+            Mpeakrow = branch[np.argmax(branch['mvir'])]
+            _populate_arrays(Mpeakrow, ix, out_zpeak, out_zpeak_mass, out_zpeak_vmax)
+            
+            branch_merger_points = np.where(branch[1:]['num_prog'] > 1)[0] + 1
+            if len(branch_merger_points) > 0:
+                # First merger
+                first = branch[branch_merger_points[0]]
+                _populate_arrays(first, ix, out_first_z, out_first_mass, out_first_vmax)
+                prev_first = branch[branch_merger_points[0] - 1]
+                _populate_arrays(prev_first, ix, out_first_prev_z, out_first_prev_mass, out_first_prev_vmax)
+                
+                # Last merger
+                last = branch[branch_merger_points[-1]]
+                _populate_arrays(last, ix, out_last_z, out_last_mass, out_last_vmax)
+                prev_last = branch[branch_merger_points[-1] - 1]
+                _populate_arrays(prev_last, ix, out_last_prev_z, out_last_prev_mass, out_last_prev_vmax)
+                
+                # Biggest merger
+                _biggest_ix = np.argmax(branch[branch_merger_points]['mvir'])
+                biggest = branch[_biggest_ix]
+                _populate_arrays(biggest, ix, out_biggest_z, out_biggest_mass, out_biggest_vmax)
+                prev_biggest = branch[_biggest_ix - 1]
+                _populate_arrays(biggest, ix, out_biggest_prev_z, out_biggest_prev_mass, out_biggest_prev_vmax)
+            #print "   ",row,ix,time.time()-start2
+        #print " ",mtkey, time.time()-start3
+    print "Fill in data",time.time()-start
+    tab = Table([out_hids, out_mtkeys, out_rows, out_zr, out_zrmass, out_zrvmax, 
+                 out_z0mass, out_z0vmax, out_z0rsid, out_z0hostid, out_zpeak, out_zpeak_mass, out_zpeak_vmax, 
+                 out_first_z, out_first_mass, out_first_vmax, out_first_prev_z, out_first_prev_mass, out_first_prev_vmax,
+                 out_last_z, out_last_mass, out_last_vmax, out_last_prev_z, out_last_prev_mass, out_last_prev_vmax,
+                 out_biggest_z, out_biggest_mass, out_biggest_vmax, out_biggest_prev_z, out_biggest_prev_mass, out_biggest_prev_vmax], 
+                names=colnames)
+    tab.write("UFDSEARCHTMP/H{}_{}.tab".format(hid,logMmin), format='ascii.fixed_width_two_line')
+
 if __name__=="__main__":
 #def tmp():
     #hid = 1387186
     lx = 14
     z_r = 8.0
     #z_r = 12.0
-    MX = 1.e9
+    #MX = 1.e9
 
     good_cids = [1,2,3,4,5,6,8,9,10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,29,31,33,36,37]
     if len(sys.argv)==2:
@@ -246,6 +424,16 @@ if __name__=="__main__":
             good_cids = good_cids[start:start+5]
     print "CIDs",good_cids
 
+    for cid in good_cids:
+        hid = haloutils.cid2hid[cid]
+        try:
+            ufdsearch_table(hid,lx,z_r)
+        except Exception as e:
+            print e
+            print "---H{} failed! Skipping---".format(hid)
+        print
+
+def tmp():
     for cid in good_cids:
         hid = haloutils.cid2hid[cid]
         try:
