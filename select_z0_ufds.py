@@ -3,6 +3,7 @@ import haloutils
 import time,sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import cPickle as pickle
 
 import MTanalysis3 as mta
 import MTaddition as mtadd
@@ -68,11 +69,12 @@ def compute_histograms(hpath):
     ii_h14m = np.logical_and(ii_h14_cdSph, ii_h14m)
     ii_h14r = np.logical_and(ii_h14_cdSph, ii_h14r)
     ii_h14i = np.logical_and(ii_h14_cdSph, ii_h14i)
+    all_ufd_ids = [data["rsid"][_ii] for _ii in [ii_maxm, ii_h14m, ii_h14r, ii_h14i]]
 
     #print ">10",np.sum(logm200_zr >= 9.9), "<4", np.sum(logm200_zr <= 4)
     #print len(logm200_zr), np.sum(ii_maxm)
     #import pdb; pdb.set_trace()
-    num_surv_but_not_at_zr = len(logm200_zr) - np.sum(np.isfinite(logm200_zr))
+    num_surv_but_not_at_zr = len(Mmaxm) - len(logm200_zr)
     num_missing = [num_surv_but_not_at_zr]
     for ii in [ii_maxm, ii_h14m, ii_h14r, ii_h14i]:
         num_in_selection_but_not_at_zr = np.sum(ii) - np.sum(np.isfinite(logm200_zr[ii]))
@@ -108,9 +110,9 @@ def compute_histograms(hpath):
     h,x = np.histogram(np.log10(Mmaxm[ii_h14r]), bins=logMbins); all_h_maxm.append(h)
     h,x = np.histogram(np.log10(Mmaxm[ii_h14i]), bins=logMbins); all_h_maxm.append(h)
 
-    return logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing
+    return logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids
 
-def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing):
+def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids):
     assert len(fig.axes) == 4
     axes = np.array(fig.axes).reshape(2,2)
     hid = haloutils.get_parent_hid(hpath)
@@ -185,8 +187,55 @@ if __name__=="__main__":
     #hpath = hpaths[4]
     #hpath = hpaths[7]
 
-    fig,axes = plt.subplots(2,2,figsize=(10,10))
-    logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing = compute_histograms(hpath)
-    plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing)
+    all_hids = []
+    all_hists_m = []
+    all_hists_v = []
+    all_hists_maxm = []
+    all_num_missing = []
+    for hpath in hpaths:
+        fig,axes = plt.subplots(2,2,figsize=(10,10))
+        logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids = compute_histograms(hpath)
+        plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids)
+        hid = haloutils.hidstr(haloutils.get_parent_hid(hpath))
+        fig.savefig("UFDSEARCH_Z0/{}_z8.png".format(hid), bbox_inches='tight')
+        plt.close(fig)
+        with open("UFDSEARCH_Z0/{}_ufdids.pkl".format(hid), "w") as fp:
+            pickle.dump(all_ufd_ids, fp)
+
+        all_hids.append(hid)
+        all_hists_m.append(all_h_m)
+        all_hists_v.append(all_h_v)
+        all_hists_maxm.append(all_h_maxm)
+        all_num_missing.append(num_missing)
+        
+    fig, ax = plt.subplots(figsize=(8,8))
+    Marr = np.array(all_hists_m).astype(float)
+    logMbinsmid = (logMbins[1:]+logMbins[:-1])/2.
+    # Hardcode
+    colors = ['g','r','c','m','y','k','b']
+    labels = ['maxm','h14m','h14r','h14i']
+    for j in range(4):
+        med_max = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 100., axis=0)
+        med_p2s = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 50+95/2., axis=0)
+        med_p1s = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 50+68/2., axis=0)
+        median  = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 50, axis=0)
+        med_m1s = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 50-68/2., axis=0)
+        med_m2s = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 50-95/2., axis=0)
+        med_min = np.percentile(Marr[:,j+2,:]/Marr[:,1,:], 0., axis=0)
+        ax.plot(logMbinsmid, median, color=colors[j], drawstyle='steps-mid', label=labels[j])
+        ax.fill_between(logMbinsmid, med_m1s, med_p1s, color=colors[j], facecolor=colors[j], alpha=.5)
+        #ax.fill_between(logMbinsmid, med_m2s, med_p2s, color=colors[j], facecolor=colors[j], alpha=.2)
+        ax.fill_between(logMbinsmid, med_min, med_max, color=colors[j], facecolor=colors[j], alpha=.05)
+        #ax.plot(logMbinsmid, med_min, ':', color=colors[j], lw=.5, alpha=1)
+        #ax.plot(logMbinsmid, med_max, ':', color=colors[j], lw=.5, alpha=1)
+
+    ax.legend(loc='upper left', fontsize=12)
+    ax.set_xlabel('logM at z=8')
+    ax.set_ylabel('fraction')
+    fig.savefig("UFDSEARCH_Z0/total.png", bbox_inches='tight')
+    
+    with open("UFDSEARCH_Z0/summary_data.pkl","w") as fp:
+        pickle.dump([all_hids, all_hists_m, all_hists_v, all_hists_maxm, all_num_missing],fp)
+    
     plt.show()
 
