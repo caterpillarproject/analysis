@@ -14,12 +14,31 @@ sys.path.append("./greg_dwarfs")
 import DwarfMethods as dm
 import abundance_matching
 
-def select_z8_objects(hpath):
+def zin_to_zr_snapr(zin):
+    #### From MTaddition.py:
+    #### zsnaps = [90,78,67,59,53,47,42,38,34]  # corresponds to z = 6.33, 7.26, 8.346, 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
+    ## Get snap_r
+    assert zin in [8, 10, 12], zin
+    if zin == 8:
+        z_r = 8.346
+        snap_r = 67
+    elif zin == 10:
+        z_r = 10.22
+        snap_r = 53
+    elif zin == 12:
+        z_r = 12.33
+        snap_r = 42
+    print "z = {}".format(zin)
+    return z_r, snap_r
+
+def select_z8_objects(hpath,zin=8):
+
     hid = haloutils.get_parent_hid(hpath)
     
     h0 = 0.6711
-    z_r = 8.346
-    snap_r = 67
+    z_r, snap_r = zin_to_zr_snapr(zin)
+    #z_r = 8.346
+    #snap_r = 67
 
     start = time.time()
     mtc = haloutils.load_zoom_mtc(hpath, indexbyrsid=True)
@@ -39,12 +58,13 @@ def select_z8_objects(hpath):
         df['mtkey'] = mtkey
         big_table.append(df)
     final_table = pd.concat(big_table, ignore_index=True)
-    np.save("UFDSEARCH_Z0/{}_z8halos.npy".format(haloutils.hidstr(hid)), final_table.to_records(index=False))
+    np.save("UFDSEARCH_Z0/{}_z{}halos.npy".format(haloutils.hidstr(hid),zin), final_table.to_records(index=False))
     
 if __name__=="__main__":
+    zin = 12
     hpaths = dm.get_hpaths(field=False, lx=14)
     for hpath in hpaths:
-        select_z8_objects(hpath)
+        select_z8_objects(hpath,zin=zin)
     #hpath = hpaths[0]  # or whatever hpath you want
     #hpath = hpaths[4]
     #hpath = hpaths[7]

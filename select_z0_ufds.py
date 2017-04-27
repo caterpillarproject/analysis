@@ -14,7 +14,11 @@ sys.path.append("./greg_dwarfs")
 import DwarfMethods as dm
 import abundance_matching
 
-def compute_histograms(hpath):
+from select_z8_objects import zin_to_zr_snapr
+
+def compute_histograms(hpath, zin):
+    z_r, snap_r = zin_to_zr_snapr(zin)
+    
     hid = haloutils.get_parent_hid(hpath)
     h0 = .6711
 
@@ -24,11 +28,6 @@ def compute_histograms(hpath):
     am = abundance_matching.GarrisonKimmel()
     LMmin, LMmax = am.stellar_to_halo_mass([1000., 2.e5])
 
-    #### From MTaddition.py:
-    #### zsnaps = [90,78,67,59,53,47,42,38,34]  # corresponds to z = 6.33, 7.26, 8.346, 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
-    ## Get snap_r
-    z_r = 8.346
-    snap_r = 67
     #print np.log10(mcrit(1e4, z_r))
     
     print "starting rs z={} load".format(z_r); start = time.time()
@@ -42,9 +41,9 @@ def compute_histograms(hpath):
     ## load data
     data=dm.get_extant_data(hpath,field=False)
 
-    logm200_zr = np.log10(data["m200_8"]/h0)
+    logm200_zr = np.log10(data["m200_{}".format(zin)]/h0)
     logm200_zr = logm200_zr[np.isfinite(logm200_zr)]
-    vmax_zr = data["vmax_8"]
+    vmax_zr = data["vmax_{}".format(zin)]
     vmax_z0 = np.array(z0_rscat.ix[data["rsid"]]["vmax"])
     
     ## Mmax criteria from abundance matching
@@ -60,7 +59,7 @@ def compute_histograms(hpath):
     ii_h14m = Vpeak > 15.0
     # Formed before reionization: z > 8, Npart > 32, ~170 subhalos
     #ii_h14r = np.logical_and(Vpeak < 20.0, data["m200_8"]/h0 > mcrit(1e4, z_r))
-    ii_h14r = np.logical_and(Vpeak < 20.0, data["m200_8"]/h0 > 1e7)
+    ii_h14r = np.logical_and(Vpeak < 20.0, data["m200_{}".format(zin)]/h0 > 1e7)
     #ii_h14r = np.logical_and(Vpeak < 20.0, data["m200_8"]/h0 > 6080000.)
     # Earliest infall: zpeak > 3, Vmax@z=0 > 8, ~56 subhalos
     ii_h14i = np.logical_and(zpeak > 3.0, vmax_z0 > 8.0)
@@ -127,7 +126,7 @@ def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_m
     ax.plot(logMbinsmid, h_h14m, label='h14m', drawstyle='steps-mid')
     ax.plot(logMbinsmid, h_h14r, label='h14r', drawstyle='steps-mid')
     ax.plot(logMbinsmid, h_h14i, label='h14i', drawstyle='steps-mid')
-    ax.set_xlabel("M200c at z=8")
+    ax.set_xlabel("M200c at z={}".format(zin))
     ax.set_yscale('log')
     ax.text(.95,.93,haloutils.hidstr(hid), transform=ax.transAxes, ha='right')
     ax.text(.95,.87,"{:.2e}".format(float(haloutils.load_haloprops(hpath)[0])), transform=ax.transAxes, ha='right')
@@ -143,7 +142,7 @@ def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_m
     ax.plot(vmaxbinsmid, h_h14m, label='h14m', drawstyle='steps-mid')
     ax.plot(vmaxbinsmid, h_h14r, label='h14r', drawstyle='steps-mid')
     ax.plot(vmaxbinsmid, h_h14i, label='h14i', drawstyle='steps-mid')
-    ax.set_xlabel("vmax at z=8")
+    ax.set_xlabel("vmax at z={}".format(zin))
     ax.legend(loc='upper right', fontsize=10)
     ax.set_yscale('log')
     xlim = ax.get_xlim()
@@ -158,7 +157,7 @@ def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_m
     ax.plot(logMbinsmid, h_h14m/h_surv, drawstyle='steps-mid')
     ax.plot(logMbinsmid, h_h14r/h_surv, drawstyle='steps-mid')
     ax.plot(logMbinsmid, h_h14i/h_surv, drawstyle='steps-mid')
-    ax.set_xlabel("M200c at z=8")
+    ax.set_xlabel("M200c at z={}".format(zin))
     ax.set_ylabel("frac of surviving")
 
     N_surv, N_maxm, N_h14m, N_h14r, N_h14i = num_missing
@@ -182,6 +181,8 @@ def plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_m
     return
 
 if __name__=="__main__":
+    zin = 12
+
     hpaths = dm.get_hpaths(field=False, lx=14)
     hpath = hpaths[0]  # or whatever hpath you want
     #hpath = hpaths[4]
@@ -194,12 +195,12 @@ if __name__=="__main__":
     all_num_missing = []
     for hpath in hpaths:
         fig,axes = plt.subplots(2,2,figsize=(10,10))
-        logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids = compute_histograms(hpath)
+        logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids = compute_histograms(hpath, zin)
         plot_one(fig, hpath, logMbins, vmaxbins, all_h_m, all_h_v, all_h_maxm, num_missing, all_ufd_ids)
         hid = haloutils.hidstr(haloutils.get_parent_hid(hpath))
-        fig.savefig("UFDSEARCH_Z0/{}_z8.png".format(hid), bbox_inches='tight')
+        fig.savefig("UFDSEARCH_Z0/{}_z{}.png".format(hid,zin), bbox_inches='tight')
         plt.close(fig)
-        with open("UFDSEARCH_Z0/{}_ufdids.pkl".format(hid), "w") as fp:
+        with open("UFDSEARCH_Z0/{}_ufdids_z{}.pkl".format(hid,zin), "w") as fp:
             pickle.dump(all_ufd_ids, fp)
 
         all_hids.append(hid)
@@ -230,12 +231,13 @@ if __name__=="__main__":
         #ax.plot(logMbinsmid, med_max, ':', color=colors[j], lw=.5, alpha=1)
 
     ax.legend(loc='upper left', fontsize=12)
-    ax.set_xlabel('logM at z=8')
+    ax.set_xlabel('logM at z={}'.format(zin))
     ax.set_ylabel('fraction')
-    fig.savefig("UFDSEARCH_Z0/total.png", bbox_inches='tight')
+    fig.savefig("UFDSEARCH_Z0/total_z{}.png".format(zin), bbox_inches='tight')
+    fig.savefig("UFDSEARCH_Z0/total_z{}.pdf".format(zin), bbox_inches='tight')
     
-    with open("UFDSEARCH_Z0/summary_data.pkl","w") as fp:
+    with open("UFDSEARCH_Z0/summary_data_z{}.pkl".format(zin),"w") as fp:
         pickle.dump([all_hids, all_hists_m, all_hists_v, all_hists_maxm, all_num_missing],fp)
     
-    plt.show()
+    #plt.show()
 
