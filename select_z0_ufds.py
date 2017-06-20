@@ -39,7 +39,7 @@ def compute_histograms(hpath, zin):
     print time.time()-start
     
     ## load data
-    data=dm.get_extant_data(hpath,field=False)
+    data = dm.get_extant_data(hpath,field=False)
 
     logm200_zr = np.log10(data["m200_{}".format(zin)]/h0)
     logm200_zr = logm200_zr[np.isfinite(logm200_zr)]
@@ -231,7 +231,7 @@ if __name__=="__main__":
         #ax.plot(logMbinsmid, med_max, ':', color=colors[j], lw=.5, alpha=1)
 
     ax.legend(loc='upper left', fontsize=12)
-    ax.set_xlabel('logM at z={}'.format(zin))
+    ax.set_xlabel(r'$\log M/M_\odot$ at $z_r$={}'.format(zin))
     ax.set_ylabel('fraction')
     fig.savefig("UFDSEARCH_Z0/total_z{}.png".format(zin), bbox_inches='tight')
     fig.savefig("UFDSEARCH_Z0/total_z{}.pdf".format(zin), bbox_inches='tight')

@@ -7,6 +7,7 @@ import haloutils
 import scipy.optimize as optimize
 from scipy import interpolate
 import profilefit
+import pandas as pd
 
 class PluginBase(object):
     """
@@ -1105,3 +1106,26 @@ class SubPhaseContourPlugin(PluginBase):
             cs = ax.contour(X,Y,Z,levels = levels,colors=self.colordict[lx],**kwargs)
         else:
             cs = ax.contour(X,Y,Z,levels = levels,**kwargs)
+
+
+class MaxMassPlugin(PluginBase):
+    ## Important note: the results of this are used in load_zoomid for snaps < 255
+    def __init__(self):
+        super(MaxMassPlugin,self).__init__()
+        self.filename='rsid2maxmassz0.npy'
+        self.autofigname = 'NAN'
+    def _analyze(self,hpath):
+        if not haloutils.check_mergertree_exists(hpath,autoconvert=True):
+            raise IOError("No Merger Tree")
+        zoomid = haloutils.load_zoomid(hpath)
+        rscat = haloutils.load_rscat(hpath,haloutils.get_numsnaps(hpath)-1)
+        mtc = haloutils.load_zoom_mtc(hpath, indexbyrsid=True)
+        output = np.zeros((len(mtc.Trees),2))
+        for i,(mtkey, mt) in enumerate(mtc.Trees.iteritems()):
+            output[i,0] = mtkey
+            output[i,1] = np.max(mt['mvir']/rscat.h0)
+        np.save(self.get_outfname(hpath), output)
+    def _read(self,hpath):
+        thisfilename = self.get_filename(hpath)
+        output = np.load(thisfilename)
+        return pd.Series(output[:,1], index=output[:,0])

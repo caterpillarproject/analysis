@@ -14,11 +14,16 @@ from collections import Counter
 
 from select_z8_objects import zin_to_zr_snapr
 
+import seaborn as sns
+sns.set(context='poster',style='ticks',font='serif',palette='colorblind', font_scale=1.5)
+sns.set_style({"xtick.direction":"in","ytick.direction":"in"})
+
 ## Global logMbins
 logMbins = np.arange(4,10,.1)
 logMbinsmid = (logMbins[1:]+logMbins[:-1])/2.
 allufdtypes = ["maxm","h14m","h14r","h14i"]
-ufdtypescolors = ['b','g','r','c']
+ufdtypescolors = ['b','g','m','c']
+ufdlinestyles = ['-','--',':','-.']
 
 def run_count(zin):
     h0 = 0.6711
@@ -102,7 +107,7 @@ def make_host_figure(alldata,plot_frac=True):
     ax.plot(logMbinsmid, toplot[3], 'k')
     ax.fill_between(logMbinsmid, toplot[1], toplot[5], color='k', facecolor='k', alpha=.3)
     ax.fill_between(logMbinsmid, toplot[2], toplot[4], color='k', facecolor='k', alpha=.3)
-    ax.set_xlabel('logM at z={}'.format(zin))
+    ax.set_xlabel(r'$\log M/M_\odot$ at $z_r={}$'.format(zin))
     ax.set_ylabel('fraction merged into host')
     return fig
     
@@ -125,11 +130,12 @@ def make_ufds_figure(alldata):
     for j in range(len(allufdtypes)):
         toplot = medianscatter(ufdtypes_all_fracs[j], axis=0)
         color = ufdtypescolors[j]
-        ax.plot(logMbinsmid, toplot[3], color=color, label=allufdtypes[j])
+        ls = ufdlinestyles[j]
+        ax.plot(logMbinsmid, toplot[3], color=color, label=allufdtypes[j], ls=ls)
         ax.fill_between(logMbinsmid, toplot[1], toplot[5], color=color, facecolor=color, alpha=.2)
         ax.fill_between(logMbinsmid, toplot[2], toplot[4], color=color, facecolor=color, alpha=.2)
     ax.legend(loc='upper right')
-    ax.set_xlabel('logM at z={}'.format(zin))
+    ax.set_xlabel(r'$\log M/M_\odot$ at $z_r={}$'.format(zin))
     ax.set_ylabel('fraction survived as z=0 UFD')
     return fig
 
@@ -152,35 +158,40 @@ def make_subs_figure(alldata):
     for j in range(len(allufdtypes)):
         toplot = medianscatter(ufdtypes_all_fracs[j], axis=0)
         color = ufdtypescolors[j]
-        ax.plot(logMbinsmid, toplot[3], color=color, label=allufdtypes[j])
+        ls = ufdlinestyles[j]
+        ax.plot(logMbinsmid, toplot[3], color=color, label=allufdtypes[j], ls=ls)
         ax.fill_between(logMbinsmid, toplot[1], toplot[5], color=color, facecolor=color, alpha=.2)
         ax.fill_between(logMbinsmid, toplot[2], toplot[4], color=color, facecolor=color, alpha=.2)
     ax.legend(loc='lower left')
-    ax.set_xlabel('logM at z={}'.format(zin))
+    ax.set_xlabel(r'$\log M/M_\odot$ at $z_r={}$'.format(zin))
     ax.set_ylabel('fraction merged into z=0 subhalo')
     return fig
 
 if __name__=="__main__":
     zin = 12
-    out = run_count(zin)
-    with open("UFDSEARCH_Z0/histograms_of_z{}.pkl".format(zin),"w") as fp:
-        pickle.dump(out,fp)
+#    out = run_count(zin)
+#    with open("UFDSEARCH_Z0/histograms_of_z{}.pkl".format(zin),"w") as fp:
+#        pickle.dump(out,fp)
     with open("UFDSEARCH_Z0/histograms_of_z{}.pkl".format(zin),"r") as fp:
         alldata = pickle.load(fp)
     fig = make_host_figure(alldata)
     fig.savefig("frac_of_z{}_objs_in_host.pdf".format(zin),bbox_inches='tight')
     fig.savefig("frac_of_z{}_objs_in_host.png".format(zin),bbox_inches='tight')
     fig = make_host_figure(alldata, plot_frac=False)
-    fig.axes[0].set_xlim(6.5,9.5)
+    fig.axes[0].set_xlim(6.5,9.0)
     fig.savefig("num_of_z{}_objs_in_host.pdf".format(zin),bbox_inches='tight')
     fig.savefig("num_of_z{}_objs_in_host.png".format(zin),bbox_inches='tight')
     fig = make_ufds_figure(alldata)
+    fig.axes[0].set_xlim(6.5,9.0)
     fig.savefig("frac_of_z{}_objs_in_ufds.pdf".format(zin),bbox_inches='tight')
     fig.savefig("frac_of_z{}_objs_in_ufds.png".format(zin),bbox_inches='tight')
     fig = make_subs_figure(alldata)
+    fig.axes[0].set_xlim(6.5,9.0)
     fig.savefig("frac_of_z{}_objs_in_subs.pdf".format(zin),bbox_inches='tight')
     fig.savefig("frac_of_z{}_objs_in_subs.png".format(zin),bbox_inches='tight')
-    plt.show()
+
+    plt.close('all')
+#    plt.show()
 
 #    run_count(7.0)
 #    run_count(7.5)

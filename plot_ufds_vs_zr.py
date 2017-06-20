@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 from select_z8_objects import zin_to_zr_snapr
 from classify_z8_objects import calculate_total_list, medianscatter, logMbins, logMbinsmid
 
+## Global logMbins
+logMbins = np.arange(4,10,.1)
+logMbinsmid = (logMbins[1:]+logMbins[:-1])/2.
+allufdtypes = ["maxm","h14m","h14r","h14i"]
+ufdtypescolors = ['b','g','m','c']
+ufdlinestyles = ['-','--',':','-.']
+
 all_zin = [8, 10, 12]
 all_colors = [(0.0, 0.4470588235294118, 0.6980392156862745),
               (0.0, 0.6196078431372549, 0.45098039215686275),
