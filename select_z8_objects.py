@@ -14,21 +14,51 @@ sys.path.append("./greg_dwarfs")
 import DwarfMethods as dm
 import abundance_matching
 
-def zin_to_zr_snapr(zin):
+zin2snapr = {
+    0:319,
+    1:171,
+    2:137,
+    3:119,
+    4:108,
+    5:100,
+    6:90,
+    7:78,
+    8:67,
+    9:59,
+    10:53,
+    11:47,
+    12:42,
+    13:38,
+    14:34
+}
+all_zin = np.sort(zin2snapr.keys())
+
+def zin_to_zr_snapr(zin,verbose=True):
     #### From MTaddition.py:
     #### zsnaps = [90,78,67,59,53,47,42,38,34]  # corresponds to z = 6.33, 7.26, 8.346, 9.33, 10.22, 11.28, 12.33, 13.31, 14.44
     ## Get snap_r
-    assert zin in [8, 10, 12], zin
-    if zin == 8:
-        z_r = 8.346
-        snap_r = 67
-    elif zin == 10:
-        z_r = 10.22
-        snap_r = 53
-    elif zin == 12:
-        z_r = 12.33
-        snap_r = 42
-    print "z = {}".format(zin)
+    assert zin in all_zin, zin
+    snap_r = zin2snapr[zin]
+    # Hardcode a random LX14 halo
+    hpath = haloutils.get_hpath_lx(5320,14)
+    z_r = haloutils.get_z_snap(hpath,snap_r)[0]
+    #if zin == 4:
+    #    z_r = 4.26
+    #    snap_r = 108
+    #elif zin == 6:
+    #    z_r = 6.33
+    #    snap_r = 90
+    #elif zin == 8:
+    #    z_r = 8.346
+    #    snap_r = 67
+    #elif zin == 10:
+    #    z_r = 10.22
+    #    snap_r = 53
+    #elif zin == 12:
+    #    z_r = 12.33
+    #    snap_r = 42
+    if verbose:
+        print "z = {}".format(zin)
     return z_r, snap_r
 
 def select_z8_objects(hpath,zin=8):
@@ -61,7 +91,7 @@ def select_z8_objects(hpath,zin=8):
     np.save("UFDSEARCH_Z0/{}_z{}halos.npy".format(haloutils.hidstr(hid),zin), final_table.to_records(index=False))
     
 if __name__=="__main__":
-    zin = 12
+    zin = 4
     hpaths = dm.get_hpaths(field=False, lx=14)
     for hpath in hpaths:
         select_z8_objects(hpath,zin=zin)
