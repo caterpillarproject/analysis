@@ -167,6 +167,7 @@ def histogram_extant_over_all_halos_by_massbin(zin):
         extant[zx_+"logD"] = np.log10(extant[zx_+"dist"])
         
         # Make histograms
+        ### ERROR OOOOOPS: SWAPPED ORDER OF LOGD AND CONC HERE COMPARED TO LABELS
         props_to_hist = [zrTU, zrspin, zrlogD, conc]
         extant_props_to_hist = [extant[zx_+propname] for propname in ["T/|U|","spin","logD","conc"]]
         assert len(props_to_hist) == Nprops
@@ -223,6 +224,7 @@ def plot_extant_massbin_histograms(zin, plot_type="count", log=False):
     ## Make plot
     fig, axes = plt.subplots(Nbigbins, Nprops, figsize=(8*Nprops, 8*Nbigbins))
 
+    ### ERROR OOOOOPS: SWAPPED ORDER OF LOGD AND CONC HERE COMPARED TO ACTUAL DATA IN HISTOGRAMS
     for bigbin_ix in range(Nbigbins):
         for j in range(Nprops):
             prop_ix = j+1

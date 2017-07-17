@@ -294,17 +294,53 @@ def plot_histograms_extant(zin, plot_type="count"):
 
 
 if __name__=="__main__":
-    hpath = haloutils.get_hpath_lx(1631506, 14)
+    hpaths = dm.get_hpaths(field=False, lx=14)
+    alldata = []
     plug = AlexExtantDataPlugin()
-    data = plug.read(hpath)
-    data = data[pd.notnull(data["z8_T/|U|"])]
+    start = time.time()
+    for hpath in hpaths:
+        #hpath = haloutils.get_hpath_lx(1631506, 14)
+        data = plug.read(hpath)
+        alldata.append(data)
+    data = pd.concat(alldata, ignore_index=True)
+    print time.time()-start
+    #data = data[pd.notnull(data["z8_T/|U|"])]
     data = data[data["z8_mvir"] > 1e7]
-    cols = ["z{}_T/|U|".format(zin) for zin in all_zin]
+    #cols = ["z{}_T/|U|".format(zin) for zin in all_zin]
+    #cols = ["z{}_rs".format(zin) for zin in all_zin]
+    #cols = ["z{}_rvir".format(zin) for zin in all_zin]
+    cols1 = ["z{}_rvir".format(zin) for zin in all_zin]
+    cols2 = ["z{}_rs".format(zin) for zin in all_zin]
     
+    vals = np.zeros((len(data.index),len(all_zin)))
+    for i,(index,row) in enumerate(data.iterrows()):
+        #vals[i,:] = np.array(row[cols])
+        vals[i,:] = np.array(row[cols1])/np.array(row[cols2])
+    meds = np.nanmedian(vals,axis=0)
+    p0,p1,p2,p3,p4 = np.nanpercentile(vals,[2.5,16,50,84,97.5],axis=0)
+
     fig, ax = plt.subplots()
-    for i,row in data.iterrows():
-        ax.plot(all_zin, row[cols], lw=.5)
-    plt.savefig("test.pdf")
+    #for i,row in data.iterrows():
+    #    ax.plot(all_zin, row[cols], lw=.5)
+    #    #ax.plot(all_zin, np.array(row[cols1])/np.array(row[cols2]), lw=.5)
+    ax.plot(all_zin, p2, lw=2, color='k')
+    ax.plot(all_zin, p3, 'k:', lw=2)
+    ax.plot(all_zin, p1, 'k:', lw=2)
+    ax.plot(all_zin, p4, 'k--', lw=2)
+    ax.plot(all_zin, p0, 'k--', lw=2)
+    ax.set_xlabel('z')
+    
+    ax.set_ylim(0,30)
+    ax.set_ylabel('conc')
+    plt.savefig("extant_zevol_conc.pdf")
+    
+    #ax.set_ylabel('rs')
+    #ax.set_ylim(0,10)
+    #plt.savefig("extant_zevol_rs.pdf")
+
+    #ax.set_ylabel('rvir')
+    #ax.set_ylim(0,30)
+    #plt.savefig("extant_zevol_rvir.pdf")
 
 def tmp():
     #run_plugin()

@@ -114,6 +114,7 @@ def plot_2d_psurv(zin, which_to_plot):
             ax = axes[i,j]
             Hall, xe, ye = np.histogram2d(df[cols_to_plot[j]], df[cols_to_plot[i]],
                                           bins=[xbins,ybins])
+            Hall = Hall.astype(float)
             
             H, xe, ye = np.histogram2d(tdf[cols_to_plot[j]], tdf[cols_to_plot[i]],
                                        bins=[xbins,ybins])

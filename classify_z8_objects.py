@@ -64,7 +64,7 @@ def load_one_halo_data(zin,hpath,use_vmaxconc=False):
     Load quantities at zin for halo (hpath) that could correlate.
     """
     h0 = 0.6711
-    z_r, snap_r = zin_to_zr_snapr(zin)
+    z_r, snap_r = zin_to_zr_snapr(zin, verbose=False)
     
     hid = haloutils.get_parent_hid(hpath)
 
@@ -91,16 +91,18 @@ def load_one_halo_data(zin,hpath,use_vmaxconc=False):
     zrlogD = np.log10(np.sqrt(np.sum((halopos - hostpos)**2,axis=1))) + 3
     
     # Concentration: have to load rscat, will lose phantoms
-    rscat = haloutils.load_rscat(hpath, snap_r, rmaxcut=False)
-    rscatobjs = rscat.ix[zrobjs['origid']]
 
     # Concentration with rvmax and vmax
     # Dooley et al. 2014 Eqn 9
     if use_vmaxconc:
+        rscat = haloutils.load_rscat(hpath, snap_r, rmaxcut=False)
+        rscatobjs = rscat.ix[zrobjs['origid']]
         conc_const = 0.21639 * (10/h0)**2 # scaling constant * (kpc/(km/s)/H0)**2
         conc = conc_const * (rscatobjs['vmax']/rscatobjs['rvmax'])**2
     else:
-        conc = rscatobjs['rvir']/rscatobjs['rs']
+        #conc = rscatobjs['rvir']/rscatobjs['rs']
+        rscatobjs = None
+        conc = zrobjs['rvir']/zrobjs['rs']
 
     return zrobjs, rscatobjs, zrlogmass, zrlogvmax, zrspin, zrlogD, conc
 
