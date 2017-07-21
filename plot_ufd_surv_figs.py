@@ -27,9 +27,18 @@ from classify_z8_objects import logMbins, logVmaxbins, concbins, logDbins, spinb
 from classify_z8_objects import logMbinsmid, logVmaxbinsmid, concbinsmid, logDbinsmid, spinbinsmid, TUbins
 from trace_z0_ufds_to_zr import AlexExtantDataPlugin
 
-prop_cols = ["logmvir", "T/|U|", "spin", "conc", "logD"]
-prop_short_labels = ["logM", "T/|U|", "spin", "conc", "logD"]
-prop_labels = ["logM (Msun)", "T/|U|", "spin", "conc", "logdist (kpc/h)"]
+## Default
+#global_use_phantoms=True
+#prop_cols = ["logmvir", "T/|U|", "spin", "conc", "logD"]
+#prop_short_labels = ["logM", "T/|U|", "spin", "conc", "logD"]
+#prop_labels = ["logM (Msun)", "T/|U|", "spin", "conc", "logdist (kpc/h)"]
+
+## Vmaxconc
+global_use_phantoms=False
+prop_cols = ["logmvir", "T/|U|", "spin", "vmaxconc", "logD"]
+prop_short_labels = ["logM", "T/|U|", "spin", "vmaxconc", "logD"]
+prop_labels = ["logM (Msun)", "T/|U|", "spin", "vmaxconc", "logdist (kpc/h)"]
+
 prop_xlims = [(6.5,9), (0.5,2.5), (0,0.2), (0,20), (1,4)]
 from classify_z8_objects import all_bins, all_bins_mid
 all_bins = [np.arange(6,9,.2), np.arange(.5,2.5,.05),
@@ -60,7 +69,7 @@ def load_all_hids():
     hids = [haloutils.get_parent_hid(hpath) for hpath in hpaths]
     return hids
 
-def load_all_data(zin_to_use = None, hid_to_use = None):
+def load_all_data(zin_to_use = None, hid_to_use = None, use_phantoms=True):
     if zin_to_use is None: zin_to_use = [4,6,8,10,12]
 
     h0 = 0.6711
@@ -76,6 +85,8 @@ def load_all_data(zin_to_use = None, hid_to_use = None):
                         haloutils.hidstr(hid), zin)))
             data["hid"] = hid
             data["zin"] = zin
+            if not use_phantoms:
+                data = data[data["phantom"]==0]
             all_dfs.append(data)
     alldata = pd.concat(all_dfs, ignore_index=True)
     alldata["logmvir"] = np.log10(alldata["mvir"]/h0)
@@ -284,14 +295,26 @@ def make_fig_4(zin=8, alldata=None):
     return fig
 
 def make_fig_5(zin=8):
-    fig = plot_2d_hist(zin, fiducial_ufdtype)
+    fig = plot_2d_hist(zin, fiducial_ufdtype, use_phantoms=global_use_phantoms)
     fig.savefig("fig5_z{}.pdf".format(zin))
 
-def make_fig_6(zin=8, alldata=None):
+def make_fig_6(zin=8, alldata=None, subs_only=False, hosts_only=False):
     #fig = plot_2d_psurv(8, fiducial_ufdtype)
     #fig.savefig("fig6.pdf")
     if alldata is None:
         alldata = load_all_data(zin_to_use=[zin])
+
+    if subs_only and hosts_only:
+        raise ValueError("Must specify only one of subs or hosts only")
+    if subs_only:
+        alldata = alldata[alldata["pid"] != -1]
+        figname_extra = "_subs"
+    elif hosts_only:
+        alldata = alldata[alldata["pid"] == -1]
+        figname_extra = "_hosts"
+    else:
+        figname_extra = ""
+           
 
     iprops = [1,2,3,4]
     Nprops = len(iprops)
@@ -331,7 +354,7 @@ def make_fig_6(zin=8, alldata=None):
     cax = fig.add_axes([.87,.15,.03,.7])
     cb = fig.colorbar(im, cax=cax)
     cb.set_label("log P(survive)")
-    fig.savefig("fig6_z{}.pdf".format(zin))
+    fig.savefig("fig6_z{}{}.pdf".format(zin,figname_extra))
 
 def make_fig_7():
     zin_to_use = [4,6,8,10,12]
@@ -409,12 +432,14 @@ def make_fig_9():
 
 if __name__=="__main__":
     for zin in [4,6,8,10,12]:
-        alldatazin = load_all_data(zin_to_use=[zin])
+        alldatazin = load_all_data(zin_to_use=[zin], use_phantoms=global_use_phantoms)
         make_fig_1(zin,alldatazin)
         make_fig_2(zin,alldatazin)
         make_fig_3(zin,alldatazin)
         make_fig_4(zin,alldatazin)
         make_fig_5(zin)
+        make_fig_6(zin,alldatazin,subs_only=True)
+        make_fig_6(zin,alldatazin,hosts_only=True)
         make_fig_6(zin,alldatazin)
     make_fig_7()
     make_fig_8()

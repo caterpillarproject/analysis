@@ -21,12 +21,17 @@ sns.set_style({"xtick.direction":"in","ytick.direction":"in"})
 h0 = .6711
 from classify_z8_objects import load_one_halo_data
 from classify_z8_objects import allufdtypes, ufdtypescolors, ufdlinestyles
-from classify_z8_objects import logMbins, logVmaxbins, concbins, logDbins, spinbins, TUbins
-from classify_z8_objects import logMbinsmid, logVmaxbinsmid, concbinsmid, logDbinsmid, spinbinsmid, TUbins
+#from classify_z8_objects import logMbins, logVmaxbins, concbins, logDbins, spinbins, TUbins
+#from classify_z8_objects import logMbinsmid, logVmaxbinsmid, concbinsmid, logDbinsmid, spinbinsmid, TUbins
 from classify_z8_objects import all_bins, all_bins_mid, prop_labels, prop_xlims
+
+#from plot_ufd_surv_figs import allufdtypes, ufdtypescolors, ufdlinestyles
+#from plot_ufd_surv_figs import all_bins, all_bins_mid, prop_labels, prop_xlims
 from trace_z0_ufds_to_zr import AlexExtantDataPlugin
 
-def plot_2d_hist(zin, which_to_plot):
+def plot_2d_hist(zin, which_to_plot, use_phantoms=True):
+    ## HACK TO AVOID CIRCULAR REFERENCE
+    from plot_ufd_surv_figs import all_bins, all_bins_mid, prop_labels, prop_xlims
     hpaths = dm.get_hpaths(field=False, lx=14)
     all_dfs = []
     for hpath in hpaths:
@@ -34,6 +39,8 @@ def plot_2d_hist(zin, which_to_plot):
         data = pd.DataFrame(np.load("UFDSEARCH_Z0/{}_z{}haloprops.npy".format(
                     haloutils.hidstr(hid), zin)))
         data["hid"] = hid
+        if not use_phantoms:
+            data = data[data["phantom"] == 0]
         all_dfs.append(data)
     df = pd.concat(all_dfs, ignore_index=True)
     df["logmvir"] = np.log10(df["mvir"]/h0)

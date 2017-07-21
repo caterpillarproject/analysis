@@ -98,7 +98,7 @@ def load_one_halo_data(zin,hpath,use_vmaxconc=False):
         rscat = haloutils.load_rscat(hpath, snap_r, rmaxcut=False)
         rscatobjs = rscat.ix[zrobjs['origid']]
         conc_const = 0.21639 * (10/h0)**2 # scaling constant * (kpc/(km/s)/H0)**2
-        conc = conc_const * (rscatobjs['vmax']/rscatobjs['rvmax'])**2
+        conc = conc_const * np.array(rscatobjs['vmax']/rscatobjs['rvmax'])**2
     else:
         #conc = rscatobjs['rvir']/rscatobjs['rs']
         rscatobjs = None
