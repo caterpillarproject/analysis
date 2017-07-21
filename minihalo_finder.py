@@ -48,14 +48,21 @@ class MinihaloFinderPlugin(PluginBase):
         return minihalos
 
     def _analyze(self,hpath):
+        import sys
         if self.use_all_trees:
+            print 'loading mtc'
+            sys.stdout.flush()
             mtc = haloutils.load_mtc(hpath,indexbyrsid=True)
+            print 'loaded all of mtc'
+            sys.stdout.flush()
         else:
             mtc = haloutils.load_zoom_mtc(hpath,indexbyrsid=True)
         all_minihalos = []
         start = time.time()
         for base_rsid,mt in mtc.Trees.iteritems():
             all_minihalos.append(self.search_one_tree(mt))
+            print 'finished a tree'
+            sys.stdout.flush()
         print "Total time: {:.1f}".format(time.time()-start)
         all_minihalos = np.concatenate(all_minihalos)
         #assert not all_minihalos.masked,"If masked there is probably some data corruption!"
@@ -72,13 +79,14 @@ class AllMinihaloFinderPlugin(MinihaloFinderPlugin):
     (and has a different output file)
     """
     def __init__(self,verbose=False,Tvir=2000):
-        super(AllMinihaloFinderPlugin,self).__init__()
+        super(AllMinihaloFinderPlugin,self).__init__(verbose=verbose,Tvir=Tvir)
         self.filename = 'all_minihalo_array.npy'
         if Tvir != 2000:
             self.filename = 'all_minihalo_array_{}.npy'.format(int(Tvir))
         self.verbose = verbose
         self.Tvir = Tvir
         self.use_all_trees = True
+        print "initialized AllMinihaloFinderPlugin"
 
 class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
     """
@@ -88,7 +96,7 @@ class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
     and has a different output file
     """
     def __init__(self,verbose=False,Tvir=10000.):
-        super(AllFirstGalFinderPlugin,self).__init__()
+        super(AllFirstGalFinderPlugin,self).__init__(Tvir=Tvir)
         self.filename = 'all_firstgal_array.npy'
         if Tvir != 10000:
             self.filename = 'all_firstgal_array_{}.npy'.format(int(Tvir))
@@ -98,8 +106,9 @@ class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
 
 class LWMinihaloFinderPlugin(MinihaloFinderPlugin):
     def __init__(self,verbose=False,lwimf='kroupa',Tvir=2000):
-        super(LWMinihaloFinderPlugin,self).__init__()
+        super(LWMinihaloFinderPlugin,self).__init__(verbose=verbose,Tvir=Tvir)
         assert lwimf in ['kroupa','chabrier','salpeter']
+        print 'using the lw imf model', lwimf
         self.lwimf = lwimf
         self.lw_data_dir = '/bigbang/data/bgriffen/crosby2013'
         ffit,x = self.get_imf_func(self.lwimf)
@@ -135,7 +144,7 @@ class LWMinihaloFinderPlugin(MinihaloFinderPlugin):
 
 class AllLWMinihaloFinderPlugin(LWMinihaloFinderPlugin):
     def __init__(self,verbose=False,lwimf='kroupa',Tvir=2000):
-        super(AllLWMinihaloFinderPlugin,self).__init__()
+        super(AllLWMinihaloFinderPlugin,self).__init__(verbose=verbose,lwimf=lwimf,Tvir=Tvir)
         self.filename = 'all_'+self.filename
         self.use_all_trees = True
 
@@ -143,7 +152,7 @@ if __name__=="__main__":
     if len(sys.argv) == 3:
         hid = int(sys.argv[1])
         lx = int(sys.argv[2])
-        assert lx==14
+        assert lx==14 or lx==15
         plug = MinihaloFinderPlugin(verbose=True)
         hpath = haloutils.get_hpath_lx(hid,lx)
         MHs = plug.read(hpath,recalc=True)
@@ -151,37 +160,83 @@ if __name__=="__main__":
         if sys.argv[3] == "All":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
-            assert lx==14
+            assert lx==14 or lx==15
             plug = AllMinihaloFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
-            MHs = plug.read(hpath,recalc=True)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+            print 'loaded hpath in All Mini halos'
+            MHs = plug.read(hpath,recalc=True) #read
         elif sys.argv[3] == "AllFirstGal":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
-            assert lx==14
+            assert lx==14 or lx ==15
             plug = AllFirstGalFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
             MHs = plug.read(hpath,recalc=True)
         elif sys.argv[3] == "LW":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
-            assert lx==14
+            assert lx==14 or lx ==15
             plug = LWMinihaloFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
             MHs = plug.read(hpath,recalc=True)
         elif sys.argv[3] == "LWsalpeter":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
-            assert lx==14
+            assert lx==14 or lx==15
             plug = LWMinihaloFinderPlugin(verbose=True,lwimf='salpeter')
             hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
             MHs = plug.read(hpath,recalc=True)
         elif sys.argv[3] == "AllLW":
             hid = int(sys.argv[1])
             lx = int(sys.argv[2])
-            assert lx==14
+            assert lx==14 or lx==15
             plug = AllLWMinihaloFinderPlugin(verbose=True)
             hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
             MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[3] == "AllLWchabrier":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14 or lx == 15
+            plug = AllLWMinihaloFinderPlugin(verbose=True,lwimf='chabrier')
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
+            MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[3] == "AllLWsalpeter":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14 or lx==15
+            plug = AllLWMinihaloFinderPlugin(verbose=True,lwimf='salpeter')
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
+            MHs = plug.read(hpath,recalc=True)
+        elif sys.argv[3] == "AllLWkroupa":
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14 or lx==15
+            plug = AllLWMinihaloFinderPlugin(verbose=True,lwimf='kroupa')
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+
+            MHs = plug.read(hpath,recalc=True)
+
         else:
-            raise ValueError("Only accepts \"LW\", \"AllLW\", \"All\", and \"AllFirstGal\"")
+            raise ValueError("Only accepts \"LW\", \"AllLW\", \"All\", \"LWsalpeter\" and \"AllFirstGal\"")
