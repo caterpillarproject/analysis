@@ -3,6 +3,7 @@ import haloutils
 import time,sys
 from numpy.lib.recfunctions import append_fields
 from caterpillaranalysis import PluginBase
+from scipy import interpolate
 
 class MinihaloFinderPlugin(PluginBase):
     def __init__(self,verbose=False,Tvir=2000):
@@ -103,6 +104,38 @@ class AllFirstGalFinderPlugin(MinihaloFinderPlugin):
         self.verbose = verbose
         self.Tvir = Tvir
         self.use_all_trees = True
+
+class ModifiedRicottiMinihaloFinderPlugin(MinihaloFinderPlugin):
+    """
+    Use a constant minimum mass until it intersects the Ricotti LW model
+    """
+    def __init__(self,logMmin,verbose=False,Tvir=2000):
+        super(ModifiedRicottiMinihaloFinderPlugin,self).__init__(verbose=verbose,Tvir=Tvir)
+        assert logMmin in [6.0, 6.5, 7.0, 7.5, 8.0]
+        self.logMmin = logMmin
+        self.lw_data_dir = '/bigbang/data/bgriffen/crosby2013'
+        
+        ## Fit Ricotti
+        zr,Mcrit = np.loadtxt(self.lw_data_dir+'/ricotti.txt',delimiter=',', unpack=True)
+        # Add some things to extend interpolation to low and high z (just flat)
+        zr = np.array([127]+list(zr)+[0])
+        Mcrit = np.array([Mcrit[0]]+list(Mcrit)+[Mcrit[-1]])
+        self.logffit = interpolate.interp1d(zr,np.log10(Mcrit))
+        self.ffit = lambda z: 10**self.logffit(z)
+        
+        self.filename = "modified_ricotti_minihalo_array_{:.1f}.npy".format(logMmin)
+        self.verbose = verbose
+        self.use_all_trees = False
+        
+    def is_above_threshold(self, scale, mass):
+        ## The MT returns masked arrays because of asciitable, but nothing should be masked.
+        ## interp1d does not work if it is a masked array
+        ## Here I simply np.ma.filled to get rid of it.
+        z = 1./np.ma.filled(scale)-1.0
+        ## Just to be explicit: don't use mcrit anywhere for this one!
+        #mcrit = self.mcrit(self.Tvir,z)
+        mricotti = self.ffit(z)
+        return (np.log10(mass) > self.logMmin) & (mass > mricotti)
 
 class LWMinihaloFinderPlugin(MinihaloFinderPlugin):
     def __init__(self,verbose=False,lwimf='kroupa',Tvir=2000):
@@ -238,5 +271,17 @@ if __name__=="__main__":
 
             MHs = plug.read(hpath,recalc=True)
 
+        elif sys.argv[3].startswith("RF"):
+            logMmin = float(sys.argv[3][2:])
+            assert logMmin in [6.0, 6.5, 7.0, 7.5, 8.0]
+            hid = int(sys.argv[1])
+            lx = int(sys.argv[2])
+            assert lx==14 or lx==15
+            plug = ModifiedRicottiMinihaloFinderPlugin(logMmin,verbose=True)
+            hpath = haloutils.get_hpath_lx(hid,lx)
+            if lx==15 and hid ==1387186:
+                hpath = "/bigbang/data/AnnaGroup/caterpillar/halos/H1387186/H1387186_EB_Z127_P7_LN7_LX15_O4_NV4"
+            MHs = plug.read(hpath,recalc=True)
+
         else:
-            raise ValueError("Only accepts \"LW\", \"AllLW\", \"All\", \"LWsalpeter\" and \"AllFirstGal\"")
+            raise ValueError("Only accepts \"LW\", \"AllLW\", \"All\", \"LWsalpeter\", \"AllFirstGal\", or \"RFXX\"")
