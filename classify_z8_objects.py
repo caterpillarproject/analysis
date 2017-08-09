@@ -46,18 +46,24 @@ spinbinsmid = (spinbins[1:]+spinbins[:-1])/2.
 ## T/|U| bins
 TUbins = np.arange(0,2.5,.1)
 TUbinsmid = (TUbins[1:]+TUbins[:-1])/2.
+logetabins = np.arange (0,1.01,.05)
+logetabinsmid = np.arange (0,1.01,.05)
 
 ## NOTE: replacing Vmax with T/|U|
 #all_bins = [logMbins, logVmaxbins, spinbins, concbins, logDbins, TUbins]
 #all_bins_mid = [logMbinsmid, logVmaxbinsmid, spinbinsmid, concbinsmid, logDbinsmid, TUbinsmid]
 all_bins = [logMbins, TUbins, spinbins, concbins, logDbins]
 all_bins_mid = [logMbinsmid, TUbinsmid, spinbinsmid, concbinsmid, logDbinsmid]
+#all_bins = [logMbins, logetabins, spinbins, concbins, logDbins]
+#all_bins_mid = [logMbinsmid, logetabinsmid, spinbinsmid, concbinsmid, logDbinsmid]
 
 ## Property labels
 #prop_labels = ["logM (Msun)", "logVmax (km/s)", "spin", "conc", "logdist (kpc/h)"]
 #prop_xlims = [(6.5,10), (0.5,2.5), (0,0.5), (0,20), (0,4)]
 prop_labels = ["logM (Msun)", "T/|U|", "spin", "conc", "logdist (kpc/h)"]
+#prop_labels = ["logM (Msun)", "log 2T/|U|", "spin", "conc", "logdist (kpc/h)"]
 prop_xlims = [(6.5,10), (0.0,2.5), (0,0.5), (0,20), (0,4)]
+#prop_xlims = [(6.5,10), (0.0,1.0), (0,0.5), (0,20), (0,4)]
 
 def load_one_halo_data(zin,hpath,use_vmaxconc=False):
     """

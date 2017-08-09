@@ -4,20 +4,21 @@ from classify_z8_objects import load_one_halo_data
 def plot_sub_vs_not(zin):
     hids = load_all_hids()
     hpaths = dm.get_hpaths(field=False, lx=14)
-    allzrobjs = []
-    allzrlogD = []
-    for hpath,hid in zip(hpaths,hids):
-        out = load_one_halo_data(zin, hpath)
-        zrobjs = out[0]
-        zrlogD = out[5]
-        #zrobjs = np.load("UFDSEARCH_Z0/{}_z{}halos.npy".format(haloutils.hidstr(hid),zin))
-        allzrobjs.append(zrobjs)
-        allzrlogD.append(zrlogD)
-    allzrobjs = pd.DataFrame(np.concatenate(allzrobjs))
-    allzrlogD = np.concatenate(allzrlogD)
-    allzrobjs["logD"] = allzrlogD
-    allzrobjs["conc"] = allzrobjs["rvir"]/allzrobjs["rs"]
-    allzrobjs["logmvir"] = np.log10(allzrobjs["mvir"]/h0)
+    #allzrobjs = []
+    #allzrlogD = []
+    #for hpath,hid in zip(hpaths,hids):
+    #    out = load_one_halo_data(zin, hpath)
+    #    zrobjs = out[0]
+    #    zrlogD = out[5]
+    #    #zrobjs = np.load("UFDSEARCH_Z0/{}_z{}halos.npy".format(haloutils.hidstr(hid),zin))
+    #    allzrobjs.append(zrobjs)
+    #    allzrlogD.append(zrlogD)
+    #allzrobjs = pd.DataFrame(np.concatenate(allzrobjs))
+    #allzrlogD = np.concatenate(allzrlogD)
+    #allzrobjs["logD"] = allzrlogD
+    #allzrobjs["conc"] = allzrobjs["rvir"]/allzrobjs["rs"]
+    #allzrobjs["logmvir"] = np.log10(allzrobjs["mvir"]/h0)
+    allzrobjs = load_all_data(zin_to_use=[zin], use_phantoms=global_use_phantoms)
     
     ii_subs = allzrobjs["pid"] != -1
     fig, axes = plt.subplots(5,1, figsize=(8,8*5))

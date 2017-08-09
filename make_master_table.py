@@ -68,7 +68,7 @@ if __name__=="__main__":
             nall = len(vmaxconc)
             print "   z={} vmaxconc missing {}/{} objects ({:.3f})".format(zin, nbad, nall, float(nbad)/nall)
             start3 = time.time()
-            actual_vmaxconc = solve_for_vmaxconc
+            actual_vmaxconc = solve_for_vmaxconc(vmaxconc)
             print "   Took {:.1f} to solve for vmaxconc".format(time.time()-start3)
             zrobjs["vmaxconc"] = actual_vmaxconc
 
@@ -93,6 +93,20 @@ if __name__=="__main__":
                 #allufdids_at_zin.append(ufdids_at_zin)
                 zrobjs[ufdtype] = map(lambda x: x in ufdids_at_zin, zrobjs["origid"])
             
+            ## Add some quantities of the extant halos
+            mtkeys = zrobjs["mtkey"].as_matrix()
+            zrobjs["extant_maxmass"] = np.array(extant.ix[mtkeys]["maxmass_mvir"])
+            zrobjs["halfmaxmass_scale"] = np.array(extant.ix[mtkeys]["halfmaxmass_scale"])
+            zrobjs["infall_scale"] = np.array(extant.ix[mtkeys]["infall_scale"])
+            zrobjs["infall_mvir"] = np.array(extant.ix[mtkeys]["infall_mvir"])
+            zrobjs["firstinfall_scale"] = np.array(extant.ix[mtkeys]["firstinfall_scale"])
+            zrobjs["firstinfall_mvir"] = np.array(extant.ix[mtkeys]["firstinfall_mvir"])
+            #"halfmaxmass_scale"
+            #"infall_scale"
+            #"infall_mvir"
+            #"firstinfall_scale"
+            #"firstinfall_mvir"
+
             #u'scale', u'id', u'desc_id', u'num_prog', u'pid', u'upid', u'phantom',
             #u'sam_mvir', u'mvir', u'rvir', u'rs', u'vrms', u'mmp',
             #u'scale_of_last_MM', u'vmax', u'posX', u'posY', u'posZ', u'pecVX',
@@ -105,6 +119,9 @@ if __name__=="__main__":
                              "rvir","rs","vmaxconc","spin_bullock",
                              "scale","scale_of_last_MM",
                              "posX","posY","posZ","pecVX","pecVY","pecVZ","Jx","Jy","Jz",
+                             "extant_maxmass","halfmaxmass_scale",
+                             "infall_scale","infall_mvir",
+                             "firstinfall_scale","firstinfall_mvir",
                              "surv", "maxm", "h14m", "h14r", "h14i",
                              "pid", "upid","mmp",
                              "origid","phantom"]]

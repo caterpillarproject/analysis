@@ -12,19 +12,12 @@ global_cmap = "tab20c_r"
 h0 = 0.6711
 
 import haloutils
-from caterpillaranalysis import MassAccrPlugin
 
 sys.path.append("./greg_dwarfs")
 import DwarfMethods as dm
 
-from classify_z8_objects import plot_histograms as plot_zin_histograms
-from plot_props_by_massbin import plot_extant_massbin_histograms
-from plot_joint_properties import plot_2d_hist, plot_2d_psurv
-
 from classify_z8_objects import medianscatter
 from classify_z8_objects import allufdtypes, ufdtypescolors, ufdlinestyles
-from classify_z8_objects import logMbins, logVmaxbins, concbins, logDbins, spinbins, TUbins
-from classify_z8_objects import logMbinsmid, logVmaxbinsmid, concbinsmid, logDbinsmid, spinbinsmid, TUbins
 from trace_z0_ufds_to_zr import AlexExtantDataPlugin
 
 ## Default
@@ -35,13 +28,21 @@ from trace_z0_ufds_to_zr import AlexExtantDataPlugin
 
 ## Vmaxconc
 global_use_phantoms=False
-prop_cols = ["logmvir", "T/|U|", "spin", "vmaxconc", "logD"]
-prop_short_labels = ["logM", "T/|U|", "spin", "vmaxconc", "logD"]
-prop_labels = ["logM (Msun)", "T/|U|", "spin", "vmaxconc", "logdist (kpc/h)"]
+#prop_cols = ["logmvir", "T/|U|", "spin", "vmaxconc", "logD"]
+#prop_short_labels = ["logM", "T/|U|", "spin", "vmaxconc", "logD"]
+#prop_labels = ["logM (Msun)", "T/|U|", "spin", "vmaxconc", "logdist (kpc/h)"]
+prop_cols = ["logmvir", "logeta", "spin", "vmaxconc", "logD"]
+prop_short_labels = ["logM", "logeta", "spin", "vmaxconc", "logD"]
+prop_labels = ["logM (Msun)", "log 2T/|U|", "spin", "vmaxconc", "logdist (kpc/h)"]
 
-prop_xlims = [(6.5,9), (0.5,2.5), (0,0.2), (0,20), (1,4)]
-from classify_z8_objects import all_bins, all_bins_mid
-all_bins = [np.arange(6,9,.2), np.arange(.5,2.5,.05),
+#from classify_z8_objects import all_bins, all_bins_mid
+#prop_xlims = [(6.5,9), (0.5,2.5), (0,0.2), (0,20), (1,4)]
+#all_bins = [np.arange(6,9,.2), np.arange(.5,2.5,.05),
+#            np.arange(0,.5,.02), np.arange(0,20,.5),
+#            np.arange(1,4,.1)]
+#all_bins_mid = [(bins[1:]+bins[:-1])/2. for bins in all_bins]
+prop_xlims = [(6.5,9), (-0.1,1.5), (0,0.2), (0,20), (1,4)]
+all_bins = [np.arange(6,9,.2), np.arange(-0.1,1.51,.05),
             np.arange(0,.5,.02), np.arange(0,20,.5),
             np.arange(1,4,.1)]
 all_bins_mid = [(bins[1:]+bins[:-1])/2. for bins in all_bins]
@@ -90,6 +91,7 @@ def load_all_data(zin_to_use = None, hid_to_use = None, use_phantoms=True):
             all_dfs.append(data)
     alldata = pd.concat(all_dfs, ignore_index=True)
     alldata["logmvir"] = np.log10(alldata["mvir"]/h0)
+    alldata["logeta"] = np.log10(2*alldata["T/|U|"])
     return alldata
 
 def histogram_by_halo(alldata, zin, propcol, bins, survtype=None):
@@ -110,7 +112,11 @@ def histogram_by_halo(alldata, zin, propcol, bins, survtype=None):
         except KeyError:
             pass # That host has no halos
         else:
-            h,x = np.histogram(df[propcol], bins=bins)
+            vals_to_hist = np.array(df[propcol])
+            vals_to_hist = vals_to_hist[np.isfinite(vals_to_hist)]
+            if len(vals_to_hist) != len(df):
+                print "halo {} prop {} has {} bad values".format(hid, propcol, len(df)-len(vals_to_hist))
+            h,x = np.histogram(vals_to_hist, bins=bins)
             output[i,:] = h
     return output
 
@@ -127,7 +133,9 @@ def histogram_2d_by_halo(alldata, zin, propcol1, propcol2, bins1, bins2):
     output = np.zeros((len(hids), len(bins1)-1, len(bins2)-1))
     for i,hid in enumerate(hids):
         df = groups.groupby(hid)
-        H,x,y = np.histogram2d(df[propcol1], df[propcol2], bins=[bins1,bins2])
+        vals_to_hist1 = np.array(df[propcol1]); vals_to_hist1 = vals_to_hist1[np.isfinite(vals_to_hist1)]
+        vals_to_hist2 = np.array(df[propcol2]); vals_to_hist2 = vals_to_hist2[np.isfinite(vals_to_hist2)]
+        H,x,y = np.histogram2d(vals_to_hist1, vals_to_hist2, bins=[bins1,bins2])
         output[i,:,:] = H
     return output
 
@@ -294,9 +302,58 @@ def make_fig_4(zin=8, alldata=None):
     fig.savefig("fig4_z{}.pdf".format(zin))
     return fig
 
-def make_fig_5(zin=8):
-    fig = plot_2d_hist(zin, fiducial_ufdtype, use_phantoms=global_use_phantoms)
-    fig.savefig("fig5_z{}.pdf".format(zin))
+def make_fig_5(zin=8, alldata=None, subs_only=False, hosts_only=False):
+    #fig = plot_2d_hist(zin, fiducial_ufdtype, use_phantoms=global_use_phantoms)
+    if alldata is None:
+        alldata = load_all_data(zin_to_use=[zin])
+
+    if subs_only and hosts_only:
+        raise ValueError("Must specify only one of subs or hosts only")
+    if subs_only:
+        alldata = alldata[alldata["pid"] != -1]
+        figname_extra = "_subs"
+    elif hosts_only:
+        alldata = alldata[alldata["pid"] == -1]
+        figname_extra = "_hosts"
+    else:
+        figname_extra = ""
+    
+    # remove nans
+    ii_to_remove = np.zeros(len(alldata), dtype=bool)
+    for col in prop_cols:
+        ii_to_remove = ii_to_remove | np.isnan(alldata[col])
+    if np.sum(ii_to_remove) > 0:
+        print "Removing {} bad points".format(np.sum(ii_to_remove))
+        alldata = alldata[~ii_to_remove]
+
+    Nfigs = len(all_bins)
+    fig, axes = plt.subplots(Nfigs, Nfigs, figsize=(8*Nfigs, 8*Nfigs))
+    for i, (ybins, ybins_mid, ylabel, ylim) in enumerate(zip(all_bins, all_bins_mid, prop_labels, prop_xlims)):
+        # First do i == j
+        ax = axes[i,i]
+        h,x,p = ax.hist(alldata[prop_cols[i]], bins=ybins)
+        ax.set_xlabel(ylabel)
+        ax.set_xlim(ylim)
+        for j, (xbins, xbins_mid, xlabel, xlim) in enumerate(zip(all_bins, all_bins_mid, prop_labels, prop_xlims)):
+            if j==i: continue
+            ax = axes[i,j]
+            H, xe, ye = np.histogram2d(alldata[prop_cols[j]], alldata[prop_cols[i]],
+                                       bins=[xbins,ybins])
+            H = np.log10(H)
+            im = ax.imshow(H.T, origin="lower", vmin=0, vmax=3.5, cmap=global_cmap,
+                           extent=[xbins[0],xbins[-1],ybins[0],ybins[-1]], aspect="auto")
+
+            ax.set_xlim(xlim)
+            ax.set_xlabel(xlabel)
+            ax.set_ylim(ylim)
+            ax.set_ylabel(ylabel)
+        
+    fig.subplots_adjust(right=.85)
+    cax = fig.add_axes([.87,.15,.03,.7])
+    cb = fig.colorbar(im, cax=cax)
+    cb.set_label("log N")
+
+    fig.savefig("fig5_z{}{}.pdf".format(zin,figname_extra))
 
 def make_fig_6(zin=8, alldata=None, subs_only=False, hosts_only=False):
     #fig = plot_2d_psurv(8, fiducial_ufdtype)
@@ -437,9 +494,12 @@ if __name__=="__main__":
         make_fig_2(zin,alldatazin)
         make_fig_3(zin,alldatazin)
         make_fig_4(zin,alldatazin)
-        make_fig_5(zin)
+        make_fig_5(zin,alldatazin)
+        make_fig_5(zin,alldatazin,subs_only=True)
+        make_fig_5(zin,alldatazin,hosts_only=True)
+        make_fig_6(zin,alldatazin)
         make_fig_6(zin,alldatazin,subs_only=True)
         make_fig_6(zin,alldatazin,hosts_only=True)
-        make_fig_6(zin,alldatazin)
+        plt.close("all")
     make_fig_7()
     make_fig_8()

@@ -31,18 +31,21 @@ class AlexExtantDataPlugin(PluginBase):
     - properties at zin = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] from the merger tree
     - properties at maxmass
     - properties at maxvmax
-    
-    - properties at infall [NOT DONE, takes a long time]
+    - properties at halfmaxmass (~formation time)
+    - properties at infall (to MW host)
+    - properties at firstinfall (to any host)
     """
     def __init__(self):
         super(AlexExtantDataPlugin, self).__init__()
         self.filename='AlexExtantData.npy'
         self.autofigname = 'NAN'
 
-        self.property_colnames = ['mvir','rvir','rs','vrms','vmax','posX','posY','posZ','spin','T/|U|','snap','origid','phantom']
+        self.float_colnames = ['scale','mvir','rvir','rs','vrms','vmax','posX','posY','posZ','spin','T/|U|']
+        self.int_colnames = ['snap','origid','phantom']
+        self.property_colnames = self.float_colnames + self.int_colnames
 
         self.zin_prefixes = ['z'+str(zin) for zin in all_zin]
-        self.prefixes = self.zin_prefixes+["maxmass","maxvmax"]
+        self.prefixes = self.zin_prefixes+["maxmass","maxvmax","halfmaxmass","infall","firstinfall"]
 
     def _analyze(self, hpath):
         if not haloutils.check_mergertree_exists(hpath,autoconvert=True):
@@ -51,8 +54,8 @@ class AlexExtantDataPlugin(PluginBase):
         hid = haloutils.get_parent_hid(hpath)
         
         property_colnames = self.property_colnames
-        float_colnames = ['mvir','rvir','rs','vrms','vmax','posX','posY','posZ','spin','T/|U|']
-        int_colnames = ['snap','origid','phantom']
+        float_colnames = self.float_colnames
+        int_colnames = self.int_colnames
     
         zin_prefixes = self.zin_prefixes
         prefixes = self.prefixes
@@ -66,7 +69,13 @@ class AlexExtantDataPlugin(PluginBase):
         print "Time to load zoom MTC with {} trees: {:.2f}".format(Ntrees, time.time()-start)
         property_dtypes = [mtc.fmttype[prop_name] for prop_name in property_colnames]
         
+        # Grab the host main branch
+        zoomid = haloutils.load_zoomid(hpath)
+        hostmt = mtc[zoomid]
+        mmp_map = hostmt.get_mmp_map()
+        hostmb = hostmt.getMainBranch(mmp_map=mmp_map)
         
+        # Setup output data
         all_colnames = ["mtkey"]
         all_dtypes = [np.dtype(np.int)]
         for prefix in prefixes:
@@ -83,10 +92,8 @@ class AlexExtantDataPlugin(PluginBase):
             row i of output has columns according to prefix
             Fill in from mb occording to snap
             """
-            ii = np.where(mb['snap'] == snap)[0]
             colnames = [prefix+"_"+prop_name for prop_name in property_colnames]
-            if len(ii) == 0:
-                # Fill empty
+            def fill_empty():
                 for col in colnames:
                     if col.split("_")[1] in float_colnames:
                         output[col][i] = np.nan
@@ -94,12 +101,19 @@ class AlexExtantDataPlugin(PluginBase):
                         output[col][i] = -1
                     else:
                         raise RuntimeError
+            
+            if snap is None:
+                fill_empty()
+                return
+            ii = np.where(mb['snap'] == snap)[0]
+            if len(ii) == 0:
+                fill_empty()
             else:
                 assert len(ii)==1, ii
                 mbrow = mb[ii][0]
                 for col,propcol in zip(colnames,property_colnames):
                     output[col][i] = mbrow[propcol]
-            pass
+            return
     
         start = time.time()
         for i,(mtkey, mt) in enumerate(mtc.Trees.iteritems()):
@@ -124,6 +138,19 @@ class AlexExtantDataPlugin(PluginBase):
             ix = np.argmax(mb['vmax'])
             snap_maxvmax = mb[ix]['snap']
             fill_data(i,"maxvmax",mb,snap_maxvmax)
+            
+            # halfmaxmass = zhalf of Mpeak
+            snap_halfmaxmass = get_Mpeak_zhalf_snap(mb)
+            fill_data(i,"halfmaxmass",mb,snap_halfmaxmass)
+            
+            # infall (to main MW)
+            snap_infall = get_infall_to_host_snap(mb, hostmb)
+            fill_data(i,"infall",mb,snap_infall)
+            
+            # firstinfall (to main MW)
+            snap_firstinfall = get_infall_to_any_snap(mb)
+            fill_data(i,"firstinfall",mb,snap_firstinfall)
+            
             if i % 1000 == 0:
                 print "  {:5} {:.1f}".format(i,time.time()-start)
                 start = time.time()
@@ -132,6 +159,50 @@ class AlexExtantDataPlugin(PluginBase):
         output = np.load(self.get_filename(hpath))
         index = output["mtkey"]
         return pd.DataFrame(output,index=index)
+
+def get_Mpeak_zhalf_snap(mb):
+    """ zhalf = first time you go above half of Mpeak """
+    assert mb[0]['snap'] > mb[-1]['snap'], (mb[0]['snap'], mb[-1]['snap'])
+    ix = np.argmax(mb["mvir"])
+    mhalf = mb[ix]["mvir"]/2.
+    # largest index (earlist time) where you go above half of mpeak
+    ixhalf = np.max(np.where(mb["mvir"] > mhalf)[0])
+    snap = mb[ixhalf]['snap']
+    return snap
+
+def get_infall_to_host_snap(submb, hostmb):
+    """
+    Snap before first time it is subhalo in main MW host
+    Based on getInfall from MTanalysis3
+    """
+    Nsub = len(submb)
+    Nhost = len(hostmb)
+    if Nhost < Nsub:
+        still_sub = np.where(hostmb["id"] == submb["upid"][0:Nhost])[0]
+    else:
+        still_sub = np.where(hostmb["id"][0:Nsub] == submb["upid"])[0]
+    # If never actually a sub
+    if len(still_sub)==0:
+        return None
+    # If began life as a subhalo
+    if still_sub[-1] == Nsub-1:
+        return None
+    # Otherwise grab the snap right before it falls into the host
+    ix = still_sub[-1] + 1
+    # Greg did a check for phantoms, but I will ignore that
+    return submb[ix]['snap']
+    
+def get_infall_to_any_snap(mb):
+    """
+    Snap before first time it is subhalo of ANY halo
+    """
+    still_sub = np.where(mb["upid"] != -1)[0]
+    if len(still_sub) == 0:
+        return None
+    ix = np.max(still_sub)
+    if ix == len(mb)-1:
+        return None
+    return mb[ix+1]['snap']
 
 def run_plugin():
     hpaths = dm.get_hpaths(field=False, lx=14)
@@ -302,6 +373,35 @@ if __name__=="__main__":
         #hpath = haloutils.get_hpath_lx(1631506, 14)
         data = plug.read(hpath)
         alldata.append(data)
+    am = abundance_matching.GarrisonKimmel()
+    LMmin1, LMmax1 = am.stellar_to_halo_mass([1000., 2.e5])
+    LMmin2, LMmax2 = am.stellar_to_halo_mass([2.e5, 5e7])
+    ii1 = np.logical_and(data["maxmass_mvir"] >= LMmin1, data["maxmass_mvir"] <= LMmax1)
+    ii2 = np.logical_and(data["maxmass_mvir"] >= LMmin2, data["maxmass_mvir"] <= LMmax2)
+    zinfall = 1./data["infall_scale"] - 1
+    finite_infall = np.isfinite(zinfall)
+    zfirstinfall = 1./data["firstinfall_scale"] - 1
+    finite_firstinfall = np.isfinite(zfirstinfall)
+    fig,axes = plt.subplots(1,2)
+    bins = np.arange(0,15,.5)
+    ax = axes[0]
+    ax.hist(zinfall[ii1 & finite_infall], label='UFDs', bins=bins, normed=True, histtype='step', color='k')
+    ax.hist(zinfall[ii2 & finite_infall], label='UFD < gal < SMC', bins=bins, normed=True, histtype='step', color='r')
+    ax.set_xlabel('z_infall MW')
+    print float(np.sum(zinfall < 1))/np.sum(finite_infall)
+    print float(np.sum((zinfall < 1) & ii1))/np.sum(finite_infall & ii1)
+    print float(np.sum((zinfall < 1) & ii2))/np.sum(finite_infall & ii2)
+    ax.legend(loc='upper right',fontsize=12)
+    ax = axes[1]
+    ax.hist(zfirstinfall[ii1 & finite_firstinfall], label='UFDs', bins=bins, normed=True, histtype='step', color='k')
+    ax.hist(zfirstinfall[ii2 & finite_firstinfall], label='UFD < gal < SMC', bins=bins,normed=True, histtype='step', color='r')
+    ax.set_xlabel('z_infall any')
+    print float(np.sum(zfirstinfall < 1))/np.sum(finite_firstinfall)
+    print float(np.sum((zfirstinfall < 1) & ii1))/np.sum(finite_firstinfall & ii1)
+    print float(np.sum((zfirstinfall < 1) & ii2))/np.sum(finite_firstinfall & ii2)
+    fig.savefig("test.png", bbox_inches='tight')
+
+def tmp():
     data = pd.concat(alldata, ignore_index=True)
     print time.time()-start
     #data = data[pd.notnull(data["z8_T/|U|"])]

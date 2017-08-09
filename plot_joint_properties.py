@@ -31,7 +31,7 @@ from trace_z0_ufds_to_zr import AlexExtantDataPlugin
 
 def plot_2d_hist(zin, which_to_plot, use_phantoms=True):
     ## HACK TO AVOID CIRCULAR REFERENCE
-    from plot_ufd_surv_figs import all_bins, all_bins_mid, prop_labels, prop_xlims
+    from plot_ufd_surv_figs import all_bins, all_bins_mid, prop_labels, prop_xlims, prop_cols
     hpaths = dm.get_hpaths(field=False, lx=14)
     all_dfs = []
     for hpath in hpaths:
@@ -47,7 +47,8 @@ def plot_2d_hist(zin, which_to_plot, use_phantoms=True):
     if which_to_plot != "all":
         df = df[df[which_to_plot]]
     
-    cols_to_plot = ["logmvir","T/|U|","spin","conc","logD"]
+    #cols_to_plot = ["logmvir","T/|U|","spin","conc","logD"]
+    cols_to_plot = prop_cols
 
     Nfigs = len(all_bins)
     fig, axes = plt.subplots(Nfigs, Nfigs, figsize=(8*Nfigs, 8*Nfigs))
