@@ -153,6 +153,7 @@ def run_get_accretion(suffix, lx,rerun=False):
 
 def load_next_halos(hpath,suffix):
     mhalos_path = get_suffix(suffix)
+    print(mhalos_path)
     minihalos = np.load(hpath+"/analysis/"+mhalos_path)
     next_ids = np.load(hpath+"/analysis/minihalo_descendants_"+suffix+'.npy')
     form_snap = np.load(hpath+'/analysis/form_snap_'+suffix+'.npy')
