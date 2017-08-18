@@ -19,19 +19,18 @@ def get_suffix(suffix):
         return 'all_lw_minihalo_array_kroupa.npy'
     if suffix == 'all_salpeter':
         return 'all_lw_minihalo_array_salpeter.npy'
-    if suffix == 'all_ricotti60':
+    if 'ricotti60' in suffix:
         return 'modified_ricotti_minihalo_array_6.0.npy'
-    if suffix == 'all_ricotti65':
+    if 'ricotti65' in suffix:
         return 'modified_ricotti_minihalo_array_6.5.npy'
-    if suffix == 'all_ricotti70':
+    if 'ricotti70' in suffix:
         return 'modified_ricotti_minihalo_array_7.0.npy'
-    if suffix == 'all_ricotti75':
+    if 'ricotti75' in suffix:
         return 'modified_ricotti_minihalo_array_7.5.npy'
-    if suffix == 'all_ricotti80':
+    if 'ricotti80' in suffix:
         return 'modified_ricotti_minihalo_array_8.0.npy'
     else:
         return ''
-
 
 def run_get_next(suffix, lx,rerun=False):
     #hpaths = htils.get_paper_paths_lx(lx)
