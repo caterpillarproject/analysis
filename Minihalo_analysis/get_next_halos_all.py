@@ -106,6 +106,7 @@ def run_get_accretion(hpath,suffix,rerun=False):
             next_ids = np.load("/failure/minihalo.npy")
         else:
             next_ids = np.load(hpath+"/analysis/accrete_snap_"+suffix+'.npy')
+            print("SUCCESSFULLY LOADED ACCRETE FILE",hpath)
     except:
         mtc = htils.load_mtc(hpath, indexbyrsid=True) #haloids=[]
         print 'loaded mtc', htils.hpath_name(hpath)
