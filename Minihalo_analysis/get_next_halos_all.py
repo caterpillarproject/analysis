@@ -4,6 +4,8 @@ import numpy as np
 import pylab as plt
 import pandas as pd
 import subprocess as sub
+from joblib import Parallel, delayed
+import MTanalysis3 as mta
 
 lx=14 
 suffix = 'all_minihalos'
@@ -85,71 +87,65 @@ def run_get_next(suffix, lx,rerun=False):
             print 'done'
 
 
-def run_get_accretion(suffix, lx,rerun=False):
-    import MTanalysis3 as mta
+def run_get_accretion(hpath,suffix,rerun=False):
     #hpaths = htils.get_paper_paths_lx(lx)
-    hpaths = htils.get_all_halo_paths_lx(lx)
-    for hpath in hpaths:
-        hid = htils.get_parent_hid(hpath)
-        print hid
+    #hpaths = htils.get_all_halo_paths_lx(lx)
+    hid = htils.get_parent_hid(hpath)
+    print hid
+    sys.stdout.flush()
+    mhalos_path = get_suffix(suffix)
+    try:
+        print hpath+"/analysis/"+mhalos_path
+        minihalos = np.load(hpath+"/analysis/"+mhalos_path)
+    except:
+        print 'no minihalo data for', hid, 'skipping it'
+        continue
+    try:
+        if rerun: # guarantee an exception, so it triggers re-running
+            next_ids = np.load("/failure/minihalo.npy")
+        else:
+            next_ids = np.load(hpath+"/analysis/accrete_snap_"+suffix+'.npy')
+    except:
+        mtc = htils.load_mtc(hpath, indexbyrsid=True) #haloids=[]
+        print 'loaded mtc', htils.hpath_name(hpath)
         sys.stdout.flush()
-        mhalos_path = get_suffix(suffix)
-        try:
-            print hpath+"/analysis/"+mhalos_path
-            minihalos = np.load(hpath+"/analysis/"+mhalos_path)
-        except:
-            print 'no minihalo data for', hid, 'skipping it'
-            continue
+        # create mapping to trees
+        tree_id_map = {}
+        for value,key in enumerate(minihalos['base_rsid']):
+            tree_id_map.setdefault(key, []).append(value)
+        infall_snap = [-1]*len(minihalos)
+        host_merge_snap = [-1]*len(minihalos)
+        
+        hostkey= htils.load_zoomid(hpath)
+        hosttree=mtc.Trees[hostkey]
+        mmp_map = hosttree.get_mmp_map()
+        host_mb = hosttree.getMainBranch(0, mmp_map) # main branch of host starting from z=0 snapshot
+        for i,key in enumerate(tree_id_map.iterkeys()):
+            tree=mtc.Trees[key]
+            desc_map = tree.get_desc_map()
+            for minirow in tree_id_map[key]:
+                minihalo = minihalos[minirow]
+                desc=tree.getDescBranch(minihalo['row'],desc_map)
+                iloc,isnap = mta.getInfall(desc[::-1],host_mb) 
+                if isnap is None:
+                    infall_snap[minirow] = -2
+                else:
+                    infall_snap[minirow] = isnap
+                # if merged with host, desc['id'] == host_mb['id']
+                branch_len = min(len(desc),len(host_mb))
+                inhost = np.where(desc[::-1]['id'][0:branch_len]==host_mb['id'][0:branch_len])[0]
+                if len(inhost)==0:
+                    host_merge_snap[minirow] = -2
+                else:
+                    host_merge_snap[minirow] = host_mb['snap'][inhost[-1]]
+            if i%500==0:
+                print i
+                sys.stdout.flush()
+        np.save(hpath+'/analysis/accrete_snap_'+suffix, infall_snap)
+        np.save(hpath+'/analysis/host_merge_snap_'+suffix, host_merge_snap)
+        print 'done'
 
-        try:
-            if rerun: # guarantee an exception, so it triggers re-running
-                next_ids = np.load("/failure/minihalo.npy")
-            else:
-                next_ids = np.load(hpath+"/analysis/accrete_snap_"+suffix+'.npy')
-        except:
-            mtc = htils.load_mtc(hpath, indexbyrsid=True) #haloids=[]
-            print 'loaded mtc', htils.hpath_name(hpath)
-            sys.stdout.flush()
-            # create mapping to trees
-            tree_id_map = {}
-            for value,key in enumerate(minihalos['base_rsid']):
-                tree_id_map.setdefault(key, []).append(value)
-
-            infall_snap = [-1]*len(minihalos)
-            host_merge_snap = [-1]*len(minihalos)
-            
-            hostkey= htils.load_zoomid(hpath)
-            hosttree=mtc.Trees[hostkey]
-            mmp_map = hosttree.get_mmp_map()
-            host_mb = hosttree.getMainBranch(0, mmp_map) # main branch of host starting from z=0 snapshot
-            for i,key in enumerate(tree_id_map.iterkeys()):
-                tree=mtc.Trees[key]
-                desc_map = tree.get_desc_map()
-                for minirow in tree_id_map[key]:
-                    minihalo = minihalos[minirow]
-                    desc=tree.getDescBranch(minihalo['row'],desc_map)
-                    iloc,isnap = mta.getInfall(desc[::-1],host_mb) 
-                    if isnap is None:
-                        infall_snap[minirow] = -2
-                    else:
-                        infall_snap[minirow] = isnap
-
-                    # if merged with host, desc['id'] == host_mb['id']
-                    branch_len = min(len(desc),len(host_mb))
-                    inhost = np.where(desc[::-1]['id'][0:branch_len]==host_mb['id'][0:branch_len])[0]
-                    if len(inhost)==0:
-                        host_merge_snap[minirow] = -2
-                    else:
-                        host_merge_snap[minirow] = host_mb['snap'][inhost[-1]]
-
-                if i%500==0:
-                    print i
-                    sys.stdout.flush()
-            np.save(hpath+'/analysis/accrete_snap_'+suffix, infall_snap)
-            np.save(hpath+'/analysis/host_merge_snap_'+suffix, host_merge_snap)
-            print 'done'
-
-
+        
 def load_next_halos(hpath,suffix):
     mhalos_path = get_suffix(suffix)
     print(mhalos_path)
@@ -181,6 +177,11 @@ print 'done with salpeter'
 #print 'done with kroupa'
 #run_get_next('all_salpeter', lx)
 #print 'done with salpeter'
+
+#for suf in ["ricotti60","ricotti65","ricotti70","ricotti75","ricotti80"]:
+#    run_get_next('all_'+suf, 14)
+#    print 'done with suf'
+
 
 
 """
