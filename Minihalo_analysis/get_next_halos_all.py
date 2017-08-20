@@ -94,12 +94,13 @@ def run_get_accretion(hpath,suffix,rerun=False):
     print hid
     sys.stdout.flush()
     mhalos_path = get_suffix(suffix)
+    
     try:
         print hpath+"/analysis/"+mhalos_path
         minihalos = np.load(hpath+"/analysis/"+mhalos_path)
     except:
         print 'no minihalo data for', hid, 'skipping it'
-        continue
+    
     try:
         if rerun: # guarantee an exception, so it triggers re-running
             next_ids = np.load("/failure/minihalo.npy")
@@ -145,7 +146,7 @@ def run_get_accretion(hpath,suffix,rerun=False):
         np.save(hpath+'/analysis/host_merge_snap_'+suffix, host_merge_snap)
         print 'done'
 
-        
+
 def load_next_halos(hpath,suffix):
     mhalos_path = get_suffix(suffix)
     print(mhalos_path)
